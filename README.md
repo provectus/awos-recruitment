@@ -23,7 +23,7 @@ Add the server to your MCP configuration:
 
 | Tool | Description |
 |---|---|
-| `search_capabilities` | Search the capability registry for skills, agents, and tools matching a natural language query. Returns name, description, and tags for each match. |
+| `search_capabilities` | Search the capability registry using natural language. Returns ranked results with name, description, and relevance score (0–100). Supports optional `type` filter (`skill`, `agent`, `tool`). |
 
 ## Quick Start
 

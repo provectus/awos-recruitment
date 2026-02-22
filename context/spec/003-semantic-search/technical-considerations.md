@@ -1,7 +1,7 @@
 # Technical Specification: Semantic Capability Search
 
 - **Functional Specification:** `context/spec/003-semantic-search/functional-spec.md`
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** AWOS
 
 ---

@@ -22,9 +22,9 @@ _The core infrastructure: get the MCP server running with a functional registry 
 
 _Once the registry is live, add semantic search and zero-friction installation._
 
-- [ ] **Semantic Capability Search**
-  - [ ] **Embedding-Based Indexing:** Generate and store vector embeddings for all capability metadata to enable semantic matching.
-  - [ ] **Natural Language Query:** Accept natural language search queries from clients and return ranked results based on semantic relevance.
+- [x] **Semantic Capability Search**
+  - [x] **Embedding-Based Indexing:** Generate and store vector embeddings for all capability metadata to enable semantic matching.
+  - [x] **Natural Language Query:** Accept natural language search queries from clients and return ranked results based on semantic relevance.
 
 - [ ] **Capability Installation**
   - [ ] **npx Install Flow:** Enable one-command installation of discovered capabilities via an npx package, directly from search results.

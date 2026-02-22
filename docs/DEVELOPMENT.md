@@ -44,6 +44,9 @@ Override defaults via environment variables or `server/.env`:
 | `AWOS_HOST` | `0.0.0.0` | Server bind address |
 | `AWOS_PORT` | `8000` | Server port |
 | `AWOS_VERSION` | `0.1.0` | Server version |
+| `AWOS_REGISTRY_PATH` | `../registry` | Path to the capability registry directory |
+| `AWOS_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformer model for embeddings |
+| `AWOS_SEARCH_THRESHOLD` | `20` | Minimum relevance score (0–100) for search results |
 
 ## Project Structure
 
@@ -51,8 +54,10 @@ Override defaults via environment variables or `server/.env`:
 awos-recruitment/
 ├── server/              # Python FastMCP MCP server
 │   ├── src/awos_recruitment_mcp/
-│   │   ├── server.py        # FastMCP instance, health check, tool imports
+│   │   ├── server.py        # FastMCP instance, lifespan handler, health check
 │   │   ├── config.py        # Config from env vars
+│   │   ├── registry.py      # Registry loader (scans and parses capabilities)
+│   │   ├── search_index.py  # ChromaDB search index (build + query)
 │   │   ├── models/          # Pydantic models (capabilities, skills, MCP defs)
 │   │   ├── tools/           # MCP tool implementations
 │   │   └── validate/        # Registry validation CLI
@@ -112,7 +117,11 @@ context/spec/
 │   ├── functional-spec.md
 │   ├── technical-considerations.md
 │   └── tasks.md
-└── 002-capability-registry-indexing/       # Completed
+├── 002-capability-registry-indexing/       # Completed
+│   ├── functional-spec.md
+│   ├── technical-considerations.md
+│   └── tasks.md
+└── 003-semantic-search/                   # Completed
     ├── functional-spec.md
     ├── technical-considerations.md
     └── tasks.md

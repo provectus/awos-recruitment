@@ -1,7 +1,7 @@
 # Functional Specification: Semantic Capability Search
 
 - **Roadmap Item:** Semantic Capability Search — Enable embedding-based indexing and natural language querying of the capability registry.
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** AWOS
 
 ---
@@ -26,9 +26,9 @@ This is the foundation of the product's core value proposition: **zero-friction,
 - Embeddings are generated from the **description** field of each capability's metadata.
 - Embeddings must be generated **on server startup**. When the server starts, it reads the current state of the Git-managed registry and indexes all capabilities.
   - **Acceptance Criteria:**
-    - [ ] When the server starts, embeddings are generated for every capability in the registry.
-    - [ ] If a capability has no description, it is skipped during indexing (it will not appear in search results).
-    - [ ] Indexing completes before the search tool becomes available to clients.
+    - [x] When the server starts, embeddings are generated for every capability in the registry.
+    - [x] If a capability has no description, it is skipped during indexing (it will not appear in search results).
+    - [x] Indexing completes before the search tool becomes available to clients.
 
 ### 2.2 Natural Language Query (Search Tool)
 
@@ -43,14 +43,14 @@ This is the foundation of the product's core value proposition: **zero-friction,
 - **Result limit:** Up to **10** results per query.
 - **Relevance threshold:** Results with a relevance score below a minimum threshold are excluded, even if fewer than 10 results would be returned. [NEEDS CLARIFICATION: What should the exact threshold value be? This will likely be tuned during implementation.]
   - **Acceptance Criteria:**
-    - [ ] When a client sends a valid query (e.g., "PostgreSQL migration"), the tool returns up to 10 results ranked by relevance, highest score first.
-    - [ ] Each result contains `name`, `description`, and `score` (integer 0–100).
-    - [ ] Results below the minimum relevance threshold are not returned.
-    - [ ] When a client sends a query with a `type` filter (e.g., `type: "agent"`), only capabilities of that type are returned.
-    - [ ] When a client sends an invalid `type` value, the tool returns an error.
-    - [ ] When a client sends an empty or blank `query`, the tool returns an error indicating that a query is required.
-    - [ ] When no capabilities match the query (or all are below the threshold), the tool returns an empty list.
-    - [ ] Search results are returned within 2 seconds.
+    - [x] When a client sends a valid query (e.g., "PostgreSQL migration"), the tool returns up to 10 results ranked by relevance, highest score first.
+    - [x] Each result contains `name`, `description`, and `score` (integer 0–100).
+    - [x] Results below the minimum relevance threshold are not returned.
+    - [x] When a client sends a query with a `type` filter (e.g., `type: "agent"`), only capabilities of that type are returned.
+    - [x] When a client sends an invalid `type` value, the tool returns an error.
+    - [x] When a client sends an empty or blank `query`, the tool returns an error indicating that a query is required.
+    - [x] When no capabilities match the query (or all are below the threshold), the tool returns an empty list.
+    - [x] Search results are returned within 2 seconds.
 
 ---
 
