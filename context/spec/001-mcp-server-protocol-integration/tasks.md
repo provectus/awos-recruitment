@@ -18,9 +18,9 @@ The smallest proof of life — a FastMCP server that starts, listens on Streamab
 
 Add the `GET /health` custom HTTP route so the server's liveness can be verified independently of MCP.
 
-- [ ] Add a `GET /health` custom route to `server.py` using `@mcp.custom_route`. It returns a JSON response `{"status": "ok", "version": "<version>"}` with HTTP 200. **[Agent: python-expert]**
-- [ ] Verify: start the server, `curl http://localhost:8000/health` returns 200 with the expected JSON body. Write a pytest test for the health check endpoint. Run `pytest` and confirm all tests pass (including Slice 1 tests). **[Agent: qa-tester]**
-- [ ] Git commit: "Add health check endpoint"
+- [x] Add a `GET /health` custom route to `server.py` using `@mcp.custom_route`. It returns a JSON response `{"status": "ok", "version": "<version>"}` with HTTP 200. **[Agent: python-expert]**
+- [x] Verify: start the server, `curl http://localhost:8000/health` returns 200 with the expected JSON body. Write a pytest test for the health check endpoint. Run `pytest` and confirm all tests pass (including Slice 1 tests). **[Agent: qa-tester]**
+- [x] Git commit: "Add health check endpoint"
 
 ---
 
@@ -28,7 +28,7 @@ Add the `GET /health` custom HTTP route so the server's liveness can be verified
 
 Wire up the MCP tool so a client can discover and invoke it, receiving mock capability results.
 
-- [ ] Create `models/capability.py` with a `CapabilityResult` Pydantic model (`name: str`, `description: str`, `tags: list[str]`). **[Agent: python-expert]**
-- [ ] Create `tools/search.py` — define a hardcoded list of 3–5 mock `CapabilityResult` instances. Implement the `search_capabilities` tool decorated with `@mcp.tool`, accepting `query: str`, returning `list[dict]` (serialized from mock data, sliced to max 10). Import the tools module in `server.py` to trigger registration. **[Agent: python-expert]**
-- [ ] Verify: write pytest tests that confirm: (1) `search_capabilities` appears in the tool list, (2) calling it returns a list of results with `name`, `description`, `tags` fields, (3) results are capped at 10, (4) an empty string query returns a successful response. Run `pytest` and confirm all tests pass (including Slice 1 and 2 tests). **[Agent: qa-tester]**
-- [ ] Git commit: "Add search_capabilities MCP tool with mock data"
+- [x] Create `models/capability.py` with a `CapabilityResult` Pydantic model (`name: str`, `description: str`, `tags: list[str]`). **[Agent: python-expert]**
+- [x] Create `tools/search.py` — define a hardcoded list of 3–5 mock `CapabilityResult` instances. Implement the `search_capabilities` tool decorated with `@mcp.tool`, accepting `query: str`, returning `list[dict]` (serialized from mock data, sliced to max 10). Import the tools module in `server.py` to trigger registration. **[Agent: python-expert]**
+- [x] Verify: write pytest tests that confirm: (1) `search_capabilities` appears in the tool list, (2) calling it returns a list of results with `name`, `description`, `tags` fields, (3) results are capped at 10, (4) an empty string query returns a successful response. Run `pytest` and confirm all tests pass (including Slice 1 and 2 tests). **[Agent: qa-tester]**
+- [x] Git commit: "Add search_capabilities MCP tool with mock data"

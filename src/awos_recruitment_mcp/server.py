@@ -28,3 +28,8 @@ mcp = FastMCP(
 async def health_check(request: Request) -> JSONResponse:
     """Return server health status and version."""
     return JSONResponse({"status": "ok", "version": config.version}, status_code=200)
+
+
+# Import tool modules AFTER `mcp` is created so they can reference it without
+# triggering a circular-import error.
+import awos_recruitment_mcp.tools.search  # noqa: E402, F401 — registers MCP tools
