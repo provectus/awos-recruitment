@@ -1,7 +1,7 @@
 # Technical Specification: Capability Registry & Indexing
 
 - **Functional Specification:** `context/spec/002-capability-registry-indexing/functional-spec.md`
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** AWOS
 
 ---

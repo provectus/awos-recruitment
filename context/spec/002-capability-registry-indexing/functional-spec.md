@@ -1,7 +1,7 @@
 # Functional Specification: Capability Registry & Indexing
 
 - **Roadmap Item:** Capability Registry & Indexing — Ingest and index a Git-managed library of skills, agents, and tools with structured metadata; Define and enforce a consistent metadata schema for all registered capabilities.
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** AI Assistant
 
 ---
@@ -46,10 +46,10 @@ registry/
 - **MCP definitions** live as flat YAML files under `registry/mcp/`.
 
 **Acceptance Criteria:**
-- [ ] `registry/skills/` directory exists and is documented as the location for skill entries.
-- [ ] `registry/mcp/` directory exists and is documented as the location for MCP definition entries.
-- [ ] Each skill entry is a subdirectory containing at minimum a `SKILL.md` file.
-- [ ] Each MCP entry is a single `.yaml` file directly under `registry/mcp/`.
+- [x] `registry/skills/` directory exists and is documented as the location for skill entries.
+- [x] `registry/mcp/` directory exists and is documented as the location for MCP definition entries.
+- [x] Each skill entry is a subdirectory containing at minimum a `SKILL.md` file.
+- [x] Each MCP entry is a single `.yaml` file directly under `registry/mcp/`.
 
 ### 2.2 Skill Metadata Schema
 
@@ -73,11 +73,11 @@ Skills use the **existing Claude Code SKILL.md front matter schema** exactly as 
 For registry validation purposes, `name` and `description` are **required**. All other fields are optional.
 
 **Acceptance Criteria:**
-- [ ] Every SKILL.md in the registry has valid YAML front matter with at least `name` and `description` fields.
-- [ ] The `name` field contains only lowercase letters, numbers, and hyphens, and is at most 64 characters.
-- [ ] The `description` field is a non-empty string.
-- [ ] The markdown body below the front matter is non-empty.
-- [ ] No unknown or custom front matter fields are present (only the fields defined in the Claude Code skill schema are accepted).
+- [x] Every SKILL.md in the registry has valid YAML front matter with at least `name` and `description` fields.
+- [x] The `name` field contains only lowercase letters, numbers, and hyphens, and is at most 64 characters.
+- [x] The `description` field is a non-empty string.
+- [x] The markdown body below the front matter is non-empty.
+- [x] No unknown or custom front matter fields are present (only the fields defined in the Claude Code skill schema are accepted).
 
 ### 2.3 MCP Definition Schema
 
@@ -108,11 +108,11 @@ config:
 The `config` block is a **complete `.mcp.json` server entry** — the key is the server identifier, and the value is the server configuration. This allows direct extraction and insertion into `.mcp.json`.
 
 **Acceptance Criteria:**
-- [ ] Every `.yaml` file in `registry/mcp/` has `name`, `description`, and `config` fields.
-- [ ] The `name` field is a non-empty string.
-- [ ] The `description` field is a non-empty string.
-- [ ] The `config` field is an object containing exactly one key (the server identifier) whose value is a valid server configuration object.
-- [ ] The server configuration within `config` contains at least a `type` field.
+- [x] Every `.yaml` file in `registry/mcp/` has `name`, `description`, and `config` fields.
+- [x] The `name` field is a non-empty string.
+- [x] The `description` field is a non-empty string.
+- [x] The `config` field is an object containing exactly one key (the server identifier) whose value is a valid server configuration object.
+- [x] The server configuration within `config` contains at least a `type` field.
 
 ### 2.4 Registry Validation Command
 
@@ -148,22 +148,22 @@ just validate-registry --format json    # JSON output for CI
 ```
 
 **Acceptance Criteria:**
-- [ ] Running `just validate-registry` executes the Python validation script against all entries in `registry/`.
-- [ ] A valid registry produces zero exit code and a success message.
-- [ ] An invalid registry produces non-zero exit code.
-- [ ] With `--format human` (or no flag), output lists each error with file path, field name, and problem description.
-- [ ] With `--format json`, output is valid JSON containing the same error information.
-- [ ] The script correctly identifies: missing required fields, invalid field values, malformed YAML, missing SKILL.md files, and structural issues in MCP config blocks.
+- [x] Running `just validate-registry` executes the Python validation script against all entries in `registry/`.
+- [x] A valid registry produces zero exit code and a success message.
+- [x] An invalid registry produces non-zero exit code.
+- [x] With `--format human` (or no flag), output lists each error with file path, field name, and problem description.
+- [x] With `--format json`, output is valid JSON containing the same error information.
+- [x] The script correctly identifies: missing required fields, invalid field values, malformed YAML, missing SKILL.md files, and structural issues in MCP config blocks.
 
 ### 2.5 Example Capabilities
 
 The registry is seeded with **2–3 real, useful** examples for each capability type. These serve as both documentation-by-example and initial registry content.
 
 **Acceptance Criteria:**
-- [ ] The registry contains at least 2 real, useful skill entries under `registry/skills/`.
-- [ ] The registry contains at least 2 real, useful MCP definition entries under `registry/mcp/`.
-- [ ] All example entries pass the validation command.
-- [ ] Examples demonstrate different configurations (e.g., one skill with `context: fork`, one without; one MCP with `stdio` type, one with another type).
+- [x] The registry contains at least 2 real, useful skill entries under `registry/skills/`.
+- [x] The registry contains at least 2 real, useful MCP definition entries under `registry/mcp/`.
+- [x] All example entries pass the validation command.
+- [x] Examples demonstrate different configurations (e.g., one skill with `context: fork`, one without; one MCP with `stdio` type, one with another type). _Note: Both skills use similar front matter and both MCP definitions use stdio — accepted as-is per user decision._
 
 ---
 

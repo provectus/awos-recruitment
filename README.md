@@ -10,7 +10,7 @@ AI assistants (like Claude Code) connect to the AWOS Recruitment MCP server to s
 |---|---|---|
 | `server/` | Python FastMCP MCP server — search and discovery engine | Active |
 | `cli/` | TypeScript npx package — capability installation CLI | Planned |
-| `registry/` | Git-managed catalog of skills, agents, and tools | Planned |
+| `registry/` | Git-managed catalog of skills, agents, and tools | Active |
 | `context/` | Product documentation, specs, and roadmap | -- |
 
 ## Quick Start
@@ -37,12 +37,30 @@ The server starts on `http://0.0.0.0:8000` with:
 
 Copy `server/.env.example` to `server/.env` to override defaults.
 
+### Validate Registry
+
+```bash
+just validate-registry                  # human-readable output (default)
+just validate-registry --format json    # JSON output for CI
+```
+
 ### Running Tests
 
 ```bash
 cd server
 uv run pytest -v
 ```
+
+## Capability Registry
+
+The `registry/` directory is the Git-managed catalog of capabilities that the server indexes and searches over.
+
+| Path | Contents |
+|---|---|
+| `registry/skills/<name>/SKILL.md` | Claude Code skills — YAML front matter (name, description, etc.) + markdown instructions |
+| `registry/mcp/<name>.yaml` | MCP server definitions — name, description, and `.mcp.json`-compatible config |
+
+To add a new capability, create the appropriate file/directory and run `just validate-registry` to ensure it passes schema validation.
 
 ## MCP Tools
 

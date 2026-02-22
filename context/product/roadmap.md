@@ -12,9 +12,9 @@ _The core infrastructure: get the MCP server running with a functional registry 
   - [x] **MCP Server Scaffold:** Stand up the remote MCP server with a health check and basic request/response lifecycle.
   - [x] **MCP Tool Endpoints:** Expose search and discovery as MCP tools that any compatible AI assistant can call natively.
 
-- [ ] **Capability Registry & Indexing**
-  - [ ] **Git-Managed Catalog:** Ingest and index a Git-managed library of skills, agents, and tools with structured metadata (name, description, tags, stack compatibility, maturity, author).
-  - [ ] **Metadata Schema & Validation:** Define and enforce a consistent metadata schema for all registered capabilities.
+- [x] **Capability Registry & Indexing**
+  - [x] **Git-Managed Catalog:** Ingest and index a Git-managed library of skills, agents, and tools with structured metadata.
+  - [x] **Metadata Schema & Validation:** Define and enforce a consistent metadata schema for all registered capabilities.
 
 ---
 
