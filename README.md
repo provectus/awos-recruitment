@@ -25,6 +25,22 @@ Add the server to your MCP configuration:
 |---|---|
 | `search_capabilities` | Search the capability registry using natural language. Returns ranked results with name, description, and relevance score (0–100). Supports optional `type` filter (`skill`, `agent`, `tool`). |
 
+## Install Capabilities
+
+Once connected, install discovered capabilities directly into your project:
+
+```bash
+# Install a skill
+npx awos skill modern-python-development
+
+# Install an MCP server definition
+npx awos mcp context7
+
+# Install multiple at once
+npx awos skill modern-python-development typescript-development
+npx awos mcp context7 playwright
+```
+
 ## Quick Start
 
 ```bash
@@ -34,6 +50,7 @@ just serve
 The server starts on `http://0.0.0.0:8000` with:
 - **MCP endpoint:** `POST /mcp` (Streamable HTTP)
 - **Health check:** `GET /health`
+- **Bundle endpoints:** `POST /bundle/skills`, `POST /bundle/mcp`
 
 ## Documentation
 

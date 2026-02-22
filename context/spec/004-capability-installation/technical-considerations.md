@@ -1,7 +1,7 @@
 # Technical Specification: Capability Installation
 
 - **Functional Specification:** `context/spec/004-capability-installation/functional-spec.md`
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** Engineering
 
 ---

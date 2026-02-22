@@ -6,6 +6,8 @@
 |------|---------|---------|
 | [Python](https://www.python.org/) | 3.12+ | Server runtime |
 | [uv](https://docs.astral.sh/uv/) | latest | Python package and project manager |
+| [Node.js](https://nodejs.org/) | 20+ | CLI runtime |
+| [npm](https://www.npmjs.com/) | 10+ | CLI package manager |
 | [just](https://github.com/casey/just) | latest | Command runner |
 
 ## Getting Started
@@ -13,6 +15,9 @@
 ```bash
 # Install server dependencies
 cd server && uv sync
+
+# Install CLI dependencies
+cd cli && npm install
 
 # Copy environment config (optional — defaults work out of the box)
 cp server/.env.example server/.env
@@ -66,7 +71,14 @@ awos-recruitment/
 ├── registry/            # Git-managed capability catalog
 │   ├── skills/              # Claude Code skill definitions
 │   └── mcp/                 # MCP server definitions
-├── cli/                 # TypeScript npx package (planned)
+├── cli/                 # TypeScript npx package for capability installation
+│   ├── src/
+│   │   ├── index.ts         # Entry point with error boundary
+│   │   ├── cli.ts           # Argument parsing and subcommand routing
+│   │   ├── commands/        # skill and mcp install commands
+│   │   └── lib/             # download, json-merge, errors, types
+│   ├── package.json
+│   └── tsconfig.json
 ├── context/             # Product docs, specs, and roadmap
 │   ├── product/             # Product definition, architecture, roadmap
 │   └── spec/                # Feature specifications
@@ -121,7 +133,11 @@ context/spec/
 │   ├── functional-spec.md
 │   ├── technical-considerations.md
 │   └── tasks.md
-└── 003-semantic-search/                   # Completed
+├── 003-semantic-search/                   # Completed
+│   ├── functional-spec.md
+│   ├── technical-considerations.md
+│   └── tasks.md
+└── 004-capability-installation/           # Completed
     ├── functional-spec.md
     ├── technical-considerations.md
     └── tasks.md
