@@ -1,3 +1,4 @@
+import { installSkills } from "./commands/skill.js";
 import { CliError } from "./lib/errors.js";
 
 const USAGE = `Usage: awos <command> <names...>
@@ -6,7 +7,7 @@ Commands:
   skill   Install skills into .claude/skills/
   mcp     Install MCP servers into .mcp.json`;
 
-export function run(): void {
+export async function run(): Promise<void> {
   const args = process.argv.slice(2);
   const subcommand = args[0];
   const names = args.slice(1);
@@ -30,7 +31,7 @@ export function run(): void {
 
   switch (subcommand) {
     case "skill":
-      console.log("skill command: not yet implemented");
+      await installSkills(names);
       break;
     case "mcp":
       console.log("mcp command: not yet implemented");

@@ -3,9 +3,7 @@
 import { run } from "./cli.js";
 import { CliError } from "./lib/errors.js";
 
-try {
-  run();
-} catch (error: unknown) {
+run().catch((error: unknown) => {
   if (error instanceof CliError) {
     process.stderr.write(error.message + "\n");
     process.exit(error.exitCode);
@@ -13,4 +11,4 @@ try {
 
   process.stderr.write("Unexpected error\n");
   process.exit(1);
-}
+});

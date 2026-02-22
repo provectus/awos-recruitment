@@ -31,11 +31,11 @@ _Second server-side piece: POST a list of MCP tool names, get a tar.gz of YAML f
 
 _Runnable CLI that parses subcommands and prints help/errors — no server calls yet._
 
-- [ ] **Initialize the `cli/` package.** Create `package.json` (name, version, `"type": "module"`, `bin` entry, scripts for build/test/lint), `tsconfig.json` (ES2022, Node16, strict), install dependencies (`tar`, `yaml`, `typescript`, `@types/node`, `vitest`). **[Agent: typescript-expert]**
-- [ ] **Create entry point and CLI routing.** `src/index.ts` (shebang, top-level error boundary), `src/cli.ts` (parse `process.argv`, route to `skill`/`mcp` subcommand, print usage on invalid input), `src/lib/errors.ts` (CliError hierarchy with exit codes), `src/lib/types.ts` (shared interfaces). **[Agent: typescript-expert]**
-- [ ] **Verify:** Run `cd cli && npm run build && node dist/index.js` — prints usage message. `node dist/index.js skill` — prints error about missing names. `node dist/index.js invalid` — prints error about unknown subcommand. **[Agent: qa-tester]**
+- [x] **Initialize the `cli/` package.** Create `package.json` (name, version, `"type": "module"`, `bin` entry, scripts for build/test/lint), `tsconfig.json` (ES2022, Node16, strict), install dependencies (`tar`, `yaml`, `typescript`, `@types/node`, `vitest`). **[Agent: typescript-expert]**
+- [x] **Create entry point and CLI routing.** `src/index.ts` (shebang, top-level error boundary), `src/cli.ts` (parse `process.argv`, route to `skill`/`mcp` subcommand, print usage on invalid input), `src/lib/errors.ts` (CliError hierarchy with exit codes), `src/lib/types.ts` (shared interfaces). **[Agent: typescript-expert]**
+- [x] **Verify:** Run `cd cli && npm run build && node dist/index.js` — prints usage message. `node dist/index.js skill` — prints error about missing names. `node dist/index.js invalid` — prints error about unknown subcommand. **[Agent: qa-tester]**
 
-- [ ] **Git commit** **[Agent: general-purpose]**
+- [x] **Git commit** **[Agent: general-purpose]**
 
 ---
 
@@ -43,12 +43,12 @@ _Runnable CLI that parses subcommands and prints help/errors — no server calls
 
 _First real CLI value: `npx awos skill modern-python-development` works against a running server._
 
-- [ ] **Add `download.ts` library.** `fetch()` a bundle endpoint URL, pipe response through `zlib.createGunzip()` and `tar.extract()` to a temp directory. Handle network errors (unreachable server) and bad responses (non-200, corrupt body). Return the temp directory path. **[Agent: typescript-expert]**
-- [ ] **Add `commands/skill.ts`.** POST names to `{AWOS_SERVER_URL}/bundle/skills` via `download.ts`. Diff requested names against extracted directories to find not-found names. For each found skill: check `.claude/skills/<name>/` doesn't exist (conflict → skip with error), otherwise copy directory. Print per-item results (installed / not found / conflict). Exit non-zero if any failed. **[Agent: typescript-expert]**
-- [ ] **Add unit tests** for `download.ts` (mock `fetch`, test network errors, corrupt responses) and `commands/skill.ts` (temp dirs, mock HTTP, verify files written, conflict detection, not-found reporting). **[Agent: typescript-expert]**
-- [ ] **Verify end-to-end:** Start the AWOS server (`cd server && uv run python -m awos_recruitment_mcp`). In another terminal, run `cd cli && node dist/index.js skill modern-python-development`. Confirm `.claude/skills/modern-python-development/SKILL.md` exists. Run again — confirm conflict error. Run with a nonexistent name — confirm not-found error. **[Agent: qa-tester]**
+- [x] **Add `download.ts` library.** `fetch()` a bundle endpoint URL, pipe response through `zlib.createGunzip()` and `tar.extract()` to a temp directory. Handle network errors (unreachable server) and bad responses (non-200, corrupt body). Return the temp directory path. **[Agent: typescript-expert]**
+- [x] **Add `commands/skill.ts`.** POST names to `{AWOS_SERVER_URL}/bundle/skills` via `download.ts`. Diff requested names against extracted directories to find not-found names. For each found skill: check `.claude/skills/<name>/` doesn't exist (conflict → skip with error), otherwise copy directory. Print per-item results (installed / not found / conflict). Exit non-zero if any failed. **[Agent: typescript-expert]**
+- [x] **Add unit tests** for `download.ts` (mock `fetch`, test network errors, corrupt responses) and `commands/skill.ts` (temp dirs, mock HTTP, verify files written, conflict detection, not-found reporting). **[Agent: typescript-expert]**
+- [x] **Verify end-to-end:** Start the AWOS server (`cd server && uv run python -m awos_recruitment_mcp`). In another terminal, run `cd cli && node dist/index.js skill modern-python-development`. Confirm `.claude/skills/modern-python-development/SKILL.md` exists. Run again — confirm conflict error. Run with a nonexistent name — confirm not-found error. **[Agent: qa-tester]**
 
-- [ ] **Git commit** **[Agent: general-purpose]**
+- [x] **Git commit** **[Agent: general-purpose]**
 
 ---
 
