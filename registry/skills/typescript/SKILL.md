@@ -1,5 +1,5 @@
 ---
-name: TypeScript Development
+name: typescript-development
 description: This skill should be used when the user asks to "write TypeScript code", "create a TypeScript module", "define TypeScript types", "add type annotations", "use generics", "handle errors in TypeScript", "set up tsconfig", "organize TypeScript project", or when writing any TypeScript code that is not tied to a specific library or framework. Covers type system, strict mode, naming conventions, error handling, async patterns, and project structure.
 version: 0.1.0
 ---

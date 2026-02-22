@@ -4,12 +4,12 @@
 
 ## Slice 1: Registry Structure + Seed Data
 
-- [ ] **Slice 1: Registry directory structure with example capabilities**
-  - [ ] Create `registry/skills/` and `registry/mcp/` directories. Remove or replace the existing `registry/CLAUDE.md`. **[Agent: general-purpose]**
-  - [ ] Copy `.claude/skills/python/` to `registry/skills/python/` (SKILL.md + all reference files). Copy `.claude/skills/typescript/` to `registry/skills/typescript/` (SKILL.md + all reference files). **[Agent: general-purpose]**
-  - [ ] Create `registry/mcp/context7.yaml` with name, description, and stdio config for `@upstash/context7-mcp@latest`. Create `registry/mcp/playwright.yaml` with name, description, and stdio config for `@anthropic/playwright-mcp@latest`. **[Agent: general-purpose]**
-  - [ ] Verify: `registry/skills/python/SKILL.md` and `registry/skills/typescript/SKILL.md` exist with valid YAML front matter containing `name` and `description`. `registry/mcp/context7.yaml` and `registry/mcp/playwright.yaml` exist and contain `name`, `description`, and `config` fields. **[Agent: qa-tester]**
-  - [ ] Git commit. **[Agent: general-purpose]**
+- [x] **Slice 1: Registry directory structure with example capabilities**
+  - [x] Create `registry/skills/` and `registry/mcp/` directories. Remove or replace the existing `registry/CLAUDE.md`. **[Agent: general-purpose]**
+  - [x] Copy `.claude/skills/python/` to `registry/skills/python/` (SKILL.md + all reference files). Copy `.claude/skills/typescript/` to `registry/skills/typescript/` (SKILL.md + all reference files). **[Agent: general-purpose]**
+  - [x] Create `registry/mcp/context7.yaml` with name, description, and stdio config for `@upstash/context7-mcp@latest`. Create `registry/mcp/playwright.yaml` with name, description, and stdio config for `@anthropic/playwright-mcp@latest`. **[Agent: general-purpose]**
+  - [x] Verify: `registry/skills/python/SKILL.md` and `registry/skills/typescript/SKILL.md` exist with valid YAML front matter containing `name` and `description`. `registry/mcp/context7.yaml` and `registry/mcp/playwright.yaml` exist and contain `name`, `description`, and `config` fields. **[Agent: qa-tester]**
+  - [x] Git commit. **[Agent: general-purpose]**
 
 ---
 
