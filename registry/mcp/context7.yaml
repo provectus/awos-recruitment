@@ -1,0 +1,9 @@
+name: "Context7"
+description: "Retrieves up-to-date documentation and code examples for any library using the Context7 documentation service."
+config:
+  context7:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@upstash/context7-mcp@latest"
