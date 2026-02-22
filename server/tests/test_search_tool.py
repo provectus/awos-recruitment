@@ -7,7 +7,7 @@ against that index.
 
 The real registry contains 4 capabilities:
   - Skills: modern-python-development, typescript-development
-  - Tools:  Context7, Playwright
+  - Tools:  context7, playwright
 """
 
 import json
@@ -202,8 +202,8 @@ async def test_search_type_filter_tool(mcp_client):
     parsed = _parse_result(result)
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
-    # The registry has 2 tools: Context7, Playwright.
-    tool_names = {"Context7", "Playwright"}
+    # The registry has 2 tools: context7, playwright.
+    tool_names = {"context7", "playwright"}
     for item in parsed:
         assert item["name"] in tool_names, (
             f"Expected only tool names, but got: {item['name']}"

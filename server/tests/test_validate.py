@@ -148,7 +148,7 @@ def test_validate_skill_valid(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 _VALID_MCP_DICT = {
-    "name": "Test Server",
+    "name": "test-server",
     "description": "A test MCP server for unit tests.",
     "config": {
         "test-server": {
@@ -163,8 +163,8 @@ _VALID_MCP_DICT = {
 def test_valid_mcp_definition():
     """A dict with valid name, description, and a single config entry should pass."""
     defn = McpDefinition.model_validate(_VALID_MCP_DICT)
-    assert defn.name == "Test Server", (
-        f"Expected name 'Test Server', got '{defn.name}'"
+    assert defn.name == "test-server", (
+        f"Expected name 'test-server', got '{defn.name}'"
     )
     assert defn.description == "A test MCP server for unit tests.", (
         f"Expected correct description, got '{defn.description}'"
@@ -182,7 +182,7 @@ def test_mcp_missing_config():
     """Omitting the required 'config' field should raise ValidationError."""
     with pytest.raises(ValidationError) as exc_info:
         McpDefinition.model_validate(
-            {"name": "No Config", "description": "Missing config field"}
+            {"name": "no-config", "description": "Missing config field"}
         )
     error_fields = {
         ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
@@ -197,7 +197,7 @@ def test_mcp_multiple_config_keys():
     with pytest.raises(ValidationError) as exc_info:
         McpDefinition.model_validate(
             {
-                "name": "Multi Config",
+                "name": "multi-config",
                 "description": "Has two servers",
                 "config": {
                     "server-a": {"type": "stdio", "command": "a"},
@@ -241,7 +241,7 @@ def test_validate_mcp_valid(tmp_path: Path):
         tmp_path,
         "good-server.yaml",
         (
-            "name: Good Server\n"
+            "name: good-server\n"
             "description: A valid MCP server definition.\n"
             "config:\n"
             "  good-server:\n"
@@ -281,7 +281,7 @@ def test_validate_registry_finds_all(tmp_path: Path):
         tmp_path,
         "demo-server.yaml",
         (
-            "name: Demo Server\n"
+            "name: demo-server\n"
             "description: A demo MCP server.\n"
             "config:\n"
             "  demo-server:\n"
@@ -321,7 +321,7 @@ def test_json_output_format(tmp_path: Path):
         tmp_path,
         "json-test.yaml",
         (
-            "name: JSON Test Server\n"
+            "name: json-test\n"
             "description: For testing JSON output.\n"
             "config:\n"
             "  json-test:\n"
@@ -379,6 +379,81 @@ def test_json_output_format(tmp_path: Path):
     )
     assert summary["failed"] == 0, (
         f"Expected failed=0, got {summary['failed']}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Name-matching validation tests
+# ---------------------------------------------------------------------------
+
+
+def test_validate_skill_directory_name_mismatch(tmp_path: Path):
+    """A skill whose directory name differs from its metadata name should fail."""
+    skill_dir = tmp_path / "skills" / "wrong-dir"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: correct-name\ndescription: Directory mismatch test\n---\n\n"
+        "# Mismatch\n\nSome content.\n"
+    )
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result for directory mismatch"
+    error_fields = [e.field for e in results[0].errors]
+    assert "name" in error_fields, (
+        f"Expected a 'name' field error, got: {error_fields}"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("does not match" in m for m in error_messages), (
+        f"Expected a 'does not match' error, got: {error_messages}"
+    )
+
+
+def test_validate_mcp_filename_mismatch(tmp_path: Path):
+    """An MCP file whose stem differs from the name field should fail."""
+    _write_mcp_yaml(
+        tmp_path,
+        "wrong-file.yaml",
+        (
+            "name: correct-name\n"
+            "description: Filename mismatch test.\n"
+            "config:\n"
+            "  correct-name:\n"
+            "    type: stdio\n"
+            "    command: echo\n"
+        ),
+    )
+
+    results = validate_mcp_definitions(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result for filename mismatch"
+    error_fields = [e.field for e in results[0].errors]
+    assert "name" in error_fields, (
+        f"Expected a 'name' field error, got: {error_fields}"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("does not match" in m for m in error_messages), (
+        f"Expected a 'does not match' error, got: {error_messages}"
+    )
+
+
+def test_mcp_name_rejects_uppercase():
+    """McpDefinition.name must reject uppercase letters."""
+    with pytest.raises(ValidationError) as exc_info:
+        McpDefinition.model_validate(
+            {
+                "name": "My-Server",
+                "description": "Uppercase in name",
+                "config": {"my-server": {"type": "stdio", "command": "echo"}},
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "name" in error_fields, (
+        f"Expected a validation error for 'name', got errors for: {error_fields}"
     )
 
 

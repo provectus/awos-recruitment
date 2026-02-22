@@ -41,7 +41,7 @@ class McpDefinition(BaseModel):
                 Must contain exactly one entry.
     """
 
-    name: str = Field(..., min_length=1)
+    name: str = Field(..., pattern=r"^[a-z0-9-]{1,64}$")
     description: str = Field(..., min_length=1)
     config: dict[str, McpServerConfig]
 

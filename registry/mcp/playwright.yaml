@@ -1,4 +1,4 @@
-name: "Playwright"
+name: "playwright"
 description: "Browser automation via Playwright. Enables web scraping, testing, and interaction with web pages through a headless browser."
 config:
   playwright:

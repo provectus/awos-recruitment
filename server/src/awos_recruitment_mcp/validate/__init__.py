@@ -101,8 +101,9 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
             continue
 
         # Validate metadata against the Pydantic model.
+        metadata = dict(post.metadata)
         try:
-            SkillMetadata.model_validate(dict(post.metadata))
+            SkillMetadata.model_validate(metadata)
         except PydanticValidationError as exc:
             for err in exc.errors():
                 loc = ".".join(str(part) for part in err["loc"]) or None
@@ -113,6 +114,20 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         message=err["msg"],
                     )
                 )
+
+        # Ensure the directory name matches the metadata name.
+        meta_name = metadata.get("name")
+        if meta_name is not None and entry.name != meta_name:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="name",
+                    message=(
+                        f"Skill directory '{entry.name}' does not match "
+                        f"metadata name '{meta_name}'"
+                    ),
+                )
+            )
 
         # Ensure the markdown body is non-empty.
         if not post.content.strip():
@@ -207,6 +222,20 @@ def validate_mcp_definitions(registry_path: Path) -> list[ValidationResult]:
                     file=relative_path,
                     field="config",
                     message=str(exc),
+                )
+            )
+
+        # Ensure the filename (without extension) matches the name field.
+        mcp_name = data.get("name")
+        if mcp_name is not None and yaml_file.stem != mcp_name:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="name",
+                    message=(
+                        f"MCP filename '{yaml_file.stem}' does not match "
+                        f"name field '{mcp_name}'"
+                    ),
                 )
             )
 

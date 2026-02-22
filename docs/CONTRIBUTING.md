@@ -22,8 +22,8 @@ registry/
     └── <server-name>.yaml        # One YAML file per MCP server
 ```
 
-- Each **skill** lives in its own subdirectory under `registry/skills/`. The directory must contain a `SKILL.md` file and may include additional reference files.
-- Each **MCP definition** is a single `.yaml` file directly under `registry/mcp/`.
+- Each **skill** lives in its own subdirectory under `registry/skills/`. The directory name **must match** the `name` field in the skill's front matter. The directory must contain a `SKILL.md` file and may include additional reference files.
+- Each **MCP definition** is a single `.yaml` file directly under `registry/mcp/`. The filename (without `.yaml`) **must match** the `name` field inside the file.
 
 ---
 
@@ -69,7 +69,7 @@ The markdown body below the front matter must be non-empty — it contains the a
 
 ### Example
 
-See `registry/skills/python/SKILL.md` for a complete example.
+See `registry/skills/modern-python-development/SKILL.md` for a complete example.
 
 ---
 
@@ -78,7 +78,7 @@ See `registry/skills/python/SKILL.md` for a complete example.
 Create a `.yaml` file under `registry/mcp/`:
 
 ```yaml
-name: "My Server"
+name: "my-server"
 description: "What this MCP server provides and when to use it."
 config:
   my-server:
@@ -93,7 +93,7 @@ config:
 
 | Field | Type | Rules |
 |-------|------|-------|
-| `name` | string | Non-empty. Human-readable display name. |
+| `name` | string | Kebab-case only (`a-z`, `0-9`, `-`). Max 64 characters. Must match the filename. |
 | `description` | string | Non-empty. What the server provides. |
 | `config` | object | Must contain **exactly one key** — the server identifier. |
 
@@ -170,6 +170,9 @@ Before submitting a new capability:
 - [ ] File is in the correct location (`registry/skills/<name>/SKILL.md` or `registry/mcp/<name>.yaml`)
 - [ ] All required fields are present and non-empty
 - [ ] Skill `name` is kebab-case, max 64 characters
+- [ ] Skill directory name matches the `name` field in front matter
 - [ ] No unknown fields in skill front matter
+- [ ] MCP `name` is kebab-case, max 64 characters
+- [ ] MCP filename (without `.yaml`) matches the `name` field
 - [ ] MCP `config` has exactly one server key with a valid `type`
 - [ ] `just validate-registry` passes with exit code 0
