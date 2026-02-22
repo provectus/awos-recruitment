@@ -1,6 +1,8 @@
-"""Capability result model returned by the search_capabilities tool."""
+"""Capability models for the AWOS Recruitment MCP server."""
 
 from __future__ import annotations
+
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -17,3 +19,17 @@ class CapabilityResult(BaseModel):
     name: str
     description: str
     tags: list[str]
+
+
+class RegistryCapability(BaseModel):
+    """A capability loaded from the registry (skill or MCP tool).
+
+    Attributes:
+        name: The capability name extracted from registry metadata.
+        description: Human-readable description of what the capability does.
+        type: The kind of capability — either ``"skill"`` or ``"tool"``.
+    """
+
+    name: str
+    description: str
+    type: Literal["skill", "tool"]
