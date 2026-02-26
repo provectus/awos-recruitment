@@ -10,8 +10,14 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from awos_recruitment_mcp.models import McpDefinition, McpServerConfig, SkillMetadata
+from awos_recruitment_mcp.models import (
+    AgentMetadata,
+    McpDefinition,
+    McpServerConfig,
+    SkillMetadata,
+)
 from awos_recruitment_mcp.validate import (
+    validate_agents,
     validate_mcp_definitions,
     validate_registry,
     validate_skills,
@@ -75,6 +81,109 @@ def test_skill_unknown_field():
     messages = [e["msg"] for e in exc_info.value.errors()]
     assert any("extra" in m.lower() for m in messages), (
         f"Expected an 'extra fields not permitted' error, got: {messages}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# AgentMetadata model tests
+# ---------------------------------------------------------------------------
+
+
+def test_valid_agent_metadata():
+    """A dict with valid name and description should pass validation."""
+    meta = AgentMetadata.model_validate(
+        {"name": "my-agent", "description": "A useful agent"}
+    )
+    assert meta.name == "my-agent", (
+        f"Expected name 'my-agent', got '{meta.name}'"
+    )
+    assert meta.description == "A useful agent", (
+        f"Expected description 'A useful agent', got '{meta.description}'"
+    )
+
+
+def test_agent_missing_name():
+    """Omitting the required 'name' field should raise ValidationError."""
+    with pytest.raises(ValidationError) as exc_info:
+        AgentMetadata.model_validate({"description": "No name provided"})
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "name" in error_fields, (
+        f"Expected a validation error for 'name', got errors for: {error_fields}"
+    )
+
+
+def test_agent_empty_description():
+    """An empty description should raise ValidationError."""
+    with pytest.raises(ValidationError) as exc_info:
+        AgentMetadata.model_validate({"name": "my-agent", "description": ""})
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "description" in error_fields, (
+        f"Expected a validation error for 'description', got errors for: {error_fields}"
+    )
+
+
+def test_agent_invalid_name_format():
+    """Names with uppercase letters should be rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        AgentMetadata.model_validate(
+            {"name": "My-Agent", "description": "Bad name"}
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "name" in error_fields, (
+        f"Expected a validation error for 'name', got errors for: {error_fields}"
+    )
+
+
+def test_agent_extra_fields_rejected():
+    """An unknown field should be rejected (extra='forbid')."""
+    with pytest.raises(ValidationError) as exc_info:
+        AgentMetadata.model_validate(
+            {
+                "name": "good-agent",
+                "description": "Has extra field",
+                "surprise": True,
+            }
+        )
+    messages = [e["msg"] for e in exc_info.value.errors()]
+    assert any("extra" in m.lower() for m in messages), (
+        f"Expected an 'extra fields not permitted' error, got: {messages}"
+    )
+
+
+def test_agent_optional_fields():
+    """Optional fields (model, skills) should work when provided."""
+    meta = AgentMetadata.model_validate(
+        {
+            "name": "full-agent",
+            "description": "Agent with all fields",
+            "model": "sonnet",
+            "skills": ["python-dev", "testing"],
+        }
+    )
+    assert meta.model == "sonnet", (
+        f"Expected model 'sonnet', got '{meta.model}'"
+    )
+    assert meta.skills == ["python-dev", "testing"], (
+        f"Expected skills ['python-dev', 'testing'], got {meta.skills}"
+    )
+
+
+def test_agent_optional_fields_default_none():
+    """Optional fields should default to None when omitted."""
+    meta = AgentMetadata.model_validate(
+        {"name": "minimal-agent", "description": "Minimal"}
+    )
+    assert meta.model is None, (
+        f"Expected model to be None, got '{meta.model}'"
+    )
+    assert meta.skills is None, (
+        f"Expected skills to be None, got {meta.skills}"
     )
 
 
@@ -267,7 +376,7 @@ def test_validate_mcp_valid(tmp_path: Path):
 
 
 def test_validate_registry_finds_all(tmp_path: Path):
-    """validate_registry should discover and validate both skills/ and mcp/ entries."""
+    """validate_registry should discover and validate skills/, mcp/, and agents/ entries."""
     # Create a valid skill.
     skill_dir = tmp_path / "skills" / "demo-skill"
     skill_dir.mkdir(parents=True)
@@ -290,10 +399,25 @@ def test_validate_registry_finds_all(tmp_path: Path):
         ),
     )
 
+    # Create a valid agent definition.
+    _write_agent_md(
+        tmp_path,
+        "demo-agent.md",
+        (
+            "---\n"
+            "name: demo-agent\n"
+            "description: A demo agent.\n"
+            "skills:\n"
+            "  - demo-skill\n"
+            "---\n\n"
+            "# Demo Agent\n\nYou are a demo agent.\n"
+        ),
+    )
+
     results = validate_registry(tmp_path)
 
-    assert len(results) == 2, (
-        f"Expected 2 results (1 skill + 1 MCP), got {len(results)}"
+    assert len(results) == 3, (
+        f"Expected 3 results (1 skill + 1 MCP + 1 agent), got {len(results)}"
     )
     assert all(r.valid for r in results), (
         f"Expected all results to be valid, got errors: "
@@ -327,6 +451,21 @@ def test_json_output_format(tmp_path: Path):
             "  json-test:\n"
             "    type: stdio\n"
             "    command: echo\n"
+        ),
+    )
+
+    # Create a valid agent definition.
+    _write_agent_md(
+        tmp_path,
+        "json-test.md",
+        (
+            "---\n"
+            "name: json-test\n"
+            "description: Agent for JSON output test.\n"
+            "skills:\n"
+            "  - json-test\n"
+            "---\n\n"
+            "# JSON Test Agent\n\nYou are a test agent.\n"
         ),
     )
 
@@ -371,11 +510,11 @@ def test_json_output_format(tmp_path: Path):
     assert isinstance(summary, dict), (
         f"'summary' should be a dict, got {type(summary).__name__}"
     )
-    assert summary["total"] == 2, (
-        f"Expected total=2, got {summary['total']}"
+    assert summary["total"] == 3, (
+        f"Expected total=3, got {summary['total']}"
     )
-    assert summary["passed"] == 2, (
-        f"Expected passed=2, got {summary['passed']}"
+    assert summary["passed"] == 3, (
+        f"Expected passed=3, got {summary['passed']}"
     )
     assert summary["failed"] == 0, (
         f"Expected failed=0, got {summary['failed']}"
@@ -454,6 +593,186 @@ def test_mcp_name_rejects_uppercase():
     }
     assert "name" in error_fields, (
         f"Expected a validation error for 'name', got errors for: {error_fields}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# validate_agents function tests
+# ---------------------------------------------------------------------------
+
+
+def _write_agent_md(registry_root: Path, filename: str, content: str) -> None:
+    """Helper: write an agent .md file inside registry_root/agents/."""
+    agents_dir = registry_root / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+    (agents_dir / filename).write_text(content)
+
+
+def test_validate_agent_valid(tmp_path: Path):
+    """A well-formed agent .md file should pass validation with no errors."""
+    # Create skill directories that the agent references.
+    (tmp_path / "skills" / "python-dev").mkdir(parents=True)
+    (tmp_path / "skills" / "testing").mkdir(parents=True)
+
+    _write_agent_md(
+        tmp_path,
+        "good-agent.md",
+        (
+            "---\n"
+            "name: good-agent\n"
+            "description: A valid agent definition.\n"
+            "model: sonnet\n"
+            "skills:\n"
+            "  - python-dev\n"
+            "  - testing\n"
+            "---\n\n"
+            "# Good Agent\n\nYou are a helpful assistant.\n"
+        ),
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1, (
+        f"Expected exactly 1 result, got {len(results)}"
+    )
+    assert results[0].valid, (
+        f"Expected the result to be valid, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+    assert results[0].errors == [], (
+        f"Expected no errors, got: {results[0].errors}"
+    )
+
+
+def test_validate_agent_invalid_metadata(tmp_path: Path):
+    """An agent .md with invalid metadata should produce validation errors."""
+    _write_agent_md(
+        tmp_path,
+        "bad-agent.md",
+        (
+            "---\n"
+            "name: Bad Agent!\n"
+            "description: \"\"\n"
+            "---\n\n"
+            "# Bad Agent\n\nSome content.\n"
+        ),
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1, (
+        f"Expected exactly 1 result, got {len(results)}"
+    )
+    assert not results[0].valid, "Expected invalid result for bad metadata"
+    error_fields = [e.field for e in results[0].errors]
+    assert "name" in error_fields, (
+        f"Expected a 'name' field error, got: {error_fields}"
+    )
+
+
+def test_validate_agent_filename_name_mismatch(tmp_path: Path):
+    """An agent file whose stem differs from the name field should fail."""
+    _write_agent_md(
+        tmp_path,
+        "wrong-file.md",
+        (
+            "---\n"
+            "name: correct-name\n"
+            "description: Filename mismatch test.\n"
+            "---\n\n"
+            "# Agent\n\nSystem prompt content.\n"
+        ),
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result for filename mismatch"
+    error_fields = [e.field for e in results[0].errors]
+    assert "name" in error_fields, (
+        f"Expected a 'name' field error, got: {error_fields}"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("does not match" in m for m in error_messages), (
+        f"Expected a 'does not match' error, got: {error_messages}"
+    )
+
+
+def test_validate_agent_empty_body(tmp_path: Path):
+    """An agent .md with valid front matter but an empty body should fail."""
+    _write_agent_md(
+        tmp_path,
+        "empty-body.md",
+        "---\nname: empty-body\ndescription: Agent with no body\n---\n",
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1, (
+        f"Expected exactly 1 result, got {len(results)}"
+    )
+    assert not results[0].valid, "Expected the result to be invalid (empty body)"
+    error_messages = [e.message for e in results[0].errors]
+    assert any("empty" in m.lower() for m in error_messages), (
+        f"Expected an 'empty' body error, got: {error_messages}"
+    )
+
+
+def test_validate_agent_missing_skill_reference(tmp_path: Path):
+    """An agent referencing a non-existent skill should produce a validation error."""
+    _write_agent_md(
+        tmp_path,
+        "bad-ref.md",
+        (
+            "---\n"
+            "name: bad-ref\n"
+            "description: References a missing skill.\n"
+            "skills:\n"
+            "  - nonexistent-skill\n"
+            "---\n\n"
+            "# Agent\n\nSystem prompt here.\n"
+        ),
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result for missing skill reference"
+    error_fields = [e.field for e in results[0].errors]
+    assert "skills" in error_fields, (
+        f"Expected a 'skills' field error, got: {error_fields}"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("nonexistent-skill" in m for m in error_messages), (
+        f"Expected error mentioning 'nonexistent-skill', got: {error_messages}"
+    )
+
+
+def test_validate_agent_valid_skill_reference(tmp_path: Path):
+    """An agent referencing an existing skill directory should pass."""
+    # Create the skill directory.
+    (tmp_path / "skills" / "real-skill").mkdir(parents=True)
+
+    _write_agent_md(
+        tmp_path,
+        "ref-agent.md",
+        (
+            "---\n"
+            "name: ref-agent\n"
+            "description: References an existing skill.\n"
+            "skills:\n"
+            "  - real-skill\n"
+            "---\n\n"
+            "# Agent\n\nSystem prompt content.\n"
+        ),
+    )
+
+    results = validate_agents(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected the result to be valid, got errors: "
+        f"{[e.message for e in results[0].errors]}"
     )
 
 

@@ -1,3 +1,4 @@
+import { installAgents } from "./commands/agent.js";
 import { installMcpServers } from "./commands/mcp.js";
 import { installSkills } from "./commands/skill.js";
 import { CliError } from "./lib/errors.js";
@@ -6,7 +7,8 @@ const USAGE = `Usage: awos <command> <names...>
 
 Commands:
   skill   Install skills into .claude/skills/
-  mcp     Install MCP servers into .mcp.json`;
+  mcp     Install MCP servers into .mcp.json
+  agent   Install agents into .claude/agents/`;
 
 export async function run(): Promise<void> {
   const args = process.argv.slice(2);
@@ -18,7 +20,7 @@ export async function run(): Promise<void> {
     process.exit(1);
   }
 
-  if (subcommand !== "skill" && subcommand !== "mcp") {
+  if (subcommand !== "skill" && subcommand !== "mcp" && subcommand !== "agent") {
     throw new CliError(
       `Error: unknown command '${subcommand}'. Run 'awos' for usage.`,
     );
@@ -36,6 +38,9 @@ export async function run(): Promise<void> {
       break;
     case "mcp":
       await installMcpServers(names);
+      break;
+    case "agent":
+      await installAgents(names);
       break;
   }
 }

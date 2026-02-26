@@ -23,14 +23,14 @@ class CapabilityResult(BaseModel):
 
 
 class RegistryCapability(BaseModel):
-    """A capability loaded from the registry (skill or MCP tool).
+    """A capability loaded from the registry (skill, MCP tool, or agent).
 
     Attributes:
         name: The capability name extracted from registry metadata.
         description: Human-readable description of what the capability does.
-        type: The kind of capability — either ``"skill"`` or ``"tool"``.
+        type: The kind of capability — ``"skill"``, ``"tool"``, or ``"agent"``.
     """
 
     name: str
     description: str
-    type: Literal["skill", "tool"]
+    type: Literal["skill", "tool", "agent"]

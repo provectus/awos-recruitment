@@ -17,3 +17,7 @@ build-cli:
 # Run CLI tests
 test-cli *ARGS:
     cd cli && npm test {{ARGS}}
+
+# Publish CLI to npm (bump: patch, minor, or major)
+publish-cli bump="patch":
+    cd cli && npm version {{bump}} && npm publish --access public

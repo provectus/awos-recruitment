@@ -1,12 +1,16 @@
 {
   "name": "@provectusinc/awos-recruitment",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "tar": "^7.0.0",

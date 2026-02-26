@@ -1,4 +1,4 @@
-"""Tests for the POST /bundle/skills and POST /bundle/mcp endpoints."""
+"""Tests for the POST /bundle/skills, POST /bundle/mcp, and POST /bundle/agents endpoints."""
 
 from __future__ import annotations
 
@@ -439,4 +439,181 @@ async def test_mcp_all_not_found_returns_empty_archive(asgi_app):
 
     assert len(members) == 0, (
         f"Expected empty archive, got {len(members)} members: {[m.name for m in members]}"
+    )
+
+
+# ===========================================================================
+# POST /bundle/agents
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# Valid request
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_valid_request_returns_200(asgi_app):
+    """POST a single valid agent name and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["test-agent"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_agent_valid_request_returns_tar_gz(asgi_app):
+    """POST a single valid agent name and verify the archive contains its .md file."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["test-agent"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = tar.getnames()
+
+    assert "test-agent.md" in names, (
+        f"Expected test-agent.md in archive, got {names}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Partial matches
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_partial_matches_returns_200(asgi_app):
+    """POST a mix of existing and nonexistent agent names and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["test-agent", "nonexistent-agent"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_agent_partial_matches_contains_only_existing(asgi_app):
+    """POST a mix of existing and nonexistent agent names; archive contains only the existing one."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["test-agent", "nonexistent-agent"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = tar.getnames()
+
+    assert "test-agent.md" in names, (
+        f"Expected test-agent.md in archive, got {names}"
+    )
+    assert "nonexistent-agent.md" not in names, (
+        f"Did not expect nonexistent-agent.md in archive, got {names}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# All not-found
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_all_not_found_returns_200(asgi_app):
+    """POST agent names that do not match any agent and verify HTTP 200."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["does-not-exist"]},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected HTTP 200, got {response.status_code}"
+    )
+
+
+async def test_agent_all_not_found_returns_empty_archive(asgi_app):
+    """POST agent names that do not match any agent and verify the archive is empty."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["does-not-exist"]},
+        )
+
+    buf = io.BytesIO(response.content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        members = tar.getmembers()
+
+    assert len(members) == 0, (
+        f"Expected empty archive, got {len(members)} members: {[m.name for m in members]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Empty names list
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_empty_names_returns_400(asgi_app):
+    """POST an empty agent names list and verify HTTP 400."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": []},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Names exceeding limit
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_too_many_names_returns_400(asgi_app):
+    """POST 21 agent names (exceeding the limit of 20) and verify HTTP 400."""
+    names = [f"agent-{i}" for i in range(21)]
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": names},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Invalid name pattern
+# ---------------------------------------------------------------------------
+
+
+async def test_agent_invalid_name_pattern_returns_400(asgi_app):
+    """POST an agent name with uppercase letters (invalid pattern) and verify HTTP 400."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/bundle/agents",
+            json={"names": ["UPPERCASE"]},
+        )
+
+    assert response.status_code == 400, (
+        f"Expected HTTP 400, got {response.status_code}"
     )

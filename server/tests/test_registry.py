@@ -57,6 +57,25 @@ def _write_mcp_yaml(
     (mcp_dir / filename).write_text("\n".join(lines) + "\n")
 
 
+def _write_agent(
+    registry_root: Path,
+    filename: str,
+    name: str,
+    description: str | None = None,
+    body: str = "# Agent\n\nSystem prompt content.\n",
+) -> None:
+    """Write an agent ``.md`` file inside ``registry_root/agents/``."""
+    agents_dir = registry_root / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+
+    front_matter_lines = [f"name: {name}"]
+    if description is not None:
+        front_matter_lines.append(f"description: {description}")
+
+    content = "---\n" + "\n".join(front_matter_lines) + "\n---\n\n" + body
+    (agents_dir / filename).write_text(content)
+
+
 # ---------------------------------------------------------------------------
 # Correct parsing
 # ---------------------------------------------------------------------------
@@ -98,6 +117,17 @@ class TestCorrectParsing:
         assert cap.name == "My Tool"
         assert cap.description == "Tool description"
         assert cap.type == "tool"
+
+    def test_agent_fields(self, tmp_path: Path) -> None:
+        _write_agent(tmp_path, "qa-agent.md", "qa-agent", "QA automation agent")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 1
+        cap = caps[0]
+        assert cap.name == "qa-agent"
+        assert cap.description == "QA automation agent"
+        assert cap.type == "agent"
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +183,33 @@ class TestSkipWithoutDescription:
             f"Expected 0 capabilities (MCP empty description), got {len(caps)}"
         )
 
+    def test_agent_no_description_field(self, tmp_path: Path) -> None:
+        _write_agent(tmp_path, "no-desc.md", "no-desc-agent", description=None)
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (agent missing description), got {len(caps)}"
+        )
+
+    def test_agent_empty_description(self, tmp_path: Path) -> None:
+        _write_agent(tmp_path, "empty-desc.md", "empty-desc-agent", description="")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (agent empty description), got {len(caps)}"
+        )
+
+    def test_agent_whitespace_description(self, tmp_path: Path) -> None:
+        _write_agent(tmp_path, "ws-desc.md", "ws-desc-agent", description="   ")
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 0, (
+            f"Expected 0 capabilities (agent whitespace description), got {len(caps)}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Type inference
@@ -160,7 +217,7 @@ class TestSkipWithoutDescription:
 
 
 class TestTypeInference:
-    """Skills get type='skill', MCP definitions get type='tool'."""
+    """Skills get type='skill', MCP definitions get type='tool', agents get type='agent'."""
 
     def test_skills_have_type_skill(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "alpha", "alpha-skill", "Alpha description")
@@ -180,6 +237,15 @@ class TestTypeInference:
             f"Expected all types to be 'tool', got {[c.type for c in caps]}"
         )
 
+    def test_agents_have_type_agent(self, tmp_path: Path) -> None:
+        _write_agent(tmp_path, "gamma.md", "gamma-agent", "Gamma description")
+
+        caps = load_registry(tmp_path)
+
+        assert all(c.type == "agent" for c in caps), (
+            f"Expected all types to be 'agent', got {[c.type for c in caps]}"
+        )
+
     def test_mixed_types(self, tmp_path: Path) -> None:
         _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
         _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
@@ -189,6 +255,18 @@ class TestTypeInference:
         types = {c.type for c in caps}
         assert types == {"skill", "tool"}, (
             f"Expected both 'skill' and 'tool' types, got {types}"
+        )
+
+    def test_mixed_types_all_three(self, tmp_path: Path) -> None:
+        _write_skill(tmp_path, "s1", "s1-skill", "Skill desc")
+        _write_mcp_yaml(tmp_path, "t1.yaml", "T1 Tool", "Tool desc")
+        _write_agent(tmp_path, "a1.md", "a1-agent", "Agent desc")
+
+        caps = load_registry(tmp_path)
+
+        types = {c.type for c in caps}
+        assert types == {"skill", "tool", "agent"}, (
+            f"Expected 'skill', 'tool', and 'agent' types, got {types}"
         )
 
 
@@ -217,6 +295,17 @@ class TestEmptyRegistry:
             f"Expected empty list for registry with empty sub-dirs, got {caps}"
         )
 
+    def test_empty_skills_mcp_and_agents_dirs(self, tmp_path: Path) -> None:
+        (tmp_path / "skills").mkdir()
+        (tmp_path / "mcp").mkdir()
+        (tmp_path / "agents").mkdir()
+
+        caps = load_registry(tmp_path)
+
+        assert caps == [], (
+            f"Expected empty list for registry with empty sub-dirs, got {caps}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Smoke test against the real registry
@@ -232,17 +321,21 @@ def test_real_registry_loads_all_capabilities() -> None:
 
     caps = load_registry(real_registry)
 
-    assert len(caps) == 4, (
-        f"Expected 4 capabilities (2 skills + 2 tools), got {len(caps)}: "
+    assert len(caps) == 5, (
+        f"Expected 5 capabilities (2 skills + 2 tools + 1 agent), got {len(caps)}: "
         f"{[(c.name, c.type) for c in caps]}"
     )
 
     skill_caps = [c for c in caps if c.type == "skill"]
     tool_caps = [c for c in caps if c.type == "tool"]
+    agent_caps = [c for c in caps if c.type == "agent"]
 
     assert len(skill_caps) == 2, (
         f"Expected 2 skills, got {len(skill_caps)}: {[c.name for c in skill_caps]}"
     )
     assert len(tool_caps) == 2, (
         f"Expected 2 tools, got {len(tool_caps)}: {[c.name for c in tool_caps]}"
+    )
+    assert len(agent_caps) == 1, (
+        f"Expected 1 agent, got {len(agent_caps)}: {[c.name for c in agent_caps]}"
     )

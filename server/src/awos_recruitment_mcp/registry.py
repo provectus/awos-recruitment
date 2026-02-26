@@ -86,16 +86,55 @@ def resolve_mcp_paths(
     return found, not_found
 
 
+def resolve_agent_paths(
+    names: list[str],
+    registry_path: str | Path,
+) -> tuple[list[Path], list[str]]:
+    """Resolve agent names to their Markdown file paths under *registry_path*.
+
+    For each name in *names*, checks whether ``agents/<name>.md`` exists as a
+    file under the registry root.  Names that resolve to an existing file are
+    collected into the first element of the returned tuple; names that do not
+    match any file end up in the second element.
+
+    Args:
+        names: Agent names to look up (without the ``.md`` suffix).
+        registry_path: Root directory of the registry.
+
+    Returns:
+        A ``(found_paths, not_found)`` tuple where *found_paths* is a list of
+        :class:`~pathlib.Path` objects pointing to the matched Markdown files
+        and *not_found* is a list of names with no corresponding file.
+    """
+    root = Path(registry_path)
+    agents_dir = root / "agents"
+
+    found: list[Path] = []
+    not_found: list[str] = []
+
+    for name in names:
+        md_path = agents_dir / f"{name}.md"
+        if md_path.is_file():
+            found.append(md_path)
+        else:
+            not_found.append(name)
+
+    return found, not_found
+
+
 def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
     """Load all capabilities from the registry at *registry_path*.
 
-    Scans two sub-trees:
+    Scans three sub-trees:
 
     * ``skills/*/SKILL.md`` -- YAML front matter is parsed with
       *python-frontmatter*; each entry becomes a capability with
       ``type="skill"``.
     * ``mcp/*.yaml`` -- flat YAML files parsed with *pyyaml*; each entry
       becomes a capability with ``type="tool"``.
+    * ``agents/*.md`` -- YAML front matter is parsed with
+      *python-frontmatter*; each entry becomes a capability with
+      ``type="agent"``.
 
     Entries that have no ``description`` (or an empty/whitespace-only
     description) are silently skipped.
@@ -111,6 +150,7 @@ def load_registry(registry_path: str | Path) -> list[RegistryCapability]:
 
     capabilities.extend(_load_skills(root))
     capabilities.extend(_load_mcp_tools(root))
+    capabilities.extend(_load_agents(root))
 
     return capabilities
 
@@ -192,6 +232,44 @@ def _load_mcp_tools(root: Path) -> list[RegistryCapability]:
                 name=name,
                 description=description,
                 type="tool",
+            )
+        )
+
+    return results
+
+
+def _load_agents(root: Path) -> list[RegistryCapability]:
+    """Parse ``agents/*.md`` files and return agent capabilities."""
+    agents_dir = root / "agents"
+    results: list[RegistryCapability] = []
+
+    if not agents_dir.is_dir():
+        return results
+
+    for md_file in sorted(agents_dir.iterdir()):
+        if not md_file.is_file() or md_file.suffix != ".md":
+            continue
+
+        try:
+            post = frontmatter.load(str(md_file))
+        except Exception:
+            logger.warning("Failed to parse front matter in %s", md_file)
+            continue
+
+        metadata: dict = dict(post.metadata)
+        name = metadata.get("name")
+        description = metadata.get("description")
+
+        if not name or not isinstance(name, str):
+            continue
+        if not description or not isinstance(description, str) or not description.strip():
+            continue
+
+        results.append(
+            RegistryCapability(
+                name=name,
+                description=description,
+                type="agent",
             )
         )
 

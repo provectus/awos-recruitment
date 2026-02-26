@@ -37,8 +37,12 @@ export async function installSkills(names: string[]): Promise<void> {
 /**
  * Compares requested names against what was extracted, copies found
  * skills into the target directory, and returns per-item results.
+ *
+ * This is a pure function with no side effects — it does not write to
+ * stdout/stderr and does not call `process.exit`. Callers are responsible
+ * for interpreting the results and performing I/O.
  */
-function processSkills(
+export function processSkills(
   tempDir: string,
   requestedNames: string[],
 ): InstallResult[] {

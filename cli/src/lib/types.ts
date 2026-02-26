@@ -1,7 +1,14 @@
 export interface InstallResult {
   name: string;
-  status: "installed" | "not-found" | "conflict" | "error";
+  status: "installed" | "not-found" | "conflict" | "skipped" | "error";
   message: string;
+}
+
+export interface AgentFrontmatter {
+  name: string;
+  description: string;
+  model?: string;
+  skills?: string[];
 }
 
 export interface McpServerConfig {

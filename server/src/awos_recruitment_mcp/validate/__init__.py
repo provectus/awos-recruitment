@@ -9,7 +9,7 @@ import frontmatter
 import yaml
 from pydantic import ValidationError as PydanticValidationError
 
-from awos_recruitment_mcp.models import McpDefinition, SkillMetadata
+from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetadata
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,6 +250,114 @@ def validate_mcp_definitions(registry_path: Path) -> list[ValidationResult]:
     return results
 
 
+def validate_agents(registry_path: Path) -> list[ValidationResult]:
+    """Validate every agent definition under *registry_path*/agents.
+
+    Each ``.md`` file in the ``agents/`` directory is expected to have YAML
+    front matter conforming to
+    :class:`~awos_recruitment_mcp.models.AgentMetadata` and a non-empty
+    markdown body (the system prompt).
+
+    Returns:
+        A list of :class:`ValidationResult` objects, one per ``.md`` file.
+    """
+
+    agents_dir = registry_path / "agents"
+    results: list[ValidationResult] = []
+
+    if not agents_dir.is_dir():
+        return results
+
+    for md_file in sorted(agents_dir.iterdir()):
+        if not md_file.is_file() or md_file.suffix != ".md":
+            continue
+
+        relative_path = str(md_file.relative_to(registry_path))
+        errors: list[ValidationError] = []
+
+        # Parse front matter.
+        try:
+            post = frontmatter.load(str(md_file))
+        except Exception as exc:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message=f"Failed to parse front matter: {exc}",
+                )
+            )
+            results.append(
+                ValidationResult(file=relative_path, valid=False, errors=errors)
+            )
+            continue
+
+        # Validate metadata against the Pydantic model.
+        metadata = dict(post.metadata)
+        try:
+            AgentMetadata.model_validate(metadata)
+        except PydanticValidationError as exc:
+            for err in exc.errors():
+                loc = ".".join(str(part) for part in err["loc"]) or None
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=loc,
+                        message=err["msg"],
+                    )
+                )
+
+        # Ensure the filename stem matches the metadata name.
+        meta_name = metadata.get("name")
+        if meta_name is not None and md_file.stem != meta_name:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="name",
+                    message=(
+                        f"Agent filename '{md_file.stem}' does not match "
+                        f"name field '{meta_name}'"
+                    ),
+                )
+            )
+
+        # Ensure the markdown body (system prompt) is non-empty.
+        if not post.content.strip():
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message="Agent body (system prompt) is empty",
+                )
+            )
+
+        # Cross-validate skill references against registry/skills/.
+        skills = metadata.get("skills")
+        if isinstance(skills, list):
+            for skill_name in skills:
+                skill_dir = registry_path / "skills" / skill_name
+                if not skill_dir.is_dir():
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field="skills",
+                            message=(
+                                f"Referenced skill '{skill_name}' not found "
+                                f"in registry skills directory"
+                            ),
+                        )
+                    )
+
+        results.append(
+            ValidationResult(
+                file=relative_path,
+                valid=len(errors) == 0,
+                errors=errors,
+            )
+        )
+
+    return results
+
+
 def validate_registry(registry_path: Path) -> list[ValidationResult]:
     """Validate the entire registry at *registry_path*.
 
@@ -262,4 +370,5 @@ def validate_registry(registry_path: Path) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     results.extend(validate_skills(registry_path))
     results.extend(validate_mcp_definitions(registry_path))
+    results.extend(validate_agents(registry_path))
     return results

@@ -2,10 +2,11 @@
 
 This guide explains how to add new capabilities to the AWOS Recruitment registry.
 
-The registry contains two types of capabilities:
+The registry contains three types of capabilities:
 
 - **Skills** — Claude Code skill definitions (YAML front matter + markdown instructions)
 - **MCP Definitions** — MCP server configurations ready to be inserted into `.mcp.json`
+- **Agents** — Claude Code agent definitions (YAML front matter + system prompt)
 
 ---
 
@@ -18,12 +19,15 @@ registry/
 │       ├── SKILL.md              # Required — front matter + instructions
 │       └── references/           # Optional — supporting files
 │           └── *.md
-└── mcp/
-    └── <server-name>.yaml        # One YAML file per MCP server
+├── mcp/
+│   └── <server-name>.yaml        # One YAML file per MCP server
+└── agents/
+    └── <agent-name>.md           # One markdown file per agent
 ```
 
 - Each **skill** lives in its own subdirectory under `registry/skills/`. The directory must contain a `SKILL.md` file and may include additional reference files.
 - Each **MCP definition** is a single `.yaml` file directly under `registry/mcp/`.
+- Each **agent** is a single `.md` file directly under `registry/agents/`.
 
 ---
 
@@ -117,6 +121,53 @@ See `registry/mcp/context7.yaml` for a complete example.
 
 ---
 
+## Adding an Agent
+
+Create a `.md` file under `registry/agents/`:
+
+```markdown
+---
+name: my-agent-name
+description: When to use this agent and what expertise it provides.
+model: sonnet
+skills:
+  - skill-one
+  - skill-two
+---
+
+# My Agent
+
+You are an expert in...
+
+System prompt instructions go here.
+```
+
+### Required Fields
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `name` | string | Kebab-case only (`a-z`, `0-9`, `-`). Max 64 characters. Must match the filename (without `.md`). |
+| `description` | string | Non-empty. Describes the agent's expertise and when to invoke it. |
+
+### Optional Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `model` | string | Target model identifier (e.g., `opus`, `sonnet`, `haiku`). |
+| `skills` | list of strings | Skill names this agent references. Each must be kebab-case. **All referenced skills must exist in `registry/skills/`.** |
+
+**No other fields are allowed.** The validator rejects unknown front matter fields.
+
+The markdown body below the front matter must be non-empty — it contains the agent's system prompt.
+
+When a user installs an agent, its referenced skills are automatically installed alongside it.
+
+### Example
+
+See `registry/agents/test-agent.md` for a complete example.
+
+---
+
 ## Validating Your Changes
 
 Before submitting, run the registry validator:
@@ -167,9 +218,10 @@ The command exits with code `0` on success and `1` on any validation failure.
 
 Before submitting a new capability:
 
-- [ ] File is in the correct location (`registry/skills/<name>/SKILL.md` or `registry/mcp/<name>.yaml`)
+- [ ] File is in the correct location (`registry/skills/<name>/SKILL.md`, `registry/mcp/<name>.yaml`, or `registry/agents/<name>.md`)
 - [ ] All required fields are present and non-empty
-- [ ] Skill `name` is kebab-case, max 64 characters
-- [ ] No unknown fields in skill front matter
+- [ ] `name` is kebab-case, max 64 characters
+- [ ] No unknown fields in front matter (skills and agents use `extra="forbid"`)
 - [ ] MCP `config` has exactly one server key with a valid `type`
+- [ ] Agent `skills` references only existing skills in `registry/skills/`
 - [ ] `just validate-registry` passes with exit code 0

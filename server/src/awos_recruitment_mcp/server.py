@@ -17,7 +17,12 @@ from starlette.responses import JSONResponse, Response
 
 from awos_recruitment_mcp.config import Config
 from awos_recruitment_mcp.models.bundle import BundleRequest
-from awos_recruitment_mcp.registry import load_registry, resolve_mcp_paths, resolve_skill_paths
+from awos_recruitment_mcp.registry import (
+    load_registry,
+    resolve_agent_paths,
+    resolve_mcp_paths,
+    resolve_skill_paths,
+)
 from awos_recruitment_mcp.search_index import build_index
 
 config = Config.from_env()
@@ -131,6 +136,39 @@ async def bundle_mcp(request: Request) -> Response:
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for yaml_path in found_paths:
             tar.add(str(yaml_path), arcname=yaml_path.name)
+
+    return Response(content=buf.getvalue(), media_type="application/gzip")
+
+
+@mcp.custom_route("/bundle/agents", methods=["POST"])
+async def bundle_agents(request: Request) -> Response:
+    """Bundle one or more agent definitions into a tar.gz archive.
+
+    Expects a JSON body matching :class:`BundleRequest`.  Resolves each
+    requested agent name to its on-disk Markdown file, then streams back
+    a gzip-compressed tar archive containing ``<name>.md`` for each
+    found entry.
+
+    Returns 400 with a JSON error body when the request fails validation.
+    """
+    try:
+        body = await request.json()
+        bundle_request = BundleRequest.model_validate(body)
+    except ValidationError as exc:
+        return JSONResponse(
+            {"error": "Validation failed", "detail": exc.errors()},
+            status_code=400,
+        )
+
+    unique_names = list(dict.fromkeys(bundle_request.names))
+    found_paths, _not_found = resolve_agent_paths(
+        unique_names, config.registry_path
+    )
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for md_path in found_paths:
+            tar.add(str(md_path), arcname=md_path.name)
 
     return Response(content=buf.getvalue(), media_type="application/gzip")
 

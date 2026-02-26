@@ -36,9 +36,13 @@ npx awos skill modern-python-development
 # Install an MCP server definition
 npx awos mcp context7
 
+# Install an agent (also auto-installs its referenced skills)
+npx awos agent test-agent
+
 # Install multiple at once
 npx awos skill modern-python-development typescript-development
 npx awos mcp context7 playwright
+npx awos agent test-agent another-agent
 ```
 
 ## Quick Start
@@ -50,7 +54,7 @@ just serve
 The server starts on `http://0.0.0.0:8000` with:
 - **MCP endpoint:** `POST /mcp` (Streamable HTTP)
 - **Health check:** `GET /health`
-- **Bundle endpoints:** `POST /bundle/skills`, `POST /bundle/mcp`
+- **Bundle endpoints:** `POST /bundle/skills`, `POST /bundle/mcp`, `POST /bundle/agents`
 
 ## Documentation
 

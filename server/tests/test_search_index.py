@@ -39,6 +39,11 @@ SAMPLE_CAPABILITIES = [
         description="Automated testing with pytest including fixtures, parametrize, and coverage reports",
         type="skill",
     ),
+    RegistryCapability(
+        name="qa-automation-agent",
+        description="Autonomous QA agent that writes and runs test suites for Python and TypeScript projects",
+        type="agent",
+    ),
 ]
 
 
@@ -177,6 +182,20 @@ class TestTypeFilter:
                 "postgresql-database",
                 "kubernetes-ops",
             }, f"Expected only tools, got {result['name']}"
+
+    def test_filter_agents_only(
+        self,
+        capabilities_collection: Collection,
+    ) -> None:
+        results = query(
+            capabilities_collection,
+            "testing automation",
+            type_filter="agent",
+        )
+        for result in results:
+            assert result["name"] in {
+                "qa-automation-agent",
+            }, f"Expected only agents, got {result['name']}"
 
     def test_filter_excludes_other_type(
         self,
