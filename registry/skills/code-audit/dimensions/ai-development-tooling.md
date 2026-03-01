@@ -16,18 +16,18 @@ Uses the topology artifact to know which layers and service directories exist.
 
 ### AI-01: Root CLAUDE.md exists and is actionable
 
-- **What:** The repository root has a CLAUDE.md with practical instructions for AI agents
-- **How:** Read `CLAUDE.md` at the repo root. Check that it contains: project description, key commands (build/test/lint), directory structure overview, and coding conventions. It should NOT be just a copy of README.md.
-- **Pass:** Root CLAUDE.md exists with actionable instructions (commands, conventions, directory map)
-- **Warn:** Root CLAUDE.md exists but is sparse or mostly boilerplate
+- **What:** The repository root has a CLAUDE.md with non-obvious project context for AI agents
+- **How:** Read `CLAUDE.md` at the repo root. Check that it contains: what the project is (1-2 sentences), key commands (build/test/lint/dev), and non-obvious conventions or constraints that an agent cannot discover from code alone. It should NOT contain content discoverable from source files — no directory tree listings, no file inventories, no linter rules that are already in config files, no export listings.
+- **Pass:** Root CLAUDE.md exists with concise, non-obvious instructions (purpose, commands, undiscoverable conventions)
+- **Warn:** Root CLAUDE.md exists but contains significant discoverable content (directory trees, file listings, linter rules already in configs)
 - **Fail:** No root CLAUDE.md found
 - **Severity:** critical
 
 ### AI-02: Service-level CLAUDE.md files exist
 
-- **What:** Each major service/layer has its own CLAUDE.md with layer-specific guidance
-- **How:** Read the topology artifact to get the list of service directories. For each, check for a CLAUDE.md. Verify it contains layer-specific instructions (not just a duplicate of the root).
-- **Pass:** Every detected service directory has a CLAUDE.md with layer-specific content
+- **What:** Each major service/layer has a short CLAUDE.md stating its purpose and non-obvious context
+- **How:** Read the topology artifact to get the list of service directories. For each, check for a CLAUDE.md. It should contain: what this module is for (1-2 sentences) and any non-obvious behaviors, gotchas, or constraints. It should NOT duplicate the root CLAUDE.md, list files, or describe things discoverable from code (types, exports, directory structure).
+- **Pass:** Every detected service directory has a CLAUDE.md with purpose + non-obvious context (typically 1-10 lines)
 - **Warn:** Some service directories have CLAUDE.md, others don't
 - **Fail:** No service-level CLAUDE.md files found
 - **Skip-When:** Topology artifact shows single-service repo with no subdirectories
@@ -74,3 +74,19 @@ Uses the topology artifact to know which layers and service directories exist.
 - **Warn:** CLAUDE.md mentions AI tools but without clear workflow guidance
 - **Fail:** No AI workflow documentation found
 - **Severity:** medium
+
+### AI-08: CLAUDE.md files are not bloated with discoverable content
+
+- **What:** CLAUDE.md files contain only non-obvious context that agents cannot discover from code
+- **How:** Read all CLAUDE.md files found in the repo. Flag any that contain content an agent can discover on its own:
+  - Directory tree listings (`├──`, `└──`, or markdown-formatted file trees)
+  - File inventories ("this directory contains X, Y, Z files")
+  - Export listings ("this module exports: ...")
+  - Type/interface definitions copied from source
+  - Linter or formatter rules already present in config files
+  - Prop tables or API signatures that exist in the code
+  Also check line count: a CLAUDE.md over 30 lines likely contains discoverable content.
+- **Pass:** All CLAUDE.md files contain only purpose + non-obvious context, each under 30 lines
+- **Warn:** Some CLAUDE.md files contain minor discoverable content (1-2 instances) or are 30-50 lines
+- **Fail:** CLAUDE.md files contain extensive discoverable content (file trees, export lists, type definitions) or exceed 50 lines
+- **Severity:** high

@@ -66,16 +66,7 @@ Audits the codebase for adherence to software engineering fundamentals: clean ar
 - **Fail:** Widespread silent error swallowing (empty catch blocks, no logging)
 - **Severity:** high
 
-### SBP-07: No hardcoded secrets
-
-- **What:** Secrets, API keys, and credentials are not committed to the repository
-- **How:** Grep for common secret patterns: `password\s*=`, `secret\s*=`, `api_key\s*=`, `token\s*=` in non-test, non-config-template files. Check for `.env` files in `.gitignore`. Look for `.env.example` templates.
-- **Pass:** No hardcoded secrets found; .env is gitignored; .env.example exists
-- **Warn:** .env is gitignored but no .env.example template
-- **Fail:** Potential secrets found in committed files
-- **Severity:** critical
-
-### SBP-08: Dependencies are managed
+### SBP-07: Dependencies are managed
 
 - **What:** Dependencies are locked and reasonably up-to-date
 - **How:** Check for lock files (`pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`, `gradle.lockfile`). Check if there's a strategy for updates (renovate config, dependabot config).

@@ -4,20 +4,6 @@ Use this template when presenting audit results. Replace placeholders with actua
 
 ---
 
-## Artifact Storage
-
-Each audit run persists results to disk for historical comparison:
-
-```
-context/audits/YYYY-MM-DD/
-├── {name}.md                    ← per-dimension artifact (one per dimension)
-├── report.md                    ← full audit report
-├── recommendations.md           ← actionable items
-└── report.html                  ← standalone HTML report (optional)
-```
-
-Example: a dimension with `name: documentation` produces `documentation.md`.
-
 ### Per-Dimension Artifact Format
 
 Each dimension artifact (`{name}.md`) contains:
@@ -122,39 +108,3 @@ Priority mapping:
 - **P1:** High severity FAILs + Critical WARNs
 - **P2:** Medium/Low FAILs + High/Medium WARNs
 
----
-
-## Delta Comparison
-
-When a previous audit exists in `context/audits/`, compare scores:
-
-1. Find the most recent prior audit directory (by date)
-2. Read its `report.md` to extract per-dimension scores
-3. Calculate delta for each dimension: `current_score - previous_score`
-4. Show delta in the Summary table (`+5`, `-3`, `=` for no change)
-5. Add a comparison note at the top if overall score changed significantly (>5 points)
-
----
-
-## Status Icons (optional)
-
-When presenting inline, you may use these markers:
-
-| Status | Marker |
-|--------|--------|
-| PASS   | PASS   |
-| WARN   | WARN   |
-| FAIL   | FAIL   |
-| SKIP   | SKIP   |
-
-## Scoring Reference
-
-See SKILL.md for the full scoring algorithm. Quick reference:
-
-- **critical** checks: 3 pts max, FAIL = -3, WARN = -1.5
-- **high** checks: 2 pts max, FAIL = -2, WARN = -1
-- **medium** checks: 1 pt max, FAIL = -1, WARN = -0.5
-- **low** checks: 0.5 pts max, FAIL = -0.5, WARN = -0.25
-- PASS and SKIP incur no deductions
-- Dimension % = (max - deductions) / max * 100
-- Overall % = average of all dimension percentages

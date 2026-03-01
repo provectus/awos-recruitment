@@ -30,25 +30,7 @@ Audits documentation coverage across the repository. Well-documented projects ar
 - **Fail:** No service-level READMEs exist
 - **Severity:** high
 
-### DOC-03: CLAUDE.md coverage
-
-- **What:** CLAUDE.md files exist at the root and in each major service, providing AI-agent context
-- **How:** Glob for `**/CLAUDE.md`. Read the topology artifact to get the list of service directories. Check that the root and each detected service directory has a CLAUDE.md. Verify they contain actionable instructions (not just boilerplate).
-- **Pass:** Root + all services have CLAUDE.md files with meaningful content
-- **Warn:** Root CLAUDE.md exists but some services are missing theirs
-- **Fail:** No CLAUDE.md files exist
-- **Severity:** high
-
-### DOC-04: Architecture documentation exists
-
-- **What:** The project has architecture documentation describing system design
-- **How:** Look for architecture docs in `context/product/architecture.md`, `docs/architecture.md`, or similar paths. Check for diagrams, component descriptions, or system-level design notes.
-- **Pass:** Architecture doc exists and describes the system's components and how they interact
-- **Warn:** Architecture doc exists but is incomplete or stale (references removed components)
-- **Fail:** No architecture documentation found
-- **Severity:** medium
-
-### DOC-05: API documentation is available
+### DOC-03: API documentation is available
 
 - **What:** API endpoints are documented via OpenAPI/Swagger specs or equivalent
 - **How:** Glob for `**/swagger/**/*.yaml`, `**/swagger/**/*.yml`, `**/openapi.yaml`, `**/openapi.json`. Also check for generated API docs or Swagger UI configuration.
@@ -57,7 +39,7 @@ Audits documentation coverage across the repository. Well-documented projects ar
 - **Fail:** No API documentation found
 - **Severity:** high
 
-### DOC-06: No stale documentation
+### DOC-04: No stale documentation
 
 - **What:** Documentation references match current code reality
 - **How:** Sample 3-5 specific claims from READMEs and CLAUDE.md files (e.g., referenced commands, file paths, tool names). Verify each claim against the actual codebase using Glob and Grep.

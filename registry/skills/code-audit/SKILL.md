@@ -127,6 +127,48 @@ The report includes:
 
 ## Adding New Dimensions
 
-See `references/dimension-format.md` for the schema and examples. Requirements:
-- A `.md` file in `dimensions/` with valid YAML frontmatter
-- A `depends-on` field listing dimension names that must complete first (omit if no dependencies)
+Drop a `.md` file in `dimensions/` with this structure:
+
+```markdown
+---
+name: my-dimension
+title: My Dimension
+description: What this dimension measures
+severity: high
+depends-on: [project-topology]
+---
+
+# My Dimension
+
+Brief description.
+
+## Checks
+
+### CHECK-01: Short name
+
+- **What:** What to verify
+- **How:** Glob/Grep/Read instructions to evaluate
+- **Pass:** Criteria for PASS
+- **Fail:** Criteria for FAIL
+- **Warn:** (optional) Partial compliance
+- **Skip-When:** (optional) Condition to auto-skip
+- **Severity:** critical | high | medium | low
+```
+
+### Frontmatter Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | yes | Unique identifier, used for CLI filtering (`/code-audit my-dimension`) |
+| `title` | yes | Human-readable display name |
+| `description` | yes | One-line purpose |
+| `severity` | yes | Default severity for all checks. Individual checks can override. |
+| `depends-on` | no | Dimension `name`s that must complete first. Omit if no dependencies. |
+
+### Tips
+
+- Keep checks atomic — one thing per check
+- Write **How** as if instructing an agent with no project context
+- Use Glob patterns and Grep regex so checks are reproducible
+- Prefer concrete thresholds over subjective judgments
+- Use **Skip-When** for checks that depend on project topology

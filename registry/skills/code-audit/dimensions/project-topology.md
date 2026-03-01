@@ -24,20 +24,7 @@ All checks produce PASS (detected) or SKIP (not detected) — there are no FAIL 
 ### TOPO-02: Application layer inventory
 
 - **What:** Discover all distinct application layers/components in the project
-- **How:** Scan the repository for all identifiable layers. Do NOT limit to predefined categories — detect whatever exists. Common layer types include but are not limited to:
-  - **API / Backend:** Server-side frameworks (Spring Boot, Express, FastAPI, Rails, Go net/http, etc.)
-  - **Frontend / Web UI:** Client-side apps (React, Vue, Angular, Svelte, Next.js, etc.)
-  - **Mobile:** Mobile apps (React Native, Flutter, Swift, Kotlin Multiplatform, etc.)
-  - **CLI / Tools:** Command-line applications or developer tools
-  - **Workers / Jobs:** Background processors, cron jobs, queue consumers (Celery, Sidekiq, Bull, etc.)
-  - **Data / ETL:** Data pipelines, ETL jobs, analytics (Spark, Airflow, dbt, etc.)
-  - **Messaging / Events:** Message brokers, event handlers (Kafka consumers, RabbitMQ, SQS processors, etc.)
-  - **Email / Notifications:** Email services, push notification services, SMS gateways
-  - **Shared libraries:** Internal packages, common utilities, SDK modules
-  - **Gateway / BFF:** API gateways, Backend-for-Frontend services, GraphQL servers
-  - **Auth / IAM:** Dedicated authentication/authorization services
-
-  For each detected layer, record: type, framework/technology, root path, and primary language.
+- **How:** Scan the repository for all identifiable layers. Do NOT limit to predefined categories — detect whatever exists (API/Backend, Frontend, Mobile, CLI, Workers, Data/ETL, Messaging, Shared libraries, Gateway/BFF, etc.). For each detected layer, record: type, framework/technology, root path, and primary language.
 - **Pass:** At least one layer detected with type, framework, and path
 - **Fail:** N/A — always produces a result
 - **Severity:** medium

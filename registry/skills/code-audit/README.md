@@ -102,4 +102,4 @@ depends-on: [project-topology]
 - **Severity:** critical | high | medium | low
 ```
 
-See `references/dimension-format.md` for the full schema and examples.
+See the "Adding New Dimensions" section in `SKILL.md` for the full schema.
