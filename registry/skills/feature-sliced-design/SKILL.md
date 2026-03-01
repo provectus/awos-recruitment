@@ -33,25 +33,25 @@ src/
 
 Imports flow DOWN only. Same-layer imports are FORBIDDEN.
 
-| Layer    | Can Import From                            | Cannot Import From                        |
-| -------- | ------------------------------------------ | ----------------------------------------- |
-| app      | pages, widgets, features, entities, shared | —                                         |
-| pages    | widgets, features, entities, shared        | app                                       |
-| widgets  | features, entities, shared                 | app, pages                                |
-| features | entities, shared                           | app, pages, widgets                       |
-| entities | shared                                     | app, pages, widgets, features             |
-| shared   | —                                          | app, pages, widgets, features, entities   |
+| Layer    | Can Import From                            | Cannot Import From                      |
+| -------- | ------------------------------------------ | --------------------------------------- |
+| app      | pages, widgets, features, entities, shared | —                                       |
+| pages    | widgets, features, entities, shared        | app                                     |
+| widgets  | features, entities, shared                 | app, pages                              |
+| features | entities, shared                           | app, pages, widgets                     |
+| entities | shared                                     | app, pages, widgets, features           |
+| shared   | —                                          | app, pages, widgets, features, entities |
 
 ## Layer Decision Guide
 
-| Question                                                 | Layer    |
-| -------------------------------------------------------- | -------- |
-| App-level setup (providers, routing, global init)?       | app      |
-| Route/page?                                              | pages    |
-| Reusable UI block used across multiple pages?            | widgets  |
-| User action (submit form, search, filter, like)?         | features |
-| Business entity (user, customer, project)?               | entities |
-| Shared utilities, config, API client?                    | shared   |
+| Question                                           | Layer    |
+| -------------------------------------------------- | -------- |
+| App-level setup (providers, routing, global init)? | app      |
+| Route/page?                                        | pages    |
+| Reusable UI block used across multiple pages?      | widgets  |
+| User action (submit form, search, filter, like)?   | features |
+| Business entity (user, customer, project)?         | entities |
+| Shared utilities, config, API client?              | shared   |
 
 ## Slice Structure
 
@@ -74,7 +74,7 @@ Each segment directory has its own `index.ts` re-exporting all items. External c
 
 | Type        | Convention                  | Example               |
 | ----------- | --------------------------- | --------------------- |
-| Files       | kebab-case                  | `employee-picker.tsx` |
+| All Files   | kebab-case                  | `employee-picker.tsx` |
 | Components  | PascalCase                  | `EmployeePicker`      |
 | Hooks       | camelCase with `use` prefix | `useEmployeeData`     |
 | Utilities   | camelCase                   | `formatCurrency`      |
@@ -103,9 +103,9 @@ Every slice must have a `CLAUDE.md`. Keep it very short: what this module is for
 
 ## Deep Dives
 
-| Need | Read |
-| ---- | ---- |
-| Layer rules, when to create each layer, cross-entity patterns | `references/layers.md` |
-| Segment rules (ui, hooks, utils, types, config, index) | `references/segments.md` |
-| CLAUDE.md template | `references/claude-md-template.md` |
-| Slice examples (entity, feature, widget, page) | `examples/slice-examples.md` |
+| Need                                                          | Read                               |
+| ------------------------------------------------------------- | ---------------------------------- |
+| Layer rules, when to create each layer, cross-entity patterns | `references/layers.md`             |
+| Segment rules (ui, hooks, utils, types, config, index)        | `references/segments.md`           |
+| CLAUDE.md template                                            | `references/claude-md-template.md` |
+| Slice examples (entity, feature, widget, page)                | `examples/slice-examples.md`       |
