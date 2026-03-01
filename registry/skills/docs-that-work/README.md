@@ -5,7 +5,7 @@ A skill that teaches agents how to write project documentation that serves both 
 ## Install
 
 ```bash
-claude skill add --from awos-recruitment docs-that-work
+npx @provectusinc/awos-recruitment skill docs-that-work
 ```
 
 ## What This Skill Teaches
