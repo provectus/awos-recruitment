@@ -61,7 +61,6 @@ Write the full report to `context/audits/YYYY-MM-DD/report.md` and also display 
 | 1 | Name      | XX%   | X     | +/-N  | 0        | 0    | 0      | 0   |
 | … | …         | …     | …     | …     | …        | …    | …      | …   |
 
-(Dimensions with `scored: false` appear in the table but show "—" for Score/Grade/Delta and are excluded from the overall average.)
 
 ## Dimension: [Name]
 
@@ -158,4 +157,4 @@ See SKILL.md for the full scoring algorithm. Quick reference:
 - **low** checks: 0.5 pts max, FAIL = -0.5, WARN = -0.25
 - PASS and SKIP incur no deductions
 - Dimension % = (max - deductions) / max * 100
-- Overall % = average of all **scored** dimension percentages (exclude `scored: false`)
+- Overall % = average of all dimension percentages

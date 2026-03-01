@@ -83,12 +83,10 @@ raw_score   = max_points - deductions
 pct         = (raw_score / max_points) * 100   (clamped to 0–100)
 ```
 
-Dimensions with `scored: false` do not produce a percentage score — they produce artifacts only.
-
 ### Overall Score
 
 ```
-overall_pct = average of all scored dimension percentages (exclude scored: false)
+overall_pct = average of all dimension percentages
 ```
 
 ### Grade Scale

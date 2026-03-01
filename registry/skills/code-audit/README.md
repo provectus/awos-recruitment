@@ -96,7 +96,7 @@ depends-on: [project-topology]
 ### CHECK-01: Descriptive check name
 
 - **What:** What to verify
-- **How:** Commands or agent instructions
+- **How:** Commands or instructions to evaluate
 - **Pass:** Criteria for PASS
 - **Fail:** Criteria for FAIL
 - **Severity:** critical | high | medium | low

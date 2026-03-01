@@ -3,14 +3,13 @@ name: project-topology
 title: Project Topology
 description: Reconnaissance — detects repository structure, all application layers, and languages to inform later dimensions
 severity: medium
-scored: false
 ---
 
 # Project Topology
 
 Reconnaissance dimension that inventories the project's structure, all application layers, and technology stack. This runs first so all subsequent dimensions can adapt their checks based on what actually exists in the repository.
 
-All checks produce PASS (detected) or SKIP (not detected) — there are no FAIL judgments. This dimension is excluded from the overall score (`scored: false`).
+All checks produce PASS (detected) or SKIP (not detected) — there are no FAIL judgments.
 
 ## Checks
 
