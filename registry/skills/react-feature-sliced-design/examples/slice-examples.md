@@ -15,7 +15,7 @@ Every slice — regardless of layer — follows the same structure.
 │   ├── types.ts               # Domain types, interfaces, enums
 │   └── index.ts               # Re-exports all model items
 ├── api/
-│   ├── {resource}.ts          # API calls, TanStack Query hooks
+│   ├── {resource}.ts          # API calls, data-fetching hooks
 │   ├── types.ts               # DTOs, request/response shapes
 │   └── index.ts               # Re-exports all API items
 ├── lib/

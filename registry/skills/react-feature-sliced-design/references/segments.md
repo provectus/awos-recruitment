@@ -20,7 +20,7 @@ All segments are **optional** — include only the ones the slice actually needs
 - One function component per `.tsx` file, flat structure (no nested subdirectories)
 - File name in kebab-case → component in PascalCase
 - Each file exports a single named component (`export function CustomerCard(...)`)
-- Co-locate component-scoped styles (CSS modules, Tailwind) in the same file or next to it
+- Co-locate component-scoped styles in the same file or next to it
 - `index.ts` re-exports all components
 
 ---
@@ -30,7 +30,7 @@ All segments are **optional** — include only the ones the slice actually needs
 Business logic and data layer for the slice. This is where hooks and state management live:
 
 - **Custom hooks** — data access (`useCustomer`), mutations, derived state
-- **State management** — Zustand stores, Redux slices, Jotai atoms, or Context
+- **State management** — stores, slices, atoms, or Context (whatever state library the project uses)
 - **Types & interfaces** — domain types, enums, prop types consumed within the slice
 - **Computed values** — derived data, selectors, transformations
 
@@ -43,10 +43,10 @@ File conventions:
 
 ## `api/`
 
-Backend interaction layer (typically TanStack Query or SWR hooks):
+Backend interaction layer:
 
-- **API hooks** — TanStack Query (`useQuery`, `useMutation` wrappers), SWR, or custom fetch hooks
-- **Request functions** — underlying `fetch`/`axios` calls (REST, GraphQL)
+- **API hooks** — data-fetching hooks (`useQuery`, `useMutation` wrappers) or custom fetch hooks
+- **Request functions** — underlying fetch calls (REST, GraphQL)
 - **DTOs** — Data Transfer Objects for request/response shapes
 - **Mappers** — transform API responses to domain models
 
@@ -62,7 +62,7 @@ File conventions:
 Pure helper functions and generic utility hooks:
 
 - Pure functions — no side effects, no domain dependencies
-- Utility hooks — generic, not tied to business logic (`useDebounce`, `useToggle`, `useMediaQuery`)
+- Utility hooks — generic, not tied to business logic
 - Formatters, validators, mappers
 - Utility types and generic type helpers can live in a dedicated `types.ts` inside `lib/`
 - File in kebab-case → function in camelCase

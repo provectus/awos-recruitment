@@ -18,7 +18,7 @@ shared     (lowest)   — Infrastructure code
 **Purpose**: Composition root — providers, router, global styles, entry point.
 
 - Single entry point for the application
-- Wraps in providers (`<QueryClientProvider>`, `<ThemeProvider>`, `<AuthProvider>`, etc.)
+- Wraps in providers (query client, theme, auth, etc.)
 - Defines router configuration
 - **Divided directly into segments (no slices)** — it's the shell that assembles everything
 
@@ -76,7 +76,7 @@ shared     (lowest)   — Infrastructure code
 
 - Core concepts: User, Customer, Project, Order
 - Domain-specific components (cards, avatars, badges)
-- Hooks for CRUD operations (TanStack Query, SWR)
+- Hooks for CRUD operations (data-fetching library)
 - Reusable across features, widgets, and pages
 
 **Can Import**: shared | **Cannot Import**: app, pages, widgets, features, other entities
@@ -93,7 +93,7 @@ shared     (lowest)   — Infrastructure code
 - API client and request utilities
 - Generic helpers (date formatting, `cn()` classname merge, debounce)
 - Shared hooks (`useDebounce`, `useLocalStorage`, `useMediaQuery`)
-- Extended components wrapping a UI library (ShadCN, MUI, Ant Design)
+- Extended components wrapping a UI component library
 
 **Can Import**: — | **Cannot Import**: all other layers
 

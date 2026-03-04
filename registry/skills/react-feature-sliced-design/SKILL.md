@@ -6,7 +6,7 @@ version: 3.0.0
 
 # React Feature-Sliced Design
 
-Architectural guide for organizing React/TypeScript frontends following Feature-Sliced Design (FSD) — a methodology that splits code into layers and slices with strict dependency rules. Tailored for React function components, hooks, and the React ecosystem (TanStack Query, React Router, Zustand, etc.).
+Architectural guide for organizing React/TypeScript frontends following Feature-Sliced Design (FSD) — a methodology that splits code into layers and slices with strict dependency rules. Tailored for React function components, hooks, and the React ecosystem.
 
 ## Why FSD
 
@@ -63,7 +63,7 @@ Every slice follows the same internal layout (all segments optional):
 {slice-name}/
 ├── ui/                 # Components (.tsx, one per file)
 ├── model/              # Hooks, state, types
-├── api/                # Data fetching (TanStack Query, REST/GraphQL)
+├── api/                # Data fetching (REST/GraphQL)
 ├── lib/                # Pure helpers, utility hooks
 ├── config.ts           # Constants, configuration
 ├── index.ts            # PUBLIC API — only exports for external use
@@ -85,7 +85,7 @@ Each segment directory has its own `index.ts` re-exporting all items. External c
 
 ## UI Library Integration
 
-If using a component library (ShadCN, MUI, Ant Design, etc.):
+If using a component library:
 
 - Base components live outside FSD layers (`components/ui/` or `node_modules`)
 - Never modify library components directly — wrap in `shared/ui/` or slice `ui/`
