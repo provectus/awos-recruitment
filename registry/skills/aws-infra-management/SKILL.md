@@ -1,5 +1,5 @@
 ---
-name: infra-management
+name: aws-infra-management
 description: "Manage AWS infrastructure with Terraform/Terragrunt via MCP tools. Auto-activates when user mentions deploying resources, infrastructure costs, destroying environments, Terraform files, AWS services, or infrastructure health checks. Provides profile-aware interactions (Enthusiast vs DevOps). AWS-focused with S3, EC2, RDS, Lambda, VPC, IAM, and other AWS services."
 ---
 
@@ -29,12 +29,12 @@ Before we start, are you:
 
 | Operation | File                                | Triggers                          |
 |-----------|-------------------------------------|-----------------------------------|
-| Deploy    | [DEPLOY.md](references/DEPLOY.md)   | deploy, create, provision, set up |
-| Destroy   | [DESTROY.md](references/DESTROY.md) | destroy, delete, remove, clean up |
-| Verify    | [VERIFY.md](references/VERIFY.md)   | verify, check, health, validate   |
-| Status    | [STATUS.md](references/STATUS.md)   | status, what's running, list      |
-| Explain   | [EXPLAIN.md](references/EXPLAIN.md) | explain, describe, how does       |
-| Cost      | [COST.md](references/COST.md)       | cost, estimate, pricing, budget   |
+| Deploy    | [deploy.md](references/deploy.md)   | deploy, create, provision, set up |
+| Destroy   | [destroy.md](references/destroy.md) | destroy, delete, remove, clean up |
+| Verify    | [verify.md](references/verify.md)   | verify, check, health, validate   |
+| Status    | [status.md](references/status.md)   | status, what's running, list      |
+| Explain   | [explain.md](references/explain.md) | explain, describe, how does       |
+| Cost      | [cost.md](references/cost.md)       | cost, estimate, pricing, budget   |
 
 ## Core Tools
 
@@ -46,7 +46,7 @@ Before we start, are you:
 
 Two MCP servers provide Terraform tooling. Use MCP tools instead of direct CLI calls wherever possible.
 
-### `mcp_aws_tf` (AWS Labs Terraform MCP Server) — Primary execution server
+### `aws-tf` (AWS Labs Terraform MCP Server) — Primary execution server
 
 | Tool                         | Purpose                                                        |
 |------------------------------|----------------------------------------------------------------|
@@ -76,9 +76,9 @@ Use `aws` CLI **only for post-operation verification** when MCP tools don't cove
 ## Environment
 
 - AWS credentials configured (AWS_PROFILE, AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, or IAM role)
-- MCP servers `mcp_tf` and `mcp_aws_tf` must be enabled
+- MCP servers `mcp_tf` and `aws-tf` must be enabled
 - Docker required for `mcp_tf` (HashiCorp server)
-- `uvx` required for `mcp_aws_tf` (AWS Labs server)
+- `uvx` required for `aws-tf` (AWS Labs server)
 
 ## Critical Safety Rules
 
@@ -109,4 +109,4 @@ Use `aws` CLI **only for post-operation verification** when MCP tools don't cove
 
 ## Question Framework
 
-See [QUESTIONS.md](references/QUESTIONS.md) for clarifying questions and confirmation patterns.
+See [questions.md](references/questions.md) for clarifying questions and confirmation patterns.
