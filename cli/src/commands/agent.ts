@@ -3,6 +3,7 @@ import * as path from "node:path";
 
 import { downloadBundle } from "../lib/download.js";
 import { parseFrontmatter } from "../lib/frontmatter.js";
+import { resolveServerUrl } from "../lib/server-url.js";
 import type { AgentFrontmatter, InstallResult } from "../lib/types.js";
 import { processSkills } from "./skill.js";
 
@@ -19,8 +20,7 @@ import { processSkills } from "./skill.js";
  * are NOT treated as errors.
  */
 export async function installAgents(names: string[]): Promise<void> {
-  const serverUrl =
-    process.env.AWOS_SERVER_URL || "http://localhost:8000";
+  const serverUrl = resolveServerUrl();
 
   // --- Phase 1: Install agents -----------------------------------------------
   const agentTempDir = await downloadBundle(

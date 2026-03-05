@@ -6,6 +6,7 @@ import YAML from "yaml";
 import { downloadBundle } from "../lib/download.js";
 import { ConflictError } from "../lib/errors.js";
 import { mergeIntoMcpJson } from "../lib/json-merge.js";
+import { resolveServerUrl } from "../lib/server-url.js";
 import type { InstallResult, McpYamlShape } from "../lib/types.js";
 
 /**
@@ -16,8 +17,7 @@ import type { InstallResult, McpYamlShape } from "../lib/types.js";
  * Exits with code 1 if any requested server was not found or conflicts.
  */
 export async function installMcpServers(names: string[]): Promise<void> {
-  const serverUrl =
-    process.env.AWOS_SERVER_URL || "http://localhost:8000";
+  const serverUrl = resolveServerUrl();
 
   const tempDir = await downloadBundle(
     `${serverUrl}/bundle/mcp`,
