@@ -1,0 +1,9 @@
+name: "shadcn"
+description: "Browse, search, and install shadcn/ui components and blocks. Works with any shadcn-compatible registry."
+config:
+  shadcn:
+    type: stdio
+    command: npx
+    args:
+      - shadcn@latest
+      - mcp
