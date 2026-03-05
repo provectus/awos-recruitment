@@ -1,5 +1,5 @@
 ---
-name: react-fsd
+name: react-feature-sliced-design
 description: This skill should be used when the user asks to "create a page", "add an entity", "build a widget", "create a feature", "scaffold FSD structure", "refactor to FSD", "where should I put this code", "what layer does X go in", "organize my React code", "FSD compliant", "fix layer violation", "explain FSD", "why is this in this layer", "review my FSD structure", or when writing, reviewing, or refactoring React/TypeScript code to ensure Feature-Sliced Design architecture compliance. Also triggers when the user places code in the wrong layer, imports across layers incorrectly, or breaks FSD conventions — the agent should proactively explain the violation and teach the correct approach.
 version: 3.0.0
 ---

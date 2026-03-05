@@ -321,12 +321,17 @@ def test_real_registry_loads_all_capabilities() -> None:
 
     caps = load_registry(real_registry)
 
-    assert len(caps) >= 1, "Registry should not be empty"
+    assert len(caps) >= 1, "Registry should contain at least one capability"
 
     skill_caps = [c for c in caps if c.type == "skill"]
     tool_caps = [c for c in caps if c.type == "tool"]
     agent_caps = [c for c in caps if c.type == "agent"]
 
-    assert len(skill_caps) >= 1, f"Expected at least 1 skill, got {len(skill_caps)}"
-    assert len(tool_caps) >= 1, f"Expected at least 1 tool, got {len(tool_caps)}"
-    assert len(agent_caps) >= 1, f"Expected at least 1 agent, got {len(agent_caps)}"
+    assert len(skill_caps) >= 1, "Registry should contain at least one skill"
+    assert len(tool_caps) >= 1, "Registry should contain at least one tool"
+    assert len(agent_caps) >= 1, "Registry should contain at least one agent"
+
+    for cap in caps:
+        assert cap.name, "Every capability must have a name"
+        assert cap.description, "Every capability must have a description"
+        assert cap.type in ("skill", "tool", "agent"), f"Unknown type: {cap.type}"

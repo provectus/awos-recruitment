@@ -1,0 +1,21 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Validate registry
+        run: cd server && uv run python -m awos_recruitment_mcp.validate
+
+      - name: Run tests
+        run: cd server && uv run pytest

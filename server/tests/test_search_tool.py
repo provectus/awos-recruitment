@@ -4,15 +4,19 @@ These are integration tests that exercise the full stack: the MCP client
 connects to the in-process server, the lifespan handler loads the real
 registry and builds a ChromaDB index, and the tool performs semantic search
 against that index.
-
-The real registry contains 4 capabilities:
-  - Skills: modern-python-development, typescript-development
-  - Tools:  context7, playwright
 """
 
 import json
+from pathlib import Path
 
 import pytest
+
+from awos_recruitment_mcp.registry import load_registry
+
+_REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "registry"
+_ALL_CAPS = load_registry(_REGISTRY_PATH)
+_SKILL_NAMES = {c.name for c in _ALL_CAPS if c.type == "skill"}
+_TOOL_NAMES = {c.name for c in _ALL_CAPS if c.type == "tool"}
 
 
 # ---------------------------------------------------------------------------
@@ -183,11 +187,9 @@ async def test_search_type_filter_skill(mcp_client):
     parsed = _parse_result(result)
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
-    # The registry has 2 skills: modern-python-development, typescript-development.
-    # All returned results must be skills (names we know are skills).
-    skill_names = {"modern-python-development", "typescript-development"}
+    # All returned results must be skills.
     for item in parsed:
-        assert item["name"] in skill_names, (
+        assert item["name"] in _SKILL_NAMES, (
             f"Expected only skill names, but got: {item['name']}"
         )
 
@@ -202,10 +204,9 @@ async def test_search_type_filter_tool(mcp_client):
     parsed = _parse_result(result)
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
-    # The registry has 2 tools: context7, playwright.
-    tool_names = {"context7", "playwright"}
+    # All returned results must be tools.
     for item in parsed:
-        assert item["name"] in tool_names, (
+        assert item["name"] in _TOOL_NAMES, (
             f"Expected only tool names, but got: {item['name']}"
         )
 
@@ -265,8 +266,8 @@ async def test_search_unrelated_query_returns_few_or_no_results(mcp_client):
     parsed = _parse_result(result)
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
-    # With a threshold of 20 and only 4 capabilities in the registry about
-    # programming topics, an unrelated query should yield very few or no results.
+    # With a threshold of 20 and a registry focused on programming topics,
+    # an unrelated query should yield very few or no results.
     assert len(parsed) <= 1, (
         f"Expected 0 or 1 results for an unrelated query, got {len(parsed)}: "
         f"{[item['name'] for item in parsed]}"
