@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { downloadBundle } from "../lib/download.js";
-import { resolveServerUrl } from "../lib/server-url.js";
 import type { InstallResult } from "../lib/types.js";
 
 /**
@@ -12,7 +11,8 @@ import type { InstallResult } from "../lib/types.js";
  * Exits with code 1 if any requested skill was not found or already exists.
  */
 export async function installSkills(names: string[]): Promise<void> {
-  const serverUrl = resolveServerUrl();
+  const serverUrl =
+    process.env.AWOS_SERVER_URL || "https://recruitment.awos.provectus.pro";
 
   const tempDir = await downloadBundle(
     `${serverUrl}/bundle/skills`,
