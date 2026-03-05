@@ -1,0 +1,12 @@
+name: "aws-tf"
+description: "Provides Terraform infrastructure management capabilities for AWS using the awslabs Terraform MCP server."
+config:
+  aws-tf:
+    type: stdio
+    command: uvx
+    args:
+      - "awslabs.terraform-mcp-server@latest"
+    env:
+      FASTMCP_LOG_LEVEL: "ERROR"
+    disabled: false
+    autoApprove: []
