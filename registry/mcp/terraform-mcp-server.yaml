@@ -1,0 +1,11 @@
+name: "terraform-mcp-server"
+description: "Terraform Registry integration — search and inspect providers, modules, and policies. Enables provider version lookup, module details, and policy discovery for Infrastructure as Code development."
+config:
+  terraform-mcp-server:
+    type: stdio
+    command: docker
+    args:
+      - "run"
+      - "-i"
+      - "--rm"
+      - "hashicorp/terraform-mcp-server"
