@@ -1,0 +1,10 @@
+name: "aws-api-mcp-server"
+description: "Execute AWS API calls safely through Claude — supports all AWS services via CLI command generation with built-in safety checks and auditing."
+config:
+  aws-api-mcp-server:
+    type: stdio
+    command: uvx
+    args:
+      - "awslabs.aws-api-mcp-server@latest"
+    env:
+      FASTMCP_LOG_LEVEL: "ERROR"
