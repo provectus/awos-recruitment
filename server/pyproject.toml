@@ -9,7 +9,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "python-frontmatter>=1.1.0",
     "pyyaml>=6.0",
-    "sentence-transformers>=3.0.0",
 ]
 
 [dependency-groups]

@@ -1,0 +1,15 @@
+name: "github-mcp-server"
+description: "Official GitHub MCP server — manage repositories, issues, pull requests, CI/CD workflows (Actions), code search, and security alerts."
+config:
+  github-mcp-server:
+    type: stdio
+    command: docker
+    args:
+      - "run"
+      - "-i"
+      - "--rm"
+      - "-e"
+      - "GITHUB_PERSONAL_ACCESS_TOKEN"
+      - "ghcr.io/github/github-mcp-server"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN}"

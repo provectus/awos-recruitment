@@ -24,7 +24,6 @@ class Config:
         port: TCP port for the HTTP transport.
         version: Semantic version exposed via MCP server metadata.
         registry_path: Path to the capability registry directory.
-        embedding_model: Sentence-transformer model name for embeddings.
         search_threshold: Maximum number of search results to return.
     """
 
@@ -32,7 +31,6 @@ class Config:
     port: int = 8000
     version: str = "0.1.0"
     registry_path: str = "../registry"
-    embedding_model: str = "all-MiniLM-L6-v2"
     search_threshold: int = 20
 
     @classmethod
@@ -44,7 +42,6 @@ class Config:
             AWOS_PORT             -- TCP port, e.g. "9000"
             AWOS_VERSION          -- version string, e.g. "0.2.0"
             AWOS_REGISTRY_PATH    -- capability registry directory, e.g. "./registry"
-            AWOS_EMBEDDING_MODEL  -- sentence-transformer model, e.g. "all-MiniLM-L6-v2"
             AWOS_SEARCH_THRESHOLD -- max search results, e.g. "10"
         """
         defaults = cls()
@@ -53,6 +50,5 @@ class Config:
             port=int(os.environ.get("AWOS_PORT", str(defaults.port))),
             version=os.environ.get("AWOS_VERSION", defaults.version),
             registry_path=os.environ.get("AWOS_REGISTRY_PATH", defaults.registry_path),
-            embedding_model=os.environ.get("AWOS_EMBEDDING_MODEL", defaults.embedding_model),
             search_threshold=int(os.environ.get("AWOS_SEARCH_THRESHOLD", str(defaults.search_threshold))),
         )
