@@ -1,6 +1,6 @@
 """Tests for the search_index module (ChromaDB-backed semantic search).
 
-Uses real ChromaDB (ephemeral) and real sentence-transformers -- no mocks.
+Uses real ChromaDB (ephemeral) and real ONNX embeddings -- no mocks.
 """
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ from chromadb.api.models.Collection import Collection
 
 from awos_recruitment_mcp.models.capability import RegistryCapability
 from awos_recruitment_mcp.search_index import build_index, query
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 SAMPLE_CAPABILITIES = [
     RegistryCapability(
@@ -61,7 +59,7 @@ def sample_capabilities() -> list[RegistryCapability]:
 @pytest.fixture(scope="module")
 def capabilities_collection() -> Collection:
     """Build a ChromaDB collection from the sample capabilities."""
-    return build_index(SAMPLE_CAPABILITIES, embedding_model=EMBEDDING_MODEL)
+    return build_index(SAMPLE_CAPABILITIES)
 
 
 # ---------------------------------------------------------------------------
@@ -302,5 +300,5 @@ class TestBuildIndexEmpty:
     """Building an index from an empty list produces an empty collection."""
 
     def test_empty_capabilities_list(self) -> None:
-        collection = build_index([], embedding_model=EMBEDDING_MODEL)
+        collection = build_index([])
         assert collection.count() == 0

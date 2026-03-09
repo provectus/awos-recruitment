@@ -3,33 +3,29 @@
 from __future__ import annotations
 
 import chromadb
+from chromadb.api.collection_configuration import CreateCollectionConfiguration, HNSWConfiguration
 from chromadb.api.models.Collection import Collection
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
 from awos_recruitment_mcp.models.capability import RegistryCapability
 
 
 def build_index(
     capabilities: list[RegistryCapability],
-    embedding_model: str,
 ) -> Collection:
     """Build an in-memory ChromaDB collection from *capabilities*.
 
     Creates an ephemeral ChromaDB client, initialises a ``"capabilities"``
-    collection using the given sentence-transformer model, and populates it
-    with all provided capabilities.
+    collection using the default ONNX-based embedding function
+    (``all-MiniLM-L6-v2``), and populates it with all provided capabilities.
 
     Args:
         capabilities: Registry capabilities to index.
-        embedding_model: Name of the sentence-transformer model to use for
-            generating embeddings (e.g. ``"all-MiniLM-L6-v2"``).
 
     Returns:
         The populated :class:`chromadb.Collection` ready for querying.
     """
-    embedding_fn = SentenceTransformerEmbeddingFunction(
-        model_name=embedding_model,
-    )
+    embedding_fn = DefaultEmbeddingFunction()
 
     client = chromadb.EphemeralClient()
 
@@ -44,6 +40,9 @@ def build_index(
     collection = client.create_collection(
         name="capabilities",
         embedding_function=embedding_fn,
+        configuration=CreateCollectionConfiguration(
+            hnsw=HNSWConfiguration(space="cosine"),
+        ),
     )
 
     if not capabilities:

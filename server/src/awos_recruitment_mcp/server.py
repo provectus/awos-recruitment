@@ -38,7 +38,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
     ``ctx.lifespan_context["collection"]``.
     """
     capabilities = load_registry(config.registry_path)
-    collection = build_index(capabilities, config.embedding_model)
+    collection = build_index(capabilities)
 
     yield {"collection": collection}
 
