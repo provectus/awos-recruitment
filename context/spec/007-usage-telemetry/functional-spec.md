@@ -1,7 +1,7 @@
 # Functional Specification: Usage Telemetry
 
 - **Roadmap Item:** Usage Telemetry — add visibility into real-world usage patterns.
-- **Status:** Draft
+- **Status:** Completed
 - **Author:** AI-assisted
 
 ---
@@ -27,10 +27,10 @@ When a user performs a search and the server returns results, the system must em
   - The search query text submitted by the client.
   - The list of capability identifiers (IDs or names) returned in the results.
 - **Acceptance Criteria:**
-  - [ ] Every successful search that returns one or more results emits a `capability_searched` event to PostHog.
-  - [ ] The event payload contains the exact query text and the full list of returned capability identifiers.
-  - [ ] Searches that return zero results still emit the event (with an empty results list) so that "no results" queries are visible.
-  - [ ] The event is sent asynchronously — it must not add latency to the search response returned to the client.
+  - [x] Every successful search that returns one or more results emits a `capability_searched` event to PostHog.
+  - [x] The event payload contains the exact query text and the full list of returned capability identifiers.
+  - [x] Searches that return zero results still emit the event (with an empty results list) so that "no results" queries are visible.
+  - [x] The event is sent asynchronously — it must not add latency to the search response returned to the client.
 
 ### 2.2. Event: Capability Installed
 
@@ -40,25 +40,25 @@ When a user installs a capability, the system must emit a telemetry event to Pos
 - **Event data:**
   - The capability identifier (ID or name) that was installed.
 - **Acceptance Criteria:**
-  - [ ] Every successful installation emits a `capability_installed` event to PostHog.
-  - [ ] The event payload contains the identifier of the installed capability.
-  - [ ] The event is sent asynchronously — it must not add latency to the install response returned to the client.
+  - [x] Every successful installation emits a `capability_installed` event to PostHog.
+  - [x] The event payload contains the identifier of the installed capability.
+  - [x] The event is sent asynchronously — it must not add latency to the install response returned to the client.
 
 ### 2.3. Failure Handling
 
 Telemetry must never degrade the core search and install experience.
 
 - **Acceptance Criteria:**
-  - [ ] If sending an event to PostHog fails (network error, service unavailable, timeout), the failure is logged for ops visibility and the event is discarded.
-  - [ ] A telemetry failure never causes the search or install request to fail, slow down, or return an error to the client.
+  - [x] If sending an event to PostHog fails (network error, service unavailable, timeout), the failure is logged for ops visibility and the event is discarded.
+  - [x] A telemetry failure never causes the search or install request to fail, slow down, or return an error to the client.
 
 ### 2.4. Anonymity
 
 All telemetry events are fully anonymous.
 
 - **Acceptance Criteria:**
-  - [ ] No user identifier, team identifier, IP address, or any other personally identifiable information is included in any telemetry event.
-  - [ ] There is no opt-out mechanism — all events are always sent.
+  - [x] No user identifier, team identifier, IP address, or any other personally identifiable information is included in any telemetry event.
+  - [x] There is no opt-out mechanism — all events are always sent.
 
 ---
 

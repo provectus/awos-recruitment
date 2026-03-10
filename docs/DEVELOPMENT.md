@@ -62,6 +62,8 @@ Override defaults via environment variables or `server/.env`:
 | `AWOS_REGISTRY_PATH` | `../registry` | Path to the capability registry directory |
 | `AWOS_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformer model for embeddings |
 | `AWOS_SEARCH_THRESHOLD` | `20` | Minimum relevance score (0–100) for search results |
+| `AWOS_POSTHOG_API_KEY` | _(none)_ | PostHog project API key. Telemetry disabled if unset. |
+| `AWOS_POSTHOG_HOST` | `https://us.i.posthog.com` | PostHog ingestion endpoint |
 
 ## Project Structure
 
@@ -73,6 +75,7 @@ awos-recruitment/
 │   │   ├── config.py        # Config from env vars
 │   │   ├── registry.py      # Registry loader (scans and parses capabilities)
 │   │   ├── search_index.py  # ChromaDB search index (build + query)
+│   │   ├── telemetry.py     # PostHog usage telemetry (search + install events)
 │   │   ├── models/          # Pydantic models (capabilities, skills, MCP defs, agents)
 │   │   ├── tools/           # MCP tool implementations
 │   │   └── validate/        # Registry validation CLI

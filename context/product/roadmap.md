@@ -51,6 +51,6 @@ _Deploy the MCP server to AWS so it's accessible as a hosted service._
 
 _With the server deployed, add visibility into real-world usage patterns._
 
-- [ ] **Usage Telemetry**
-  - [ ] **Event Tracking:** Log key events — what was searched, what was returned, what was selected, and what was installed.
-  - [ ] **Telemetry Storage:** Persist telemetry data for querying and aggregation.
+- [x] **Usage Telemetry**
+  - [x] **Event Tracking:** Log key events — what was searched, what was returned, what was selected, and what was installed.
+  - [x] **Telemetry Storage:** Persist telemetry data for querying and aggregation.

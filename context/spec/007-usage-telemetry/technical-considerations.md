@@ -1,7 +1,7 @@
 # Technical Specification: Usage Telemetry
 
 - **Functional Specification:** `context/spec/007-usage-telemetry/functional-spec.md`
-- **Status:** Draft
+- **Status:** Completed
 - **Author(s):** AI-assisted
 
 ---
