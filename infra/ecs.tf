@@ -44,6 +44,10 @@ data "aws_iam_policy_document" "ssm_read" {
     actions   = ["ssm:GetParameters"]
     resources = ["arn:aws:ssm:${var.aws_region}:*:parameter/${var.project_name}/prod/*"]
   }
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "ecs_execution_ssm" {
