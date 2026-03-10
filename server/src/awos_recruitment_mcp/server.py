@@ -17,7 +17,7 @@ from starlette.responses import JSONResponse, Response
 
 from awos_recruitment_mcp.config import Config
 from awos_recruitment_mcp.models.bundle import BundleRequest
-from awos_recruitment_mcp.telemetry import init_telemetry, shutdown_telemetry
+from awos_recruitment_mcp.telemetry import init_telemetry, shutdown_telemetry, track_install
 from awos_recruitment_mcp.registry import (
     load_registry,
     resolve_agent_paths,
@@ -90,6 +90,9 @@ async def bundle_skills(request: Request) -> Response:
         unique_names, config.registry_path
     )
 
+    for skill_dir in found_paths:
+        track_install(skill_dir.name, "skill")
+
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for skill_dir in found_paths:
@@ -136,6 +139,9 @@ async def bundle_mcp(request: Request) -> Response:
         unique_names, config.registry_path
     )
 
+    for yaml_path in found_paths:
+        track_install(yaml_path.stem, "mcp_server")
+
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for yaml_path in found_paths:
@@ -168,6 +174,9 @@ async def bundle_agents(request: Request) -> Response:
     found_paths, _not_found = resolve_agent_paths(
         unique_names, config.registry_path
     )
+
+    for md_path in found_paths:
+        track_install(md_path.stem, "agent")
 
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:

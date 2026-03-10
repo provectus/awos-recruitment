@@ -179,3 +179,106 @@ def test_shutdown_telemetry_calls_shutdown(mock_client: MagicMock) -> None:
 
     mock_client.shutdown.assert_called_once()
     assert telemetry._client is None
+
+
+# ---------------------------------------------------------------------------
+# Tests — track_install calls capture with correct arguments
+# ---------------------------------------------------------------------------
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_install_calls_capture(mock_client: MagicMock) -> None:
+    """track_install() should call client.capture() with the expected event
+    name, distinct_id, and properties containing capability_name and
+    capability_type.
+    """
+    telemetry.track_install("modern-python-development", "skill")
+
+    mock_client.capture.assert_called_once_with(
+        distinct_id="anonymous",
+        event="capability_installed",
+        properties={
+            "capability_name": "modern-python-development",
+            "capability_type": "skill",
+        },
+    )
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_install_mcp_server_type(mock_client: MagicMock) -> None:
+    """track_install() should pass capability_type through to properties."""
+    telemetry.track_install("context7", "mcp_server")
+
+    mock_client.capture.assert_called_once_with(
+        distinct_id="anonymous",
+        event="capability_installed",
+        properties={
+            "capability_name": "context7",
+            "capability_type": "mcp_server",
+        },
+    )
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_install_agent_type(mock_client: MagicMock) -> None:
+    """track_install() should pass capability_type='agent' through to properties."""
+    telemetry.track_install("test-agent", "agent")
+
+    mock_client.capture.assert_called_once_with(
+        distinct_id="anonymous",
+        event="capability_installed",
+        properties={
+            "capability_name": "test-agent",
+            "capability_type": "agent",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tests — track_install no-op when no API key configured
+# ---------------------------------------------------------------------------
+
+
+def test_track_install_noop_when_no_api_key() -> None:
+    """When _client is None, track_install() must be a silent no-op."""
+    original_client = telemetry._client
+    try:
+        telemetry._client = None
+        # Should not raise.
+        telemetry.track_install("some-skill", "skill")
+    finally:
+        telemetry._client = original_client
+
+
+# ---------------------------------------------------------------------------
+# Tests — track_install catches exceptions and logs warning
+# ---------------------------------------------------------------------------
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_install_catches_capture_exception(
+    mock_client: MagicMock,
+) -> None:
+    """If client.capture() raises, track_install() must catch the exception
+    and not propagate it.
+    """
+    mock_client.capture.side_effect = RuntimeError("network timeout")
+
+    # Must not raise.
+    telemetry.track_install("failing-skill", "skill")
+
+    mock_client.capture.assert_called_once()
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_install_logs_warning_on_exception(
+    mock_client: MagicMock,
+    caplog,
+) -> None:
+    """Verify that the warning message is actually logged when capture fails."""
+    mock_client.capture.side_effect = RuntimeError("boom")
+
+    with caplog.at_level(logging.WARNING, logger="awos_recruitment_mcp.telemetry"):
+        telemetry.track_install("failing-skill", "skill")
+
+    assert any("Failed to track install event" in record.message for record in caplog.records)

@@ -81,3 +81,26 @@ def track_search(query: str, results: list[dict]) -> None:
         )
     except Exception:
         logger.warning("Failed to track search event", exc_info=True)
+
+
+def track_install(capability_name: str, capability_type: str) -> None:
+    """Emit a ``capability_installed`` event.
+
+    Args:
+        capability_name: The name of the installed capability.
+        capability_type: One of ``"skill"``, ``"agent"``, or ``"mcp_server"``.
+    """
+    if _client is None:
+        return
+
+    try:
+        _client.capture(
+            distinct_id="anonymous",
+            event="capability_installed",
+            properties={
+                "capability_name": capability_name,
+                "capability_type": capability_type,
+            },
+        )
+    except Exception:
+        logger.warning("Failed to track install event", exc_info=True)

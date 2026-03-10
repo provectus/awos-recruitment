@@ -6,14 +6,14 @@
 
 After this slice, every search query emits a telemetry event. Server remains fully functional without a PostHog API key (silent no-op).
 
-- [ ] **Sub-task 1.1:** Add `posthog>=7.0.0` to `server/pyproject.toml` dependencies and install. **[Agent: python-expert]**
-- [ ] **Sub-task 1.2:** Add `posthog_api_key` and `posthog_host` config fields to `Config` dataclass in `config.py`. Update `server/.env.example` with commented placeholders. **[Agent: python-expert]**
-- [ ] **Sub-task 1.3:** Create `server/src/awos_recruitment_mcp/telemetry.py` — `Posthog` client initialization with `on_error` callback (no-op if API key is absent), `track_search(query, results)` function, internal error handling with `logger.warning()`. **[Agent: python-expert]**
-- [ ] **Sub-task 1.4:** Wire PostHog client lifecycle into `server.py`'s `lifespan()` — create `Posthog` instance on startup (if API key present), call `client.shutdown()` on teardown. Store in lifespan context. **[Agent: python-expert]**
-- [ ] **Sub-task 1.5:** Instrument `search_capabilities()` in `tools/search.py` — call `track_search()` after `search_index.query()` returns, before returning results. **[Agent: python-expert]**
-- [ ] **Sub-task 1.6:** Add unit tests for `telemetry.py` — verify `track_search()` calls `client.capture()` with correct event name/properties (`capability_searched`, `distinct_id="anonymous"`, query, results list), verify no-op when API key is absent, verify errors are caught and logged. **[Agent: python-expert]**
-- [ ] **Sub-task 1.7:** Run the full test suite (`pytest`). Verify all existing tests still pass and new telemetry tests pass. **[Agent: qa-tester]**
-- [ ] **Sub-task 1.8:** Git commit. **[Agent: general-purpose]**
+- [x] **Sub-task 1.1:** Add `posthog>=7.0.0` to `server/pyproject.toml` dependencies and install. **[Agent: python-expert]**
+- [x] **Sub-task 1.2:** Add `posthog_api_key` and `posthog_host` config fields to `Config` dataclass in `config.py`. Update `server/.env.example` with commented placeholders. **[Agent: python-expert]**
+- [x] **Sub-task 1.3:** Create `server/src/awos_recruitment_mcp/telemetry.py` — `Posthog` client initialization with `on_error` callback (no-op if API key is absent), `track_search(query, results)` function, internal error handling with `logger.warning()`. **[Agent: python-expert]**
+- [x] **Sub-task 1.4:** Wire PostHog client lifecycle into `server.py`'s `lifespan()` — create `Posthog` instance on startup (if API key present), call `client.shutdown()` on teardown. Store in lifespan context. **[Agent: python-expert]**
+- [x] **Sub-task 1.5:** Instrument `search_capabilities()` in `tools/search.py` — call `track_search()` after `search_index.query()` returns, before returning results. **[Agent: python-expert]**
+- [x] **Sub-task 1.6:** Add unit tests for `telemetry.py` — verify `track_search()` calls `client.capture()` with correct event name/properties (`capability_searched`, `distinct_id="anonymous"`, query, results list), verify no-op when API key is absent, verify errors are caught and logged. **[Agent: python-expert]**
+- [x] **Sub-task 1.7:** Run the full test suite (`pytest`). Verify all existing tests still pass and new telemetry tests pass. **[Agent: qa-tester]**
+- [x] **Sub-task 1.8:** Git commit. **[Agent: general-purpose]**
 
 ---
 
