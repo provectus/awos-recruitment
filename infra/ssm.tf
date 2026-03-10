@@ -61,3 +61,17 @@ resource "aws_ssm_parameter" "registry_path" {
     Name = "${var.project_name}-ssm-registry-path"
   }
 }
+
+resource "aws_ssm_parameter" "posthog_api_key" {
+  name  = "/${var.project_name}/prod/posthog-api-key"
+  type  = "SecureString"
+  value = "placeholder"
+
+  tags = {
+    Name = "${var.project_name}-ssm-posthog-api-key"
+  }
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}

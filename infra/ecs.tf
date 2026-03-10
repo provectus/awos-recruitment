@@ -111,6 +111,10 @@ resource "aws_ecs_task_definition" "mcp" {
         {
           name      = "AWOS_REGISTRY_PATH"
           valueFrom = aws_ssm_parameter.registry_path.arn
+        },
+        {
+          name      = "AWOS_POSTHOG_API_KEY"
+          valueFrom = aws_ssm_parameter.posthog_api_key.arn
         }
       ]
 
