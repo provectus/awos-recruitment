@@ -25,6 +25,8 @@ class Config:
         version: Semantic version exposed via MCP server metadata.
         registry_path: Path to the capability registry directory.
         search_threshold: Maximum number of search results to return.
+        posthog_api_key: PostHog project API key. ``None`` disables telemetry.
+        posthog_host: PostHog ingestion endpoint.
     """
 
     host: str = "0.0.0.0"
@@ -32,6 +34,8 @@ class Config:
     version: str = "0.1.0"
     registry_path: str = "../registry"
     search_threshold: int = 20
+    posthog_api_key: str | None = None
+    posthog_host: str = "https://us.i.posthog.com"
 
     @classmethod
     def from_env(cls) -> Config:
@@ -43,6 +47,8 @@ class Config:
             AWOS_VERSION          -- version string, e.g. "0.2.0"
             AWOS_REGISTRY_PATH    -- capability registry directory, e.g. "./registry"
             AWOS_SEARCH_THRESHOLD -- max search results, e.g. "10"
+            AWOS_POSTHOG_API_KEY  -- PostHog project API key (unset = telemetry disabled)
+            AWOS_POSTHOG_HOST     -- PostHog ingestion host, e.g. "https://eu.i.posthog.com"
         """
         defaults = cls()
         return cls(
@@ -51,4 +57,6 @@ class Config:
             version=os.environ.get("AWOS_VERSION", defaults.version),
             registry_path=os.environ.get("AWOS_REGISTRY_PATH", defaults.registry_path),
             search_threshold=int(os.environ.get("AWOS_SEARCH_THRESHOLD", str(defaults.search_threshold))),
+            posthog_api_key=os.environ.get("AWOS_POSTHOG_API_KEY"),
+            posthog_host=os.environ.get("AWOS_POSTHOG_HOST", defaults.posthog_host),
         )

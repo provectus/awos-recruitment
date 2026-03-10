@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse, Response
 
 from awos_recruitment_mcp.config import Config
 from awos_recruitment_mcp.models.bundle import BundleRequest
+from awos_recruitment_mcp.telemetry import init_telemetry, shutdown_telemetry
 from awos_recruitment_mcp.registry import (
     load_registry,
     resolve_agent_paths,
@@ -39,8 +40,11 @@ async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
     """
     capabilities = load_registry(config.registry_path)
     collection = build_index(capabilities)
+    init_telemetry(config)
 
     yield {"collection": collection}
+
+    shutdown_telemetry()
 
 
 mcp = FastMCP(

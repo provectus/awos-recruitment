@@ -54,7 +54,3 @@ _With the server deployed, add visibility into real-world usage patterns._
 - [ ] **Usage Telemetry**
   - [ ] **Event Tracking:** Log key events — what was searched, what was returned, what was selected, and what was installed.
   - [ ] **Telemetry Storage:** Persist telemetry data for querying and aggregation.
-
-- [ ] **Analytics & Reporting**
-  - [ ] **Usage Metrics API:** Expose an endpoint for querying aggregated usage data (most-searched terms, most-installed capabilities, adoption rates).
-  - [ ] **Capability Value Signals:** Surface which skills and agents are driving the most real-world adoption, enabling data-driven curation of the registry.

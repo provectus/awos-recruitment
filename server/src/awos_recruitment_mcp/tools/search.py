@@ -11,6 +11,7 @@ from fastmcp.server.context import Context
 
 from awos_recruitment_mcp import search_index
 from awos_recruitment_mcp.server import config, mcp
+from awos_recruitment_mcp.telemetry import track_search
 
 VALID_TYPES = {"skill", "agent", "tool"}
 
@@ -53,5 +54,7 @@ async def search_capabilities(
         type_filter=type,
         threshold=config.search_threshold,
     )
+
+    track_search(query, results)
 
     return results
