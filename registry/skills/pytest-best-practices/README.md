@@ -2,6 +2,8 @@
 
 Expert guidance for writing high-quality pytest tests — covering fixtures, parametrization, mocking, and common patterns for maintainable test suites.
 
+> This skill is based on the [pytest-best-practices](https://github.com/cfircoo/claude-code-toolkit/tree/main/skills/pytest-best-practices) skill originally created by [cfircoo](https://github.com/cfircoo). Big thanks to the authors for the foundational work.
+
 ## Install
 
 ```bash
