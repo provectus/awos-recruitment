@@ -1,0 +1,10 @@
+name: "aws-knowledge-mcp-server"
+description: "Comprehensive AWS knowledge base — documentation, API references, blogs, Well-Architected guidance, architectural patterns, and regional service availability. Superset of aws-documentation-mcp-server."
+config:
+  aws-knowledge-mcp-server:
+    type: stdio
+    command: uvx
+    args:
+      - "fastmcp"
+      - "run"
+      - "https://knowledge-mcp.global.api.aws"
