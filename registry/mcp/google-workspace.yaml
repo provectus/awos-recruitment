@@ -1,0 +1,8 @@
+name: "google-workspace"
+description: "Gmail and Google Calendar integration — list, search, send, and draft emails; list, create, update, and delete calendar events."
+config:
+  google-workspace:
+    type: stdio
+    command: uvx
+    args:
+      - "mcp-gsuite"

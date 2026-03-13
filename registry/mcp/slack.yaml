@@ -1,0 +1,12 @@
+name: "slack"
+description: "Slack workspace access — channels, messages, users, threads, reactions, and search. Enables reading and posting messages across Slack workspaces."
+config:
+  slack:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "slack-mcp-server@latest"
+    env:
+      SLACK_MCP_XOXC_TOKEN: "${SLACK_MCP_XOXC_TOKEN}"
+      SLACK_MCP_XOXD_TOKEN: "${SLACK_MCP_XOXD_TOKEN}"
