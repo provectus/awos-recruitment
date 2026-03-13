@@ -1,0 +1,6 @@
+name: "excalidraw"
+description: "Interactive visual diagramming — create and render Excalidraw diagrams directly from natural language descriptions. Supports architecture diagrams, flowcharts, sequence diagrams, and wireframes."
+config:
+  excalidraw:
+    type: http
+    url: "https://mcp.excalidraw.com/mcp"

@@ -1,0 +1,12 @@
+name: "gitlab"
+description: "GitLab integration — repositories, merge requests, CI/CD pipelines, issues, code search, vulnerability reports, and container registry management."
+config:
+  gitlab:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-gitlab"
+    env:
+      GITLAB_PERSONAL_ACCESS_TOKEN: "${GITLAB_PERSONAL_ACCESS_TOKEN}"
+      GITLAB_API_URL: "${GITLAB_API_URL}"
