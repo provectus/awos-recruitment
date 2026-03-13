@@ -22,6 +22,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **`references/concurrency.md`** — `@MainActor` for UI, `.task` modifier, `@Observable` lifecycle, Combine interop in SwiftUI context
 - **`references/uikit-interop.md`** — `UIViewRepresentable`, `UIViewControllerRepresentable`, hosting SwiftUI in UIKit, migration strategies
 - **`references/project-structure.md`** — Xcode project organization, SPM packages, multi-module architecture, build configurations, targets, schemes
+- **`references/persistence.md`** — Core Data (NSPersistentContainer, contexts, migrations, batch ops, CloudKit) and SwiftData (@Model, @Query, ModelActor, VersionedSchema, #Unique, #Index)
 - **`references/app-lifecycle.md`** — App/Scene lifecycle, background tasks, push notifications, deep links, Universal Links
 - **`references/ipados-patterns.md`** — Multitasking (Split View, Slide Over, Stage Manager), pointer/keyboard support, drag & drop, Mac Catalyst
 - **`references/macos-patterns.md`** — AppKit interop, menus, toolbar, windows, settings/preferences, sandboxing
