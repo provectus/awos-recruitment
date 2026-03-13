@@ -24,6 +24,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **`references/project-structure.md`** — Xcode project organization, SPM packages, multi-module architecture, build configurations, targets, schemes
 - **`references/persistence.md`** — Core Data (NSPersistentContainer, contexts, migrations, batch ops, CloudKit) and SwiftData (@Model, @Query, ModelActor, VersionedSchema, #Unique, #Index)
 - **`references/networking.md`** — URLSession (async/await, uploads, downloads, background sessions, WebSocket, auth challenges, caching), Alamofire (interceptors, retry, certificate pinning, multipart)
+- **`references/storekit.md`** — StoreKit 2 (Product, Transaction, subscriptions, entitlements, verification), StoreKit SwiftUI views (SubscriptionStoreView, StoreView), testing, refunds
 - **`references/media-playback.md`** — AVPlayer, AVKit (VideoPlayer, AVPlayerViewController), AVAudioSession, Picture-in-Picture, AirPlay, offline HLS downloads, Now Playing, remote controls
 - **`references/app-lifecycle.md`** — App/Scene lifecycle, background tasks, push notifications, deep links, Universal Links
 - **`references/ipados-patterns.md`** — Multitasking (Split View, Slide Over, Stage Manager), pointer/keyboard support, drag & drop, Mac Catalyst
