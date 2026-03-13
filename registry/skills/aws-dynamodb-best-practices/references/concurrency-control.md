@@ -1,5 +1,7 @@
 # Concurrency Control
 
+> **Note:** Individual write operations such as `UpdateItem` are atomic and always operate on the most recent version of the item, regardless of concurrency. Locking strategies are only needed when your application must read an item and then write it back based on the read value (a read-modify-write cycle), because another process could modify the item between the read and the write.
+
 ## Optimistic Locking
 
 Use a version attribute to detect concurrent modifications. The write succeeds only if the version matches:
@@ -37,7 +39,7 @@ except ClientError as e:
 
 ### Retry strategy
 
-On conflict, re-read the item, re-apply business logic, and retry. Use exponential backoff with jitter for high-contention items.
+On conflict, re-read the item, re-apply business logic, and retry. Use exponential backoff with jitter for high-contention items. Each retry requires an additional read, so cap the maximum number of retries (e.g., 3–5 attempts) to avoid runaway costs.
 
 ## Pessimistic Locking with DynamoDB Lock Client
 
@@ -64,7 +66,9 @@ finally:
 
 ## DynamoDB Transactions
 
-`TransactWriteItems` and `TransactGetItems` provide serializable isolation:
+`TransactWriteItems` and `TransactGetItems` provide serializable isolation. AWS classifies transactions as a **pessimistic locking** mechanism — they prevent concurrent access to the involved items for the duration of the transaction, making them suitable for moderate-contention scenarios beyond just multi-item atomicity.
+
+You cannot target the same item with multiple operations within a single transaction (e.g., a `ConditionCheck` and an `Update` on the same key will be rejected).
 
 ```python
 client.transact_write_items(
@@ -96,7 +100,7 @@ client.transact_write_items(
 | Max transaction size | 4 MB |
 | Operations supported | Put, Update, Delete, ConditionCheck |
 | Consistency | Serializable isolation |
-| Cost | 2x WCU (writes), 2x RCU (reads) |
+| Cost | 2x WCU per item (writes), 2x RCU per item (reads) — due to prepare + commit phases. With DAX, `TransactWriteItems` also consumes 2x RCU per item in addition to WCUs |
 
 ### Idempotency
 
@@ -114,8 +118,9 @@ client.transact_write_items(
 Global tables use **last writer wins** conflict resolution for MREC (eventually consistent) mode:
 
 - Version-based optimistic locking **does not work** across regions — two regions can independently increment the version and both succeed.
-- For cross-region consistency, use **MRSC** (strongly consistent) global tables with a designated writer region.
+- For cross-region consistency, use **MRSC** (strongly consistent) global tables. MRSC supports active-active writes across regions — concurrent writes to the same item are rejected with `ReplicatedWriteConflictException` (retry-safe). No single designated writer region is required.
 - Alternatively, partition writes by region (e.g., Region A owns users A-M, Region B owns N-Z) to avoid conflicts entirely.
+- **Transactions are not cross-region** — `TransactWriteItems` provides ACID guarantees only within the region where invoked. Other replicas may observe partially completed transactions during replication.
 
 ## Decision Matrix
 
@@ -123,7 +128,8 @@ Global tables use **last writer wins** conflict resolution for MREC (eventually 
 |---|---|
 | Low-contention read-modify-write | Optimistic locking (version attribute) |
 | High-contention single item | Optimistic locking with backoff + jitter |
+| Moderate-contention multi-item updates | TransactWriteItems (pessimistic) |
 | Long-running exclusive operations | DynamoDB Lock Client |
 | Multi-item atomic operations | TransactWriteItems |
 | Cross-region writes (MREC) | Design to avoid conflicts (partition by region) |
-| Cross-region writes (MRSC) | Single designated writer region |
+| Cross-region writes (MRSC) | Active-active with `ReplicatedWriteConflictException` on conflicts |
