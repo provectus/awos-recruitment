@@ -16,68 +16,105 @@ Opinionated conventions for designing and operating DynamoDB tables at scale. Fo
 
 ## NoSQL Design Mindset
 
-DynamoDB is not a relational database — designing it like one leads to poor performance and high costs. Schema follows queries, not the other way around. Identify all access patterns before creating tables.
+DynamoDB is not a relational database — schema follows queries, not the other way around. Identify all access patterns before creating tables. Denormalize and duplicate data to avoid cross-table lookups.
 
 See `references/nosql-design-principles.md` for access-pattern-first design, RDBMS migration thinking, and when to use single vs multiple tables.
 
 ## Key and Index Design
 
-Partition key choice determines data distribution — poor keys create hot partitions. Sort keys enable range queries and hierarchical organization. Secondary indexes serve access patterns the primary key cannot.
+### Partition key — high cardinality, uniform distribution
 
-Key decisions:
-- **Partition key**: high cardinality, uniform distribution. Shard when a natural key has hot spots.
-- **Sort key**: encode hierarchy with delimiters, use prefixes for entity types and versioning.
-- **GSI vs LSI**: prefer GSI (flexible, no size limit). Use LSI only when strongly consistent reads on an alternate sort key are required.
-- **Query vs Scan**: always prefer Query. Scan is a last resort — use parallel scan for large tables, schedule during off-peak.
+| Partition key | Verdict | Why |
+|---|---|---|
+| `user_id` (UUID) | Excellent | Very high cardinality, uniform traffic |
+| `tenant_id` | Needs sharding | Skewed — large tenants dominate |
+| `status` (active/inactive) | Bad | Very low cardinality, heavily skewed |
+| `date` (YYYY-MM-DD) | Bad for writes | All writes hit "today" |
 
-See `references/key-and-index-design.md` for partition key evaluation, sharding strategies, sort key patterns, GSI overloading, sparse indexes, and query optimization.
+### Sort key — encode hierarchy broadest to most specific
+
+```
+PK: USER#alice    SK: PROFILE         ← user metadata
+PK: USER#alice    SK: ORDER#2024-001  ← order (query begins_with(SK, "ORDER#"))
+PK: USER#alice    SK: ADDR#home       ← address
+```
+
+### GSI vs LSI
+
+**Default to GSI.** Use LSI only when all three apply: you need strongly consistent reads on an alternate sort key, item collection stays under 10 GB, and you can define the index at table creation.
+
+### Query vs Scan
+
+**Always design for Query.** Scan costs RCU proportional to total table size — filters reduce results but not capacity consumed. If you need Scan for a regular access pattern, redesign your keys or add a GSI.
+
+See `references/key-and-index-design.md` for sharding strategies, GSI overloading, sparse indexes, projection strategy, and parallel scan guidelines.
 
 ## Data Modeling Patterns
 
-DynamoDB data modeling centers on denormalization and item collections. Key patterns:
-- **Adjacency list** — many-to-many relationships in a single table.
-- **Table-per-period** — time series with independent throughput per period.
-- **Vertical partitioning** — split large items across sort keys.
-- **S3 offload** — store payloads over ~100 KB in S3 with a DynamoDB pointer.
+### One-to-many — denormalize into parent partition
 
-See `references/data-modeling-patterns.md` for validated patterns with examples, access pattern tables, and trade-offs.
+```
+PK          | SK              | data
+ORDER#1     | ORDER#1         | {customer, total, date}
+ORDER#1     | ITEM#1          | {product, qty, price}
+ORDER#1     | ITEM#2          | {product, qty, price}
+```
+
+One `Query` on `PK = ORDER#1` returns the order with all its items.
+
+### Many-to-many — adjacency list pattern
+
+Store bidirectional edges as items. A GSI with `SK` as partition key enables reverse lookups without maintaining duplicate edge items.
+
+### Large items (400 KB limit)
+
+| Strategy | When to use |
+|---|---|
+| Compression (gzip) | Large attributes you don't filter on (stored as Binary) |
+| Vertical partitioning | Split into METADATA / BODY / COMMENTS sort keys — query only what you need |
+| S3 offload | Anything over ~100 KB — store pointer in DynamoDB |
+
+See `references/data-modeling-patterns.md` for adjacency list examples, time series table-per-period strategy, and trade-offs.
 
 ## Concurrency Control
 
 Individual writes are atomic. Locking is only needed for read-modify-write cycles:
-- **Optimistic locking** — version attribute + conditional write. Best for low contention.
-- **Transactions** — `TransactWriteItems` for multi-item atomicity (up to 100 items / 4 MB, 2x WCU cost).
-- **Lock client** — distributed locks for long-running exclusive operations.
 
-See `references/concurrency-control.md` for decision matrix, retry strategies, and global tables concurrency caveats.
+| Scenario | Approach |
+|---|---|
+| Low-contention read-modify-write | Optimistic locking — version attribute + `ConditionExpression` |
+| Multi-item atomic operations | `TransactWriteItems` (up to 100 items / 4 MB, costs 2x WCU) |
+| Long-running exclusive operations | DynamoDB Lock Client (heartbeat-based distributed locks) |
+| Cross-region writes (MREC) | Design to avoid conflicts — partition by region |
+
+See `references/concurrency-control.md` for retry strategies, transaction design considerations, and global tables concurrency caveats.
 
 ## Global Tables
 
-Global tables replicate data across regions for low-latency global access and disaster recovery (99.999% availability SLA).
+Global tables replicate data across regions for low-latency global access (99.999% availability).
 
-- **MREC** — async replication, last-writer-wins conflicts. Lower latency, supports transactions.
-- **MRSC** — sync replication, active-active, conflicts rejected (`ReplicatedWriteConflictException`). Zero RPO, but requires exactly 3 regions, no transactions, no TTL.
-- **Write modes** are application-level routing choices (write-to-any, write-to-one, write-to-your-region) — independent of consistency mode.
-
-See `references/global-tables.md` for MREC vs MRSC trade-offs, write mode selection, and operational guidance.
-
-## Quick Reference
-
-| Scenario | Solution |
+| Need | Choose |
 |---|---|
-| Choosing a partition key | High cardinality, uniform distribution |
-| Hot partition | Write sharding with calculated suffix |
-| Hierarchical data queries | Composite sort key with delimiter |
-| Alternate query pattern | GSI with appropriate projection |
-| Many-to-many relationships | Adjacency list pattern |
-| Time series data | Table-per-period with varied throughput |
-| Items over 400 KB | Compress, vertical partition, or S3 offload |
-| Prevent lost updates | Optimistic locking (version + conditional write) |
-| Multi-item atomicity | TransactWriteItems (up to 100 items) |
-| Global low-latency reads | Global tables with nearest-region routing |
-| Cross-region consistency | MRSC global tables (3 regions) |
-| Filtered views | Sparse GSI |
-| Multiple entity types | Single-table design with GSI overloading |
+| Low-latency global writes, tolerate eventual consistency | MREC — async replication, last-writer-wins |
+| Strong consistency globally, zero RPO | MRSC — sync replication, exactly 3 regions, no transactions/TTL |
+| Conditional writes or transactions | MREC with write-to-one-region mode |
+
+**Write modes** are application-level routing (write-to-any, write-to-one, write-to-your-region) — DynamoDB itself always accepts writes in any replica.
+
+See `references/global-tables.md` for MREC vs MRSC design implications, write mode selection, and operational guidance.
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---|---|
+| Designing schema before access patterns | List all queries first, then design keys |
+| Low-cardinality partition key | Composite key or write sharding |
+| Using Scan for regular access patterns | Redesign keys or add a GSI |
+| Filter expressions to reduce reads | Filters don't reduce RCU — use key conditions |
+| Storing large lists in one attribute | Individual items with sort key prefixes |
+| `ALL` projection on write-heavy GSI | `KEYS_ONLY` or `INCLUDE` to reduce write amplification |
+| Optimistic locking across regions (MREC) | Last-writer-wins silently resolves — partition writes by region |
+| Transactions for bulk ingestion | Use `BatchWriteItem` instead |
 
 ## Reference Files
 
