@@ -76,17 +76,7 @@ DynamoDB enforces a **400 KB item size limit**. Use `ReturnConsumedCapacity` on 
 
 ### 1. Compression
 
-Gzip large string or binary attributes before writing:
-
-```python
-import gzip
-import json
-
-data = gzip.compress(json.dumps(large_payload).encode())
-table.put_item(Item={"PK": "DOC#1", "SK": "BODY", "data": data})
-```
-
-Caveat: compressed values are stored as `Binary` type and **cannot be used for filtering** in query or scan conditions.
+Gzip or LZO large string/binary attributes before writing. Best when the attribute is large but you don't need to filter on it — compressed values are stored as `Binary` type and **cannot be used in filter expressions**.
 
 ### 2. Vertical partitioning
 

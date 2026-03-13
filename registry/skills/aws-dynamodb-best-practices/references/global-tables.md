@@ -6,123 +6,91 @@ DynamoDB Global Tables replicate data across multiple AWS regions, providing low
 
 ## MREC vs MRSC
 
+Both modes are **active-active** — DynamoDB accepts reads and writes in any replica region. The consistency mode cannot be changed after table creation.
+
 | Feature | MREC (Multi-Region Eventually Consistent) | MRSC (Multi-Region Strongly Consistent) |
 |---|---|---|
-| Replication | Asynchronous | Synchronous |
+| Replication | Asynchronous | Synchronous (to at least one other region) |
 | Write latency | Local region latency | Higher (cross-region round-trip) |
-| Read consistency | Eventually consistent across regions | Strongly consistent globally |
-| Write location | Any replica region | Designated owner region per item/table |
-| Conflict resolution | Last writer wins (timestamp-based) | No conflicts (single writer) |
-| Use case | Latency-sensitive global apps | Consistency-critical applications |
+| Read consistency | Eventually consistent across regions; strongly consistent only within the region of last write | Strongly consistent globally from any replica |
+| Write acceptance | Any replica region | Any replica region (concurrent writes to the same item fail with `ReplicatedWriteConflictException`) |
+| Conflict handling | Last writer wins (timestamp-based, silent) | Conflicts rejected — retry succeeds once the other write completes |
+| Region requirement | 2+ regions, any DynamoDB region | Exactly 3 regions (2-3 replicas + optional witness), within a single region set |
+| Transactions | Supported (atomic within the originating region only) | Not supported |
+| TTL | Supported | Not supported |
+| Use case | Latency-sensitive global apps | Consistency-critical applications with zero RPO |
 
 ## MREC (Eventually Consistent)
 
-### How it works
+### What this means for your design
 
-1. Write lands in the local region.
-2. DynamoDB asynchronously replicates to all other replica regions.
-3. Replication typically completes within **1 second** but is not guaranteed.
-4. Concurrent writes to the same item in different regions resolve via **last writer wins** (based on timestamps).
+- Writes are accepted locally and replicated asynchronously (typically < 1 second, no SLA). Your application may read stale data from other regions during the replication window.
+- Concurrent writes to the same item in different regions are silently resolved by **last writer wins** — the losing write disappears without error. Design your write routing to minimize this risk.
+- Version-based optimistic locking **does not work** across regions — two regions can independently pass the condition check and both succeed.
+- Transactions are atomic only within the originating region. Other replicas may observe partial results during replication.
 
 ### Best practices
 
-- **Avoid concurrent writes to the same item** from different regions when possible.
+- **Choose a write mode** (see below) to control where writes land and minimize conflict risk.
 - **Design for idempotency** — the same write may be replicated and applied multiple times during failover.
-- Do not rely on version-based optimistic locking across regions — it cannot detect cross-region conflicts.
-- Use **DynamoDB Streams** for cross-region event processing, but be aware that each replica generates its own stream.
-
-### Conflict example
-
-```
-Region A: UpdateItem(PK="USER#1", SET name="Alice")   at T=100ms
-Region B: UpdateItem(PK="USER#1", SET name="Bob")     at T=101ms
-
-Result: name="Bob" (last writer wins, timestamp T=101ms > T=100ms)
-```
+- When using **DynamoDB Streams**, be aware each replica generates its own stream, replication order across partitions is not guaranteed, and transactional writes may not replicate together.
 
 ## MRSC (Strongly Consistent)
 
-### How it works
+### What this means for your design
 
-1. Each item (or the entire table) has a **designated owner region**.
-2. Writes are only accepted in the owner region.
-3. Writes are synchronously replicated to other regions before acknowledgment.
-4. Reads in any region can request strong consistency.
+- Any replica can accept reads and writes — no designated owner region needed. Strongly consistent reads from **any** replica always return the latest version.
+- Concurrent writes to the same item in different regions fail with `ReplicatedWriteConflictException` (retry-safe). This is not silent like MREC — your app knows about conflicts.
+- Write and strongly consistent read latency is higher (cross-region round-trip). Eventually consistent reads have no extra latency.
+- **Zero RPO** — no data loss during regional failures.
 
-### Write modes
+### When to choose MRSC — constraints to factor in
 
-| Mode | Description | Configuration |
-|---|---|---|
-| **Table-level owner** | All writes go to one region | Set at table level |
-| **Item-level owner** | Each item has an owner region attribute | Requires application logic |
+- Requires **exactly 3 regions** within a single region set (US, EU, or AP). Use a **witness** instead of a third replica to save costs if you only need 2 read regions.
+- Table must be **empty** when converting. Region topology is fixed after creation.
+- **No transactions, no TTL, no LSIs.** If you need any of these, use MREC with a write-to-one-region mode instead.
+- Availability depends on quorum — if only one region is reachable, only eventually consistent reads are available.
 
-### Trade-offs
+## Write Modes
 
-- **Higher write latency** due to synchronous replication.
-- **Reduced availability during regional outages** — if the owner region is down, writes are blocked until failover.
-- **No conflict resolution needed** — by design, only one region accepts writes per item.
+Write modes are **application-level routing choices** — DynamoDB itself always accepts writes in any replica. Choose a mode based on your conflict tolerance and latency requirements.
 
-## Request Routing Strategies
+### Write to any region (no primary)
 
-### Read routing
+Fully active-active. Any region accepts writes at any time. Works well for:
+- **MRSC tables** — safe by default since concurrent conflicting writes are rejected.
+- **MREC tables with idempotent writes** — e.g., setting a user's profile (not incrementing a counter), or append-only inserts with deterministic keys.
+- **MREC tables where conflict risk is acceptable** — e.g., ad impression tracking where occasional overwrites are tolerable.
 
-Route reads to the **nearest region** for lowest latency:
+### Write to one region (single primary)
 
-```
-User in EU → eu-west-1 (nearest replica)
-User in US → us-east-1 (nearest replica)
-User in Asia → ap-southeast-1 (nearest replica)
-```
+All writes route to a single active region. Other regions serve only reads. Suitable for:
+- **MREC tables needing conditional writes or transactions** — these require acting against the latest data, which is only guaranteed in the region of last write.
+- Simplifies failover: change the active region on failure or on a follow-the-sun schedule.
 
-Use Route 53 latency-based routing or CloudFront to direct traffic.
+### Write to your region (mixed primary)
 
-### Write routing (MREC)
+Each item has a home region determined by its data (e.g., a region attribute in the key). Writes for an item go only to its home region. Suitable for:
+- **MREC tables with geographically partitioned data** — e.g., EU users write to eu-west-1, US users write to us-east-1.
+- Lower latency than single-primary since each region is active for its own data subset.
 
-Route writes to the **nearest region**. Accept eventual consistency and last-writer-wins semantics:
+## Read Routing
 
-```
-User in EU → writes to eu-west-1
-User in US → writes to us-east-1
-```
+Route reads to the **nearest region** for lowest latency. Use Route 53 latency-based routing or CloudFront to direct traffic. Strongly consistent reads on MREC are only consistent within the region of last write; on MRSC, strongly consistent reads work from any replica.
 
-### Write routing (MRSC)
+## Operational Guidance
 
-Route all writes to the **designated owner region**, regardless of user location:
-
-```
-All users → writes to us-east-1 (owner region)
-All users → reads from nearest replica
-```
-
-## Operational Considerations
-
-### Adding/removing replicas
-
-- Adding a replica: DynamoDB creates the replica and backfills existing data. Table remains available during this process.
-- Removing a replica: the regional table is deleted. This is irreversible for that region.
-
-### Monitoring
-
-Key CloudWatch metrics for global tables:
-
-| Metric | What it tells you |
-|---|---|
-| `ReplicationLatency` | Time for changes to replicate to other regions |
-| `PendingReplicationCount` | Number of items waiting to be replicated |
-| `ConditionalCheckFailedRequests` | Failed conditional writes (possible contention) |
-
-### Cost implications
-
-- Each replica has its own capacity (provisioned or on-demand).
-- **Replicated write capacity units (rWCU)** are charged instead of standard WCU — typically **1.5x** the cost of single-region writes.
-- Storage is charged per replica.
+- **MREC replicas can be added/removed anytime.** MRSC topology is fixed at creation — plan your regions carefully upfront.
+- **Set alarms on `ReplicationLatency`** (MREC) to detect lag before it affects consistency assumptions. For MRSC, monitor `ReplicatedWriteConflictCount` to detect cross-region contention.
+- **Budget for per-region write costs.** Each write is charged in every replica region (rWCU, priced same as WCU per unit). A 3-region table costs 3x the write capacity of single-region, plus cross-region data transfer.
 
 ## Decision Guide
 
 | Requirement | Recommendation |
 |---|---|
-| Low-latency global reads | Global tables with nearest-region routing |
-| Low-latency global writes, can tolerate eventual consistency | MREC with nearest-region writes |
-| Strong consistency globally | MRSC with designated owner region |
-| Disaster recovery only (no global users) | Global tables with failover routing |
+| Low-latency global reads | Global tables (MREC or MRSC) with nearest-region read routing |
+| Low-latency global writes, tolerate eventual consistency | MREC with write-to-any or write-to-your-region mode |
+| Strong consistency globally, zero RPO | MRSC (3 regions, write-to-any mode) |
+| Conditional writes / transactions across items | MREC with write-to-one-region mode (transactions not supported in MRSC) |
+| Disaster recovery only (no global users) | MREC global tables with failover routing |
 | Cost-sensitive, single-region users | Single-region table (no global tables needed) |

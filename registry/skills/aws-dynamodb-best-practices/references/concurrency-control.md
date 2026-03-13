@@ -4,32 +4,7 @@
 
 ## Optimistic Locking
 
-Use a version attribute to detect concurrent modifications. The write succeeds only if the version matches:
-
-```python
-# Read the item
-response = table.get_item(Key={"PK": "USER#1", "SK": "PROFILE"})
-item = response["Item"]
-current_version = item["version"]
-
-# Update with condition
-try:
-    table.update_item(
-        Key={"PK": "USER#1", "SK": "PROFILE"},
-        UpdateExpression="SET #name = :name, #ver = :new_ver",
-        ConditionExpression="#ver = :cur_ver",
-        ExpressionAttributeNames={"#name": "name", "#ver": "version"},
-        ExpressionAttributeValues={
-            ":name": "Updated Name",
-            ":new_ver": current_version + 1,
-            ":cur_ver": current_version,
-        },
-    )
-except ClientError as e:
-    if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-        # Another writer modified the item — re-read and retry
-        pass
-```
+Add a `version` attribute to items. On update, use `ConditionExpression` to require the version matches what you read. If another writer changed it, you get `ConditionalCheckFailedException` — re-read and retry.
 
 ### When to use
 
@@ -39,79 +14,34 @@ except ClientError as e:
 
 ### Retry strategy
 
-On conflict, re-read the item, re-apply business logic, and retry. Use exponential backoff with jitter for high-contention items. Each retry requires an additional read, so cap the maximum number of retries (e.g., 3–5 attempts) to avoid runaway costs.
+On conflict, re-read the item, re-apply business logic, and retry. Use exponential backoff with jitter for high-contention items. Cap retries at 3–5 attempts — each retry costs an additional read.
 
 ## Pessimistic Locking with DynamoDB Lock Client
 
-The [DynamoDB Lock Client](https://github.com/awslabs/amazon-dynamodb-lock-client) provides distributed locks using a DynamoDB table:
+The [DynamoDB Lock Client](https://github.com/awslabs/amazon-dynamodb-lock-client) provides heartbeat-based distributed locks using a dedicated DynamoDB table. Locks auto-expire if the holder crashes (configurable lease duration).
 
-```python
-from python_dynamodb_lock.python_dynamodb_lock import DynamoDBLockClient
+### When to use
 
-lock_client = DynamoDBLockClient(dynamodb_resource, table_name="locks")
-
-lock = lock_client.acquire_lock("resource-123")
-try:
-    # Critical section — only one holder at a time
-    process_resource("resource-123")
-finally:
-    lock.release()
-```
-
-### Characteristics
-
-- **Heartbeat-based** — lock holder sends periodic heartbeats. If heartbeats stop (crash), the lock expires.
-- **Lease duration** — configurable timeout after which the lock is released if not renewed.
-- **Best for** — long-running operations, cross-service coordination, preventing duplicate processing.
+- Long-running operations where retry-on-conflict is expensive.
+- Cross-service coordination (e.g., preventing duplicate processing of a job).
+- Critical sections that must be held for seconds or minutes, not milliseconds.
 
 ## DynamoDB Transactions
 
-`TransactWriteItems` and `TransactGetItems` provide serializable isolation. AWS classifies transactions as a **pessimistic locking** mechanism — they prevent concurrent access to the involved items for the duration of the transaction, making them suitable for moderate-contention scenarios beyond just multi-item atomicity.
+### When to use
 
-You cannot target the same item with multiple operations within a single transaction (e.g., a `ConditionCheck` and an `Update` on the same key will be rejected).
+- You need **all-or-nothing semantics** across multiple items (up to 100 items / 4 MB).
+- You need to combine condition checks with writes in a single atomic operation.
+- Moderate contention — transactions prevent concurrent access to involved items for the duration.
 
-```python
-client.transact_write_items(
-    TransactItems=[
-        {
-            "Put": {
-                "TableName": "my-table",
-                "Item": {"PK": {"S": "ORDER#1"}, "SK": {"S": "METADATA"}, ...},
-                "ConditionExpression": "attribute_not_exists(PK)",
-            }
-        },
-        {
-            "Update": {
-                "TableName": "my-table",
-                "Key": {"PK": {"S": "USER#1"}, "SK": {"S": "STATS"}},
-                "UpdateExpression": "SET order_count = order_count + :one",
-                "ExpressionAttributeValues": {":one": {"N": "1"}},
-            }
-        },
-    ]
-)
-```
+### Design considerations
 
-### Transaction limits
-
-| Limit | Value |
-|---|---|
-| Max items per transaction | 100 |
-| Max transaction size | 4 MB |
-| Operations supported | Put, Update, Delete, ConditionCheck |
-| Consistency | Serializable isolation |
-| Cost | 2x WCU per item (writes), 2x RCU per item (reads) — due to prepare + commit phases. With DAX, `TransactWriteItems` also consumes 2x RCU per item in addition to WCUs |
-
-### Idempotency
-
-Pass a `ClientRequestToken` to make transactions idempotent. DynamoDB deduplicates retries within a 10-minute window:
-
-```python
-client.transact_write_items(
-    TransactItems=[...],
-    ClientRequestToken="unique-request-id-12345"
-)
-```
+- **Cost: 2x capacity** — each item costs 2 WCU (writes) or 2 RCU (reads) due to prepare + commit phases. Budget accordingly.
+- **Keep transactions small** — don't group operations that don't need atomicity. Simpler transactions are more likely to succeed and less likely to conflict.
+- **Don't use for bulk ingestion** — use `BatchWriteItem` instead.
+- **Cannot target the same item twice** within one transaction (e.g., a `ConditionCheck` and an `Update` on the same key will be rejected).
+- **Make retries safe** — pass a `ClientRequestToken` for idempotency (deduplicates within 10 minutes).
+- Monitor `TransactionConflict` CloudWatch metric to detect contention hotspots.
 
 ## Global Tables and Concurrency
 
