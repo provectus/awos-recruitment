@@ -36,7 +36,7 @@ struct PlayerView: View {
                 Spacer()
                 Text("Live")
                     .font(.caption)
-                    .padding(6)
+                    .padding(.horizontal, 8) // Adjust per your design tokens
                     .background(.ultraThinMaterial)
                     .clipShape(Capsule())
                     .padding()
@@ -67,7 +67,7 @@ struct FullscreenPlayerView: UIViewControllerRepresentable {
         controller.canStartPictureInPictureAutomaticallyFromInline = true
 
         // Set metadata for display
-        let item = player.currentItem!
+        guard let item = player.currentItem else { return controller }
         item.externalMetadata = makeMetadata()
 
         return controller
@@ -252,7 +252,7 @@ When `VideoPlayer` and `AVPlayerViewController` don't fit your design, render vi
 class CustomPlayerView: UIView {
     override class var layerClass: AnyClass { AVPlayerLayer.self }
 
-    var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+    var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer } // Safe: layerClass override guarantees type
 
     func configure(with player: AVPlayer) {
         playerLayer.player = player
@@ -455,7 +455,7 @@ let observation = routeDetector.observe(\.multipleRoutesDetected) { detector, _ 
 
 ```swift
 // UIKit — add AVRoutePickerView
-let routePicker = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
+let routePicker = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44)) // Standard tap target per Apple HIG
 routePicker.tintColor = .white
 view.addSubview(routePicker)
 ```

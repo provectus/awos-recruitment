@@ -113,11 +113,13 @@ final class URLSessionAPIClient: APIClient {
     }
 
     private func buildRequest(for endpoint: Endpoint) throws -> URLRequest {
-        var components = URLComponents(url: baseURL.appendingPathComponent(endpoint.path),
-                                        resolvingAgainstBaseURL: true)!
+        guard var components = URLComponents(url: baseURL.appendingPathComponent(endpoint.path),
+                                              resolvingAgainstBaseURL: true)
+        else { throw NetworkError.invalidResponse }
         components.queryItems = endpoint.queryItems
 
-        var request = URLRequest(url: components.url!)
+        guard let url = components.url else { throw NetworkError.invalidResponse }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -409,7 +411,8 @@ actor TokenManager {
         defer { isRefreshing = false }
 
         // Perform refresh
-        let newTokens = try await authService.refresh(refreshToken!)
+        guard let refreshToken else { throw AuthError.noRefreshToken }
+        let newTokens = try await authService.refresh(refreshToken)
         accessToken = newTokens.access
         refreshToken = newTokens.refresh
         return newTokens.access

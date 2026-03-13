@@ -107,8 +107,9 @@ let viewContext = container.viewContext
 ```swift
 container.performBackgroundTask { context in
     let request = NSFetchRequest<Task>(entityName: "Task")
-    let tasks = try? context.fetch(request)
-    try? context.save()
+    let tasks = try context.fetch(request)
+    // ... mutate ...
+    try context.save()
 }
 // Creates a new private-queue context each call. Avoid in tight loops — creates many threads.
 ```
@@ -135,7 +136,7 @@ let objectID = backgroundTask.objectID
 
 // On main context
 await MainActor.run {
-    let mainTask = viewContext.object(with: objectID) as! Task
+    let mainTask = viewContext.object(with: objectID) as! Task // Safe: objectID guarantees entity type
 }
 ```
 
@@ -264,7 +265,7 @@ customStage.willMigrateHandler = { migrationManager, currentStage in
 }
 
 let manager = NSStagedMigrationManager([lightweightStage, customStage])
-let description = container.persistentStoreDescriptions.first!
+guard let description = container.persistentStoreDescriptions.first else { return }
 description.setOption(manager, forKey: NSPersistentStoreStagedMigrationManagerOptionKey)
 ```
 
@@ -273,13 +274,15 @@ description.setOption(manager, forKey: NSPersistentStoreStagedMigrationManagerOp
 Required for elaborate changes beyond staged capabilities (splitting entities, complex data transformations):
 
 ```swift
-let mapping = NSMappingModel(from: [Bundle.main],
-                              forSourceModel: sourceModel,
-                              destinationModel: destModel)
+guard let mapping = NSMappingModel(from: [Bundle.main],
+                                    forSourceModel: sourceModel,
+                                    destinationModel: destModel)
+else { fatalError("No mapping model found for \(sourceModel) -> \(destModel)") }
+
 let manager = NSMigrationManager(sourceModel: sourceModel,
                                   destinationModel: destModel)
 try manager.migrateStore(from: sourceURL, type: .sqlite,
-                          mapping: mapping!, to: destURL, type: .sqlite)
+                          mapping: mapping, to: destURL, type: .sqlite)
 ```
 
 **Best practice:** Test each migration step with real data. Use staged migrations when possible — they are simpler and less error-prone than manual.
@@ -294,7 +297,7 @@ Batch operations execute directly at the SQLite level, bypassing the managed obj
 ```swift
 let request = NSBatchInsertRequest(entity: Task.entity(),
                                     managedObjectHandler: { obj in
-    let task = obj as! Task
+    let task = obj as! Task // Safe: entity type matches NSBatchInsertRequest
     task.title = nextItem.title
     task.dueDate = nextItem.dueDate
     return false  // return true when done

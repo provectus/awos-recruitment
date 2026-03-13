@@ -100,7 +100,7 @@ func purchase(_ product: Product) async throws {
 ```swift
 // Associate purchase with your user account (for server-side tracking)
 let result = try await product.purchase(options: [
-    .appAccountToken(UUID(uuidString: userAccountID)!)
+    .appAccountToken(UUID(uuidString: userAccountID) ?? UUID())
 ])
 
 // Promotional offer
@@ -421,11 +421,12 @@ import StoreKit
 struct PaywallView: View {
     var body: some View {
         SubscriptionStoreView(groupID: "YOUR_SUBSCRIPTION_GROUP_ID") {
-            // Custom marketing content (header)
+            // Custom marketing content — customize with your app's design tokens
             VStack(spacing: 12) {
                 Image(systemName: "crown.fill")
                     .font(.system(size: 60))
                     .foregroundStyle(.yellow)
+                    // Use AppTypography/AppSpacing tokens in production
                 Text("Unlock Premium")
                     .font(.title.bold())
                 Text("Get unlimited access to all features")
