@@ -6,28 +6,34 @@ The adjacency list pattern models many-to-many relationships in a single table w
 
 ### Example: Invoices and bills
 
+An invoice can reference multiple bills, and a bill can appear on multiple invoices. Each entity stores its own attributes; relationship items link them and can carry edge-specific data like the billed amount.
+
 ```
-PK          | SK          | type    | data
-INVOICE#1   | INVOICE#1   | Invoice | {date, total, customer}
-INVOICE#1   | BILL#1      | Edge    | {amount, due_date}
-INVOICE#1   | BILL#2      | Edge    | {amount, due_date}
-BILL#1      | BILL#1      | Bill    | {vendor, category}
-BILL#1      | INVOICE#1   | Edge    | {amount}
-BILL#2      | BILL#2      | Bill    | {vendor, category}
-BILL#2      | INVOICE#1   | Edge    | {amount}
+PK          | SK          | amount  | due_date   | customer    | vendor    | category
+────────────|─────────────|─────────|────────────|─────────────|───────────|──────────
+INVOICE#1   | INVOICE#1   |         |            | Acme Corp   |           |           ← invoice metadata
+INVOICE#1   | BILL#1      | 250.00  | 2024-02-15 |             |           |           ← edge: invoice → bill
+INVOICE#1   | BILL#2      | 180.00  | 2024-03-01 |             |           |           ← edge: invoice → bill
+BILL#1      | BILL#1      |         |            |             | CloudCo   | hosting   ← bill metadata
+BILL#1      | INVOICE#1   | 250.00  |            |             |           |           ← edge: bill → invoice
+BILL#2      | BILL#2      |         |            |             | NetOps    | network   ← bill metadata
+BILL#2      | INVOICE#1   | 180.00  |            |             |           |           ← edge: bill → invoice
 ```
+
+Items in the same partition share PK, so a single `Query` fetches an entity together with all its relationships.
 
 ### Access patterns
 
-| Query | Key condition | Result |
-|---|---|---|
-| Invoice + all bills | `PK = INVOICE#1` | Invoice metadata + all bill edges |
-| Bill + all invoices | `PK = BILL#1` | Bill metadata + all invoice edges |
-| Specific relationship | `PK = INVOICE#1, SK = BILL#1` | Single edge item |
+| Access pattern | Operation | Key condition | Returns |
+|---|---|---|---|
+| Invoice with all its bills | Query | `PK = INVOICE#1` | Invoice item + edge items to BILL#1, BILL#2 |
+| Bill with all its invoices | Query | `PK = BILL#1` | Bill item + edge items to INVOICE#1 |
+| Single relationship | GetItem | `PK = INVOICE#1, SK = BILL#1` | One edge item (amount, due_date) |
+| All invoices for a bill (via GSI) | Query GSI | `SK = BILL#1` (GSI partition key) | All edge items pointing to that bill |
 
-### GSI for reverse lookups (alternative to back-references)
+### GSI for reverse lookups
 
-Instead of storing explicit back-reference items (like `BILL#1 | INVOICE#1` above), create a GSI with `SK` as partition key and `PK` as sort key. This enables querying "all invoices for a given bill" without manually maintaining bidirectional items. Choose one approach: either back-reference items or a GSI — using both is redundant.
+Create a GSI with `SK` as partition key and `PK` as sort key. This enables querying "all invoices for a given bill" without manually maintaining edge-only back-reference items (like `BILL#1 | INVOICE#1` above). Note that entity partitions (like `BILL#1 | BILL#1` storing bill attributes) still serve a purpose — the GSI only replaces the need for explicit edge items in the reverse direction.
 
 ## Time Series Pattern
 
@@ -42,11 +48,15 @@ events_2023_q3   ← Older: minimal throughput or on-demand
 events_2023_q2   ← Archive candidate: export to S3, delete table
 ```
 
+### Key practice
+
+Before the current period ends, **prebuild the next period's table** and redirect event traffic to it. This avoids write failures during period transitions.
+
 ### Benefits
 
 - **Independent throughput** — current table gets high capacity; old tables get minimal.
 - **Easy archival** — export old tables to S3 via DynamoDB Export, then delete.
-- **TTL alternative** — instead of per-item TTL, drop entire tables when data expires.
+- **Bulk lifecycle management** — delete entire tables when a period's data expires. For fine-grained per-item expiry within a period, use TTL instead.
 
 ### Within-table time series
 
@@ -62,7 +72,7 @@ Enable **TTL** on a `ttl` attribute to automatically expire old readings.
 
 ## Large Items
 
-DynamoDB enforces a **400 KB item size limit**. Strategies for large data:
+DynamoDB enforces a **400 KB item size limit**. Use `ReturnConsumedCapacity` on writes to monitor item sizes approaching this limit. Strategies for large data:
 
 ### 1. Compression
 
@@ -75,6 +85,8 @@ import json
 data = gzip.compress(json.dumps(large_payload).encode())
 table.put_item(Item={"PK": "DOC#1", "SK": "BODY", "data": data})
 ```
+
+Caveat: compressed values are stored as `Binary` type and **cannot be used for filtering** in query or scan conditions.
 
 ### 2. Vertical partitioning
 
@@ -99,6 +111,8 @@ DOC#1   | FILE     | s3://bucket/docs/1/file.pdf | {size: 5242880, type: "pdf"}
 ```
 
 Best for: binary files, images, large JSON documents, anything over ~100 KB.
+
+Note: DynamoDB does not support transactions that span DynamoDB and S3. Your application must handle failures — including cleaning up orphaned S3 objects if the DynamoDB write fails (or vice versa).
 
 ## One-to-Many Patterns
 
@@ -127,7 +141,7 @@ GSI1 (`GSI1PK` as PK) enables "get all items for an order" and "get all orders f
 
 ## Anti-Patterns
 
-- **One table per entity type** — loses the ability to fetch related data in one query.
+- **Defaulting to one table per entity type without considering access patterns** — may miss opportunities to fetch related data in a single query. Multi-table designs are valid when entities have independent access patterns, but should be a deliberate choice.
 - **Storing large lists in a single attribute** — hits the 400 KB limit; prefer individual items.
 - **Using Scan for relationships** — design keys and indexes to support Query-based access.
 - **Over-normalization** — in DynamoDB, some data duplication is expected and beneficial.
