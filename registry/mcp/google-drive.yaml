@@ -1,0 +1,9 @@
+name: "google-drive"
+description: "Google Drive file access — list, search, and read Drive files. Exports Google Docs as Markdown, Sheets as CSV, and Slides as plain text."
+config:
+  google-drive:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-gdrive"
