@@ -1,8 +1,0 @@
-name: "aws-docs"
-description: "Provides access to AWS documentation with search, content reading, and recommendations for related content."
-config:
-  aws-docs:
-    type: stdio
-    command: uvx
-    args:
-      - "awslabs.aws-documentation-mcp-server@latest"
