@@ -1,11 +1,4 @@
----
-title: Configure Idle Connection Timeouts
-impact: HIGH
-impactDescription: Reclaim 30-50% of connection slots from idle clients
-tags: connections, timeout, idle, resource-management
----
-
-## Configure Idle Connection Timeouts
+# Configure Idle Connection Timeouts
 
 Idle connections waste resources. Configure timeouts to automatically reclaim them.
 

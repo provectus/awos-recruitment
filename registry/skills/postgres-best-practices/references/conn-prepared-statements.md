@@ -1,11 +1,4 @@
----
-title: Use Prepared Statements Correctly with Pooling
-impact: HIGH
-impactDescription: Avoid prepared statement conflicts in pooled environments
-tags: prepared-statements, connection-pooling, transaction-mode
----
-
-## Use Prepared Statements Correctly with Pooling
+# Use Prepared Statements Correctly with Pooling
 
 Prepared statements are tied to individual database connections. In transaction-mode pooling, connections are shared, causing conflicts.
 

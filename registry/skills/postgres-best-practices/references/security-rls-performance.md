@@ -1,11 +1,4 @@
----
-title: Optimize RLS Policies for Performance
-impact: HIGH
-impactDescription: 5-10x faster RLS queries with proper patterns
-tags: rls, performance, security, optimization
----
-
-## Optimize RLS Policies for Performance
+# Optimize RLS Policies for Performance
 
 Poorly written RLS policies can cause severe performance issues. Use subqueries and indexes strategically.
 

@@ -1,11 +1,4 @@
----
-title: Use Lowercase Identifiers for Compatibility
-impact: MEDIUM
-impactDescription: Avoid case-sensitivity bugs with tools, ORMs, and AI assistants
-tags: naming, identifiers, case-sensitivity, schema, conventions
----
-
-## Use Lowercase Identifiers for Compatibility
+# Use Lowercase Identifiers for Compatibility
 
 PostgreSQL folds unquoted identifiers to lowercase. Quoted mixed-case identifiers require quotes forever and cause issues with tools, ORMs, and AI assistants that may not recognize them.
 
