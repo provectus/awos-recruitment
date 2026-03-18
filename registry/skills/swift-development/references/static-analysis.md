@@ -1,6 +1,6 @@
 # Static Analysis Reference (SwiftLint & SwiftFormat)
 
-Covers SwiftLint and SwiftFormat — the two primary Swift static analysis and formatting tools. They are complementary: SwiftLint detects code smells and enforces conventions, SwiftFormat auto-fixes formatting. Use both together. For Apple platform-specific quality tools (Xcode Static Analyzer, sanitizers, Periphery), see the `apple-app-development` skill's `references/code-quality.md`.
+Covers SwiftLint and SwiftFormat — the two primary Swift static analysis and formatting tools. They are complementary: SwiftLint detects code smells and enforces conventions, SwiftFormat auto-fixes formatting. Use both together. Applicable to all Swift targets: Apple platforms, server-side (Vapor, Hummingbird), CLI tools, cross-platform (Linux, Windows).
 
 ## Contents
 - SwiftLint (configuration, rules, custom rules, auto-correct, nested configs)
