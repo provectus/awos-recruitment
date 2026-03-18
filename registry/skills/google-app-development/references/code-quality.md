@@ -1,6 +1,6 @@
-# Android Lint Reference
+# Code Quality Reference (Android Lint, Static Analysis)
 
-Covers Android Lint configuration, built-in check categories, baseline management, suppression strategies, custom lint rules, Compose-specific checks, and CI integration. For project-level Gradle configuration and convention plugins, see `project-structure.md`. For Kotlin-level static analysis tools (Detekt, ktlint), see the `kotlin-development` skill.
+Android platform-specific code quality tooling. Covers Android Lint configuration, built-in check categories, baseline management, suppression strategies, custom lint rules, Compose-specific checks, and CI integration. For project-level Gradle configuration and convention plugins, see `project-structure.md`. For Kotlin-level static analysis tools (Detekt, ktlint), see the `kotlin-development` skill's `references/static-analysis.md`.
 
 ## Contents
 - Overview — what Android Lint is, how it integrates with AGP
