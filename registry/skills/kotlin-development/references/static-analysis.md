@@ -1,6 +1,6 @@
 # Static Analysis Reference
 
-Covers Detekt and ktlint — the two primary Kotlin static analysis tools. For Android-specific lint checks (Android Lint / `com.android.tools.lint`), see the `google-app-development` skill's `references/code-quality.md`.
+Covers Detekt and ktlint — the two primary Kotlin static analysis tools. Applicable to all Kotlin targets: Android, server-side (Ktor, Spring), multiplatform, and CLI tools.
 
 ## Contents
 - Detekt — setup, configuration, rule sets, custom rules, suppression, baseline, type resolution, Compose rules, CI
