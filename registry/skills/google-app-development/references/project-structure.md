@@ -266,39 +266,39 @@ android.nonTransitiveRClass=true
 
 ```toml
 [versions]
-agp = "8.7.3"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
+agp = "<latest>"
+kotlin = "<latest>"
+ksp = "<latest>"
 
 # AndroidX
-core-ktx = "1.15.0"
-lifecycle = "2.8.7"
-activity-compose = "1.9.3"
-navigation-compose = "2.8.5"
-compose-bom = "2024.12.01"
-room = "2.6.1"
-hilt = "2.53.1"
-hilt-navigation-compose = "1.2.0"
-datastore = "1.1.1"
+core-ktx = "<latest>"
+lifecycle = "<latest>"
+activity-compose = "<latest>"
+navigation-compose = "<latest>"
+compose-bom = "<latest>"
+room = "<latest>"
+hilt = "<latest>"
+hilt-navigation-compose = "<latest>"
+datastore = "<latest>"
 
 # Networking
-retrofit = "2.11.0"
-okhttp = "4.12.0"
-ktor = "3.0.3"
-serialization = "1.7.3"
+retrofit = "<latest>"
+okhttp = "<latest>"
+ktor = "<latest>"
+serialization = "<latest>"
 
 # Image loading
-coil = "3.0.4"
+coil = "<latest>"
 
 # Testing
-junit = "4.13.2"
-junit5 = "5.11.4"
-truth = "1.4.4"
-mockk = "1.13.13"
-turbine = "1.2.0"
-coroutines = "1.9.0"
-espresso = "3.6.1"
-test-runner = "1.6.2"
+junit = "<latest>"
+junit5 = "<latest>"
+truth = "<latest>"
+mockk = "<latest>"
+turbine = "<latest>"
+coroutines = "<latest>"
+espresso = "<latest>"
+test-runner = "<latest>"
 
 [libraries]
 # AndroidX Core
@@ -820,7 +820,7 @@ android {
 # Using Gradle Play Publisher plugin (triple-t)
 # build.gradle.kts
 plugins {
-    id("com.github.triplet.play") version "3.11.0"
+    id("com.github.triplet.play") version "<latest>"
 }
 
 play {
