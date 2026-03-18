@@ -1,6 +1,6 @@
 ---
 name: google-app-development
-description: "This skill should be used when the user asks to \"build an Android app\", \"create a Composable\", \"set up an Android project\", \"review Android code\", \"refactor Android\", \"add a screen\", \"create a Wear OS app\", \"build for Android TV\", \"build for Android Auto\", \"build for Android Automotive\", \"adapt for Meta Quest\", \"build for Fire TV\", \"build for Fire Tablet\", or when generating any Kotlin code targeting Google/Android platforms (including AOSP-based devices). Provides modern Jetpack Compose-first best practices covering UI patterns, app lifecycle, navigation, and platform-specific guidance. Use together with `kotlin-development` for language fundamentals. Always generates Kotlin unless the project explicitly requires Java."
+description: "This skill should be used when the user asks to \"build an Android app\", \"create a Composable\", \"set up an Android project\", \"review Android code\", \"refactor Android\", \"add a screen\", \"create a Wear OS app\", \"build for Android TV\", \"build for Android Auto\", \"build for Android Automotive\", \"adapt for Meta Quest\", \"build for Fire TV\", \"build for Fire Tablet\", \"set up Room database\", \"add local storage\", \"use DataStore\", \"persist data\", \"add database migration\", \"encrypt storage\", or when generating any Kotlin code targeting Google/Android platforms (including AOSP-based devices). Provides modern Jetpack Compose-first best practices covering UI patterns, app lifecycle, navigation, local storage, and platform-specific guidance. Use together with `kotlin-development` for language fundamentals. Always generates Kotlin unless the project explicitly requires Java."
 version: 0.1.0
 ---
 
@@ -30,6 +30,7 @@ For Kotlin language fundamentals (null safety, coroutines, data modeling, error 
 - **`references/android-automotive-patterns.md`** — Android Automotive OS (AAOS), embedded car system, car hardware APIs, system UI
 - **`references/java-interop.md`** — Calling Java from Kotlin, nullability annotations, SAM conversions, incremental migration
 - **`references/meta-quest-patterns.md`** — Adapting Android APK for Meta Quest, spatial UI, entitlement check, VR input, passthrough
+- **`references/local-storage.md`** — Room database (entities, DAOs, relations, migrations, testing), DataStore (Preferences and Proto), encrypted storage (Android Keystore, DataStore + Tink, SQLCipher), file storage (internal, scoped storage, FileProvider), storage selection guide
 - **`references/networking-api.md`** — Retrofit, OkHttp, Ktor Client, JSON serialization, repository pattern, error handling, interceptors, certificate pinning, caching, connectivity, Paging 3, file upload/download, testing
 - **`references/fire-tv-patterns.md`** — Amazon Fire TV, Appstore, Amazon IAP, Alexa integration, missing Google Play Services
 - **`references/media-playback.md`** — Media3 / ExoPlayer, MediaSession, audio focus, Picture-in-Picture, offline downloads, DRM, streaming formats, caching
