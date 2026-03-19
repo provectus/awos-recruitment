@@ -14,6 +14,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 
 - **Always generate Swift.** Only write Objective-C when the project explicitly requires it (legacy codebase, Obj-C-only API). See `references/objc-interop.md` for bridging patterns.
 - **SwiftUI-first.** Use UIKit/AppKit only when SwiftUI lacks the capability. See `references/uikit-interop.md` for interop patterns.
+- **Respect the existing UI framework.** In legacy UIKit codebases, do not mix SwiftUI and UIKit within the same screen or component — this causes lifecycle, navigation, and responder chain conflicts. New **isolated flows** (full screens or self-contained features) may use SwiftUI, but existing UIKit screens should not be partially rewritten without explicit request. For greenfield projects, use SwiftUI exclusively.
 - **Check the project context.** Before applying patterns, check the deployment target, Swift version, and existing architecture. Adapt recommendations accordingly.
 - **No `#if` / compiler directives for multi-target branching.** Do not use `#if TARGET_NAME` or custom build flags to branch behavior between app targets. Instead, use dependency injection (protocol + per-target conformance) or separate file implementations (one per target, added to the correct target membership in Xcode). `#if` directives are reserved for excluding code from compilation entirely (e.g., `#if DEBUG`, `#if os(iOS)`, `#if canImport(UIKit)`) — not for runtime or build-time polymorphism between targets in the same project.
 
@@ -385,3 +386,4 @@ Cross-platform features:
 | String-based navigation | Use `NavigationPath` with typed destinations |
 | Magic numbers in UI (`padding(16)`, `.cornerRadius(8)`) | Define design tokens (`AppSpacing.medium`, `AppCornerRadius.standard`) |
 | `#if TARGET_NAME` for multi-target branching | Use DI (protocol + per-target conformance) or separate files per target |
+| Mixing SwiftUI and UIKit in one screen | Keep frameworks isolated: new flows in SwiftUI, existing UIKit screens untouched |
