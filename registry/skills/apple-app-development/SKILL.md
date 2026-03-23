@@ -17,6 +17,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **Respect the existing UI framework.** In legacy UIKit codebases, do not mix SwiftUI and UIKit within the same screen or component — this causes lifecycle, navigation, and responder chain conflicts. New **isolated flows** (full screens or self-contained features) may use SwiftUI, but existing UIKit screens should not be partially rewritten without explicit request. For greenfield projects, use SwiftUI exclusively.
 - **Check the project context.** Before applying patterns, check the deployment target, Swift version, and existing architecture. Adapt recommendations accordingly.
 - **No `#if` / compiler directives for multi-target branching.** Do not use `#if TARGET_NAME` or custom build flags to branch behavior between app targets. Instead, use dependency injection (protocol + per-target conformance) or separate file implementations (one per target, added to the correct target membership in Xcode). `#if` directives are reserved for excluding code from compilation entirely (e.g., `#if DEBUG`, `#if os(iOS)`, `#if canImport(UIKit)`) — not for runtime or build-time polymorphism between targets in the same project.
+- **Always localize user-facing text.** Never use explicit string literals for user-facing text (e.g., `"Welcome back"`, `Text("Sign in")`). Always use whichever localization solution is already in use in the project (e.g., String Catalogs, `.strings` files, a custom localization layer). Do not migrate to a different solution unless explicitly asked. When you encounter an existing explicit string that should be localized, flag it and suggest the appropriate key name and parameter names, but do not migrate it unless asked. See `references/localization.md` for String Catalog patterns and named parameter format.
 
 ## Reference Files
 
@@ -38,6 +39,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **`references/carplay-patterns.md`** — CarPlay app lifecycle, CPTemplate API, navigation, media, EV charging, communication apps
 - **`references/objc-interop.md`** — Bridging headers, `@objc`, `NS_SWIFT_NAME`, nullability annotations, incremental migration
 - **`references/testing.md`** — Swift Testing (@Test, #expect, traits, parameterized), XCTest (unit tests, async, performance), XCUITest (UI automation, page objects), test doubles, snapshot testing, test plans, CI/CD
+- **`references/localization.md`** — String Catalogs (.xcstrings), code-generated accessors, named parameter format (`%(name)@`, `%1$(name)@`), custom table namespacing, localization best practices
 - **`references/code-quality.md`** — Xcode Static Analyzer, sanitizers (ASan, TSan, UBSan), Periphery (dead code), Danger-Swift, Xcode build settings, xcconfig. For SwiftLint/SwiftFormat, see `swift-development` skill's `references/static-analysis.md`
 
 ## Code Style
@@ -387,3 +389,4 @@ Cross-platform features:
 | Magic numbers in UI (`padding(16)`, `.cornerRadius(8)`) | Define design tokens (`AppSpacing.medium`, `AppCornerRadius.standard`) |
 | `#if TARGET_NAME` for multi-target branching | Use DI (protocol + per-target conformance) or separate files per target |
 | Mixing SwiftUI and UIKit in one screen | Keep frameworks isolated: new flows in SwiftUI, existing UIKit screens untouched |
+| Hard-coded user-facing strings (`"Welcome back"`, `Text("Sign in")`) | Use localized strings — reference the project's localization solution (String Catalogs, `.strings`, etc.) |
