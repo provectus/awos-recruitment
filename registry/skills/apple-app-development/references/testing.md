@@ -1064,7 +1064,7 @@ Verify UI appearance by comparing rendered views against reference images.
 
 ```swift
 // Package.swift dependency
-// .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
+// .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "<latest-stable>")
 
 import SnapshotTesting
 import SwiftUI

@@ -171,7 +171,7 @@ let package = Package(
         .library(name: "Core", targets: ["Core"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "<latest-stable>"),
     ],
     targets: [
         .target(
@@ -207,7 +207,7 @@ let package = Package(
         .library(name: "UIComponents", targets: ["UIComponents"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "<latest-stable>"),
     ],
     targets: [
         .target(name: "Core"),

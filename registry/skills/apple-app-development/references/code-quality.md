@@ -145,7 +145,7 @@ Periphery scans your Xcode project for unused declarations: classes, structs, en
 
 ```bash
 # Install
-brew install peripheryapp/periphery/periphery
+brew install periphery
 
 # Scan an Xcode project
 periphery scan --project MyApp.xcodeproj --schemes MyApp --targets MyApp
@@ -272,7 +272,7 @@ for file in danger.git.modifiedFiles.filter({ $0.hasSuffix(".swift") }) {
       - uses: actions/checkout@v4
 
       - name: Install Periphery
-        run: brew install peripheryapp/periphery/periphery
+        run: brew install periphery
 
       - name: Scan for unused code
         run: |
