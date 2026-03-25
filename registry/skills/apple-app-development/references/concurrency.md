@@ -1029,31 +1029,48 @@ struct ChatView: View {
 }
 ```
 
-### 5. Reference cycles with Task closures
+### 5. `[weak self]` in Task closures
 
-`Task { }` closures capture `self` strongly. This is usually fine for `@MainActor` view models held by a view (the view owns the model, the model does not own the view), but can cause leaks in other contexts.
+`Task { }` closures capture `self` strongly, but a strong capture alone is **not** a retain cycle. A cycle requires a mutual strong reference — `self` must also hold the `Task`. A fire-and-forget Task completes and releases `self` naturally.
+
+Do not cargo-cult `[weak self]` from GCD/completion handlers into Task closures — it adds unnecessary optionality without solving a real problem.
 
 ```swift
-// Potential leak: mutual strong reference
-class Coordinator {
-    var onComplete: (() -> Void)?
+// No cycle — Task holds self, but self does NOT hold Task
+func start() {
+    Task {
+        await self.doWork() // Fine — released on Task completion
+    }
+}
 
-    func start() {
-        Task {
-            await doWork()
-            self.onComplete?() // Strong capture of self
+// Cycle — self stores Task, Task captures self
+class Poller {
+    private var pollingTask: Task<Void, Never>?  // self -> Task
+
+    func startPolling() {
+        pollingTask = Task {                      // Task -> self
+            while !Task.isCancelled {
+                await self.fetchData()            // CYCLE: self -> pollingTask -> self
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    // Fix: [weak self] because self stores the Task
+    func startPollingFixed() {
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.fetchData()
+                try? await Task.sleep(for: .seconds(30))
+            }
         }
     }
 }
-
-// Fix: use [weak self]
-func start() {
-    Task { [weak self] in
-        await self?.doWork()
-        self?.onComplete?()
-    }
-}
 ```
+
+Use `[weak self]` only when:
+- `self` stores the `Task` in a property (mutual strong reference — actual retain cycle).
+- Long-running Task (e.g., async sequence iteration) where you want to stop work if the owning object is deallocated — a correctness choice, not a memory leak fix.
 
 ### 6. Using Task.detached when Task suffices
 
@@ -1079,7 +1096,7 @@ Task {
 | Actor reentrancy changes state | Re-check state after every `await` inside actors |
 | Blocking main thread on async work | Make the function `async`, never use semaphores/locks to bridge |
 | Task runs after view disappears | Use `.task` modifier instead of `Task { }` in `onAppear` |
-| Strong reference cycle in Task | Use `[weak self]` in long-lived Task closures |
+| Retain cycle when self stores Task | Use `[weak self]` only when self holds the Task in a property |
 | Unnecessary `Task.detached` | Prefer `Task { }` — it inherits context and is simpler |
 | Silent cancellation (no checking) | Check `Task.isCancelled` or call `try Task.checkCancellation()` in loops |
 
