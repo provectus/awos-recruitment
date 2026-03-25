@@ -392,30 +392,26 @@ func urlSession(_ session: URLSession, task: URLSessionTask,
 actor TokenManager {
     private var accessToken: String?
     private var refreshToken: String?
-    private var isRefreshing = false
+    private var refreshTask: Task<String, Error>?
 
     func validToken() async throws -> String {
         if let token = accessToken, !isExpired(token) {
             return token
         }
-        return try await refreshAccessToken()
-    }
-
-    private func refreshAccessToken() async throws -> String {
-        guard !isRefreshing else {
-            // Wait for ongoing refresh
-            try await Task.sleep(for: .milliseconds(100))
-            return try await validToken()
+        // All concurrent callers share a single refresh task
+        if let existingTask = refreshTask {
+            return try await existingTask.value
         }
-        isRefreshing = true
-        defer { isRefreshing = false }
-
-        // Perform refresh
-        guard let refreshToken else { throw AuthError.noRefreshToken }
-        let newTokens = try await authService.refresh(refreshToken)
-        accessToken = newTokens.access
-        refreshToken = newTokens.refresh
-        return newTokens.access
+        let task = Task { [self] () throws -> String in
+            defer { refreshTask = nil }
+            guard let refreshToken else { throw AuthError.noRefreshToken }
+            let newTokens = try await authService.refresh(refreshToken)
+            accessToken = newTokens.access
+            self.refreshToken = newTokens.refresh
+            return newTokens.access
+        }
+        refreshTask = task
+        return try await task.value
     }
 }
 
@@ -491,7 +487,7 @@ Add Alamofire when you need interceptors, automatic retry, or cleaner certificat
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.10.0")
+.package(url: "https://github.com/Alamofire/Alamofire.git", from: "<latest-stable>")
 ```
 
 ### Basic Requests
