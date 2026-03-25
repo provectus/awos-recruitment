@@ -14,7 +14,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 
 - **Always generate Swift.** Only write Objective-C when the project explicitly requires it (legacy codebase, Obj-C-only API). See `references/objc-interop.md` for bridging patterns.
 - **SwiftUI-first.** Use UIKit/AppKit only when SwiftUI lacks the capability. See `references/uikit-interop.md` for interop patterns.
-- **Respect the existing UI framework.** In legacy UIKit codebases, do not mix SwiftUI and UIKit within the same screen or component — this causes lifecycle, navigation, and responder chain conflicts. New **isolated flows** (full screens or self-contained features) may use SwiftUI, but existing UIKit screens should not be partially rewritten without explicit request. For greenfield projects, use SwiftUI exclusively.
+- **Respect the existing UI framework.** In legacy UIKit codebases, do not mix SwiftUI and UIKit **lifecycle or navigation** within the same screen (e.g., nesting `UINavigationController` inside `NavigationStack`). Using `UIViewRepresentable` to embed individual UIKit views (maps, web views, text editors) within a SwiftUI screen is expected and supported. New **isolated flows** (full screens or self-contained features) may use SwiftUI, but existing UIKit screens should not be partially rewritten without explicit request. For greenfield projects, use SwiftUI exclusively.
 - **Check the project context.** Before applying patterns, check the deployment target, Swift version, and existing architecture. Adapt recommendations accordingly.
 - **No `#if` / compiler directives for multi-target branching.** Do not use `#if TARGET_NAME` or custom build flags to branch behavior between app targets. Instead, use dependency injection (protocol + per-target conformance) or separate file implementations (one per target, added to the correct target membership in Xcode). `#if` directives are reserved for excluding code from compilation entirely (e.g., `#if DEBUG`, `#if os(iOS)`, `#if canImport(UIKit)`) — not for runtime or build-time polymorphism between targets in the same project.
 - **Always localize user-facing text.** Never use explicit string literals for user-facing text (e.g., `"Welcome back"`, `Text("Sign in")`). Always use whichever localization solution is already in use in the project (e.g., String Catalogs, `.strings` files, a custom localization layer). Do not migrate to a different solution unless explicitly asked. When you encounter an existing explicit string that should be localized, flag it and suggest the appropriate key name and parameter names, but do not migrate it unless asked. See `references/localization.md` for String Catalog patterns and named parameter format.
@@ -161,7 +161,8 @@ Rules:
 - Use `@Observable` (iOS 17+) over `ObservableObject`/`@Published` for new code.
 - Use `.task` for async work tied to view lifecycle — it cancels automatically.
 - Keep views small. Extract subviews when `body` exceeds ~30 lines.
-- Use `@State` for view-local state, `@Binding` for parent-child communication.
+- Use `@State` for view-local state, `@Binding` for parent-child communication, `@Bindable` for bindings to `@Observable` properties, and `@Environment` for shared/injected state.
+- **`@State` + `@Observable` caveat:** Unlike `@StateObject`, `@State` re-evaluates the initializer expression on every view struct recreation (SwiftUI discards the new instance but `init()` still runs). Avoid side effects in `@Observable` class initializers — use `.task` for deferred setup.
 
 For navigation, lists, forms, custom modifiers, and advanced patterns see `references/swiftui-patterns.md`.
 
@@ -270,7 +271,7 @@ struct HomeView: View {
 
 ### TCA (The Composable Architecture) — Alternative
 
-For teams that prefer a stricter unidirectional architecture (similar to MVI on Android), TCA provides `State` + `Action` + `Reducer` + `Store` with built-in dependency injection, side effect management, and exhaustive testing. It is a third-party framework (Point-Free) but widely adopted in the iOS community.
+For teams that prefer a stricter unidirectional architecture (similar to MVI on Android), TCA provides `State` + `Action` + `Reducer` + `Store` with built-in dependency injection, side effect management, and exhaustive testing. It is a third-party framework (Point-Free), well-established and actively maintained in the iOS community.
 
 ```swift
 // TCA pattern (requires swift-composable-architecture package)
@@ -339,7 +340,7 @@ MyApp/
 Rules:
 - Organize by feature, not by technical role.
 - Extract shared logic into local SPM packages for build time and testability.
-- One type per file, file name matches type name.
+- Prefer one primary type per file, file name matches type name. Small closely-related helper types may co-locate.
 
 For SPM multi-module setup, build configurations, targets, schemes see `references/project-structure.md`.
 
@@ -388,5 +389,5 @@ Cross-platform features:
 | String-based navigation | Use `NavigationPath` with typed destinations |
 | Magic numbers in UI (`padding(16)`, `.cornerRadius(8)`) | Define design tokens (`AppSpacing.medium`, `AppCornerRadius.standard`) |
 | `#if TARGET_NAME` for multi-target branching | Use DI (protocol + per-target conformance) or separate files per target |
-| Mixing SwiftUI and UIKit in one screen | Keep frameworks isolated: new flows in SwiftUI, existing UIKit screens untouched |
+| Mixing SwiftUI and UIKit lifecycle/navigation in one screen | Don't nest `UINavigationController` inside `NavigationStack`; `UIViewRepresentable` for individual views is fine |
 | Hard-coded user-facing strings (`"Welcome back"`, `Text("Sign in")`) | Use localized strings — reference the project's localization solution (String Catalogs, `.strings`, etc.) |
