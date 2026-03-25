@@ -395,9 +395,7 @@ func application(
             return .newData
         case "badge-update":
             let count = userInfo["badge_count"] as? Int ?? 0
-            await MainActor.run {
-                UNUserNotificationCenter.current().setBadgeCount(count)
-            }
+            try? await UNUserNotificationCenter.current().setBadgeCount(count)
             return .newData
         default:
             return .noData

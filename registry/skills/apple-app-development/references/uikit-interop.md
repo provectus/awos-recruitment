@@ -544,16 +544,18 @@ class ProfileViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Note: iOS 26+ provides updateProperties() for automatic @Observable tracking.
+        // For pre-iOS 26, use withObservationTracking with continuation-based re-registration:
         observationTask = Task { [weak self] in
-            // Use withObservationTracking for UIKit
             while !Task.isCancelled {
                 guard let self else { return }
-                withObservationTracking {
-                    self.updateUI(with: self.viewModel.user)
-                } onChange: {
-                    // Re-run on next change
+                await withCheckedContinuation { continuation in
+                    withObservationTracking {
+                        self.updateUI(with: self.viewModel.user)
+                    } onChange: {
+                        continuation.resume()
+                    }
                 }
-                try? await Task.sleep(for: .milliseconds(50))
             }
         }
         Task { await viewModel.load() }
@@ -794,7 +796,7 @@ struct FocusableTextField: UIViewRepresentable {
 // UIHostingController respects safe areas by default.
 // To disable safe area behavior (e.g., edge-to-edge content):
 let hosting = UIHostingController(rootView: contentView)
-hosting.safeAreaRegions = []  // iOS 16+ -- removes all safe area insets
+hosting.safeAreaRegions = []  // iOS 16.4+ -- removes all safe area insets
 
 // When embedding a UIView in SwiftUI, the UIKit view receives
 // safe area insets from SwiftUI's container. If your UIKit view
