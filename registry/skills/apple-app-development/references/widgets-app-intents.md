@@ -71,26 +71,30 @@ struct MyTimelineProvider: TimelineProvider {
 }
 ```
 
-### Async TimelineProvider (preferred for iOS 17+)
+### AppIntentTimelineProvider (preferred for iOS 17+)
+
+For configurable widgets (iOS 17+), use `AppIntentTimelineProvider` which has native async methods (`snapshot`/`timeline`):
 
 ```swift
-struct MyAsyncProvider: TimelineProvider {
+struct MyAsyncProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> MyEntry {
         MyEntry(date: .now, title: "Placeholder", value: 0)
     }
 
-    func getSnapshot(in context: Context) async -> MyEntry {
+    func snapshot(for configuration: MyWidgetIntent, in context: Context) async -> MyEntry {
         let data = await fetchLatestData()
         return MyEntry(date: .now, title: data.title, value: data.value)
     }
 
-    func getTimeline(in context: Context) async -> Timeline<MyEntry> {
+    func timeline(for configuration: MyWidgetIntent, in context: Context) async -> Timeline<MyEntry> {
         let data = await fetchLatestData()
         let entry = MyEntry(date: .now, title: data.title, value: data.value)
         return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
     }
 }
 ```
+
+Note: `TimelineProvider` (for `StaticConfiguration`) uses completion-handler methods. Swift provides an implicit async bridge, but `AppIntentTimelineProvider` is the canonical async-first API.
 
 ### WidgetFamily Sizes
 

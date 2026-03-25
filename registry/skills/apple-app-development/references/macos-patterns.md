@@ -48,7 +48,7 @@ struct MyApp: App {
         }
         .defaultSize(width: 400, height: 300)
         .windowResizability(.contentMinSize)
-        .defaultPosition(.trailing)
+        .defaultPosition(.trailing) // UnitPoint — positions window at trailing edge of screen
     }
 }
 ```

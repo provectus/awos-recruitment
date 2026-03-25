@@ -186,6 +186,8 @@ struct ProfileView: View {
 }
 ```
 
+**Caveat:** Unlike `@StateObject`, `@State` re-evaluates the initializer expression on every view struct recreation (SwiftUI discards the new instance, but `init()` still runs). Avoid side effects in `@Observable` class initializers — use `.task` for deferred setup.
+
 ### @Binding
 ---
 
