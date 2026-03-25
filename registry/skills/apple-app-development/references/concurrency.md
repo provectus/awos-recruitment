@@ -1,7 +1,7 @@
 # Swift Concurrency Reference (Apple Platforms)
 
 ## Contents
-- async/await fundamentals, typed throws (Swift 6+)
+- async/await fundamentals, typed throws (Swift 6+), Result-based error handling for async
 - Structured concurrency (`async let`, `TaskGroup`, cancellation)
 - Actors (custom, `@MainActor`, global actors, isolation, `nonisolated`)
 - Sendable (protocol, `@Sendable` closures, `sending` parameter)
@@ -59,7 +59,7 @@ func fetchData(from url: URL) async throws(NetworkError) -> Data {
     }
 }
 
-// Caller gets exhaustive switch on NetworkError — no catch-all needed
+// Single typed-throws call — error type is inferred correctly
 do {
     let data = try await fetchData(from: url)
 } catch .timeout {
@@ -71,8 +71,50 @@ do {
 }
 ```
 
+**Caveat — async inference gaps:** Typed throws has known compiler limitations in async contexts (as of Swift 6.1). Error type inference breaks with `async let` ([swift#76169](https://github.com/swiftlang/swift/issues/76169)), nested `do`-`catch` ([swift#75260](https://github.com/swiftlang/swift/issues/75260)), and generic error type parameters. Exhaustive pattern-matching in `catch` clauses is also not supported ([swift#74555](https://github.com/swiftlang/swift/issues/74555)) — you must use `catch { switch error { ... } }` instead.
+
+### Result-based error handling for async
+
+When combining multiple async calls with custom error types, prefer `Result<Success, Failure>`. Typed throws loses error type propagation when multiple `async throws(E)` calls appear in the same `do`-`catch` block — the compiler widens to `any Error`. `Result` preserves per-call error typing and allows callers to handle each error independently:
+
+```swift
+func fetchData(from url: URL) async -> Result<Data, NetworkError> {
+    let data: Data
+    let response: URLResponse
+    do {
+        (data, response) = try await URLSession.shared.data(from: url)
+    } catch {
+        return .failure(.timeout)
+    }
+    guard let http = response as? HTTPURLResponse else {
+        return .failure(.serverError(statusCode: 0))
+    }
+    switch http.statusCode {
+    case 200...299: return .success(data)
+    case 401: return .failure(.unauthorized)
+    default: return .failure(.serverError(statusCode: http.statusCode))
+    }
+}
+
+// Each call preserves its error type — no compiler inference issues
+let dataResult = await fetchData(from: url)
+let configResult = await fetchConfig(from: configURL)
+
+switch dataResult {
+case .success(let data):
+    process(data)
+case .failure(.timeout):
+    showRetryPrompt()
+case .failure(.unauthorized):
+    navigateToLogin()
+case .failure(.serverError(let code)):
+    showServerError(code)
+}
+```
+
 Rules:
-- Use typed throws for domain-specific APIs where callers benefit from exhaustive handling.
+- Use typed throws for simple, single-call async contexts or synchronous code where callers benefit from exhaustive handling.
+- Prefer `Result<Success, Failure>` when combining multiple async calls with custom error types — typed throws inference breaks in this scenario.
 - Continue using untyped `throws` at module boundaries or when errors are heterogeneous.
 - Typed throws compose — `throws(NetworkError)` inside `throws(AppError)` requires mapping.
 
