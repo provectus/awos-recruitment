@@ -594,7 +594,7 @@ The migration runs once — it reads all values from the SharedPreferences file,
 
 ### Sensitive Key-Value Data
 
-> **`EncryptedSharedPreferences` (`androidx.security:security-crypto`) is deprecated** as of 1.1.0. Google recommends using Android Keystore directly or encrypted DataStore.
+> **`EncryptedSharedPreferences` (`androidx.security:security-crypto`) is deprecated**. Google recommends using Android Keystore directly or encrypted DataStore.
 
 **Option 1: Android Keystore directly** — for storing a small number of secrets (tokens, API keys). Encrypt/decrypt values with a Keystore-backed key and store the ciphertext in Preferences DataStore or any other storage.
 

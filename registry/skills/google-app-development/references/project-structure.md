@@ -2,7 +2,7 @@
 
 Covers Android-specific project organization, Gradle configuration, build variants, and CI/CD. For generic Kotlin/Gradle project structure (single-module layout, version catalog basics, compiler options, testing setup), see the `kotlin-development` skill's `references/project-structure.md`.
 
-Targets **AGP 8.x+** and **Kotlin 2.x**.
+Targets latest stable **AGP** and **Kotlin 2.x**.
 
 ## Multi-Module Architecture
 
@@ -133,12 +133,12 @@ plugins {
 
 android {
     namespace = "com.example.myapp"
-    compileSdk = 35
+    compileSdk = <latest-stable-api>  // use latest stable Android API level
 
     defaultConfig {
         applicationId = "com.example.myapp"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = <latest-stable-api>  // must match Play Store requirements
         versionCode = 1
         versionName = "1.0.0"
 
@@ -146,12 +146,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 
     buildFeatures {
@@ -172,15 +172,15 @@ plugins {
 
 android {
     namespace = "com.example.core.network"
-    compileSdk = 35
+    compileSdk = <latest-stable-api>
 
     defaultConfig {
         minSdk = 26
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 ```
@@ -189,10 +189,10 @@ android {
 
 | Property | Recommendation | Notes |
 |---|---|---|
-| `compileSdk` | Latest stable (35) | Access newest APIs at compile time |
-| `targetSdk` | Latest stable (35) | Opt into latest platform behavior, required for Play Store |
-| `minSdk` | 26+ (Android 8.0) | Covers 95%+ of active devices; 24 if broader reach needed |
-| `jvmTarget` | `"17"` | AGP 8.x requires JDK 17 minimum |
+| `compileSdk` | Latest stable API level | Access newest APIs at compile time |
+| `targetSdk` | Latest stable API level | Required by Play Store annually; opt into latest platform behavior |
+| `minSdk` | 90%+ device coverage (currently 26+) | Adapt to project requirements; if the project already defines a minSdk, confirm before changing |
+| `jvmTarget` | `"21"` (recommended), `"17"` (minimum) | JDK 21 LTS preferred for new projects; JDK 17 is the AGP minimum |
 
 ### Compose compiler (Kotlin 2.x)
 
@@ -383,7 +383,7 @@ dependencies {
 }
 ```
 
-Never pin individual Compose library versions when using the BOM — it causes version conflicts.
+Prefer BOM-managed versions for consistency. Individual library versions can be overridden when needed, but be aware that alpha/beta overrides may pull in alpha transitive dependencies.
 
 
 ## Convention Plugins
@@ -444,7 +444,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("org.jetbrains.kotlin.android")
 
             extensions.configure<LibraryExtension> {
-                compileSdk = 35
+                compileSdk = <latest-stable-api>
 
                 defaultConfig {
                     minSdk = 26
@@ -452,8 +452,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 }
 
                 compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
+                    sourceCompatibility = JavaVersion.VERSION_21
+                    targetCompatibility = JavaVersion.VERSION_21
                 }
             }
         }

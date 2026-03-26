@@ -389,3 +389,5 @@ The core skill covers Android phone by default. For other platforms, consult the
 | View-based navigation in Compose app | Use Compose Navigation (`NavHost`) |
 | `LiveData` in new code | Use `StateFlow` + `collectAsStateWithLifecycle()` |
 | Magic numbers in UI (`padding(16.dp)`, `fontSize = 14.sp`) | Define design tokens (`AppSpacing.medium`) or use `MaterialTheme` tokens |
+| Overriding `onBackPressed()` | `onBackPressed()` is no longer called on recent platform versions. Use `BackHandler` (Compose) or `OnBackPressedDispatcher` (Views). For custom back animations, use `PredictiveBackHandler` |
+| Not supporting edge-to-edge | Call `enableEdgeToEdge()` in `onCreate`. Edge-to-edge is mandatory on recent platform versions |

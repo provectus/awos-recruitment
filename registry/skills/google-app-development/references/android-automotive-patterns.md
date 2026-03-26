@@ -1,6 +1,6 @@
 # Android Automotive OS (AAOS) Patterns Reference
 
-Target: AAOS Android 14+
+Target: latest stable AAOS
 
 >[toc]
 
@@ -33,6 +33,10 @@ The **Car App Library** (`androidx.car.app`) provides a common template-based AP
 val isAutomotive = context.packageManager
     .hasSystemFeature("android.hardware.type.automotive")
 ```
+
+#### AAOS for Software-Defined Vehicles (AAOS SDV)
+
+AAOS is expanding beyond infotainment to cover broader vehicle systems — seat actuators, climate, lighting, cameras, mirrors, and telemetry. This is primarily relevant for OEM system apps with platform-level signing. Third-party app developers should be aware of this direction but do not need to target AAOS SDV APIs directly.
 
 
 ## Car App Library on AAOS
@@ -857,7 +861,7 @@ AAOS apps are distributed through the **Google Play Store for Automotive**, a se
 android {
     defaultConfig {
         minSdk = 29  // AAOS minimum
-        targetSdk = 34
+        targetSdk = <latest-stable-api>
     }
 
     flavorDimensions += "platform"

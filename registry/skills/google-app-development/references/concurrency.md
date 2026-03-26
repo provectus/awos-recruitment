@@ -299,6 +299,8 @@ _uiState.update { it.copy(isLoading = false) }
 
 WorkManager is the recommended solution for deferrable, guaranteed background work that must survive process death and device reboots. Uses JobScheduler (API 23+) under the hood.
 
+> **Note:** `androidx.work:work-runtime-ktx` was merged into `work-runtime`. Remove it from dependencies if present.
+
 ### When to use WorkManager
 
 | Scenario | Solution |
@@ -329,6 +331,8 @@ class SyncWorker(
     }
 }
 ```
+
+Use `Configuration.Builder().setWorkerCoroutineContext(dispatcher)` to control the dispatcher for all CoroutineWorkers — useful for testing.
 
 ### Result types
 
@@ -472,7 +476,7 @@ As of API 34, you must declare a specific foreground service type in `AndroidMan
 </manifest>
 ```
 
-Available types: `camera`, `connectedDevice`, `dataSync`, `health`, `location`, `mediaPlayback`, `mediaProjection`, `microphone`, `phoneCall`, `remoteMessaging`, `shortService`, `specialUse`, `systemExempted`.
+Available types: `camera`, `connectedDevice`, `dataSync`, `health`, `location`, `mediaPlayback`, `mediaProcessing`, `mediaProjection`, `microphone`, `phoneCall`, `remoteMessaging`, `shortService`, `specialUse`, `systemExempted`.
 
 ### Implementation
 
@@ -551,7 +555,7 @@ stopSelf()
 
 **API 31+ (Android 12):** Apps cannot start foreground services from the background except in specific exemptions (high-priority FCM message, exact alarm callback, `SYSTEM_ALERT_WINDOW` permission, etc.). Use WorkManager with `setExpedited()` for background-initiated urgent work.
 
-**API 35+ (Android 15):** The `dataSync` foreground service type has a 6-hour time limit. For longer sync tasks, use WorkManager or the `mediaProcessing` type where applicable. The `shortService` type has a 3-minute limit.
+**API 35+ (Android 15):** The `dataSync` and `mediaProcessing` foreground service types have a 6-hour time limit. For longer sync tasks, use WorkManager or the `mediaProcessing` type where applicable. The `shortService` type has a 3-minute limit.
 
 
 ## Background Limits
@@ -598,6 +602,7 @@ The system categorizes apps by recent usage into buckets that determine job and 
 - Use WorkManager as the default for background processing — it handles Doze, Standby, and restart automatically.
 - Use FCM high-priority messages for time-sensitive server-driven events.
 - Test your app's behavior across buckets using `adb shell am set-standby-bucket <package> <bucket>`.
+- Recent platform versions tighten restrictions further: jobs started alongside a foreground service are no longer exempt from runtime quotas. Design background work to stay within quota limits even when a foreground service is running.
 
 
 ## AlarmManager

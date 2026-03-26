@@ -15,7 +15,7 @@
 Add the dependency:
 
 ```kotlin
-implementation("androidx.compose.material3.adaptive:adaptive:1.1.0")
+implementation("androidx.compose.material3.adaptive:adaptive:<latest>")
 ```
 
 #### Calculating the Size Class
@@ -39,7 +39,9 @@ fun MyApp() {
 |-------|-----------|-----------------|
 | `COMPACT` | < 600dp | Phones in portrait |
 | `MEDIUM` | 600dp - 839dp | Foldables unfolded, small tablets |
-| `EXPANDED` | >= 840dp | Tablets, desktops, landscape foldables |
+| `EXPANDED` | 840dp - 1199dp | Tablets, desktops, landscape foldables |
+| `LARGE` | 1200dp - 1599dp | Large tablets, desktop windows |
+| `EXTRA_LARGE` | >= 1600dp | Ultra-wide desktop, multi-monitor |
 
 #### Height Breakpoints
 
@@ -47,9 +49,11 @@ fun MyApp() {
 |-------|-----------|-----------------|
 | `COMPACT` | < 480dp | Phones in landscape |
 | `MEDIUM` | 480dp - 899dp | Tablets in landscape |
-| `EXPANDED` | >= 900dp | Tablets in portrait, desktops |
+| `EXPANDED` | 900dp - 1199dp | Tablets in portrait, desktops |
+| `LARGE` | 1200dp - 1599dp | Large desktop windows |
+| `EXTRA_LARGE` | >= 1600dp | Ultra-wide desktop, multi-monitor |
 
-**Key point**: Always branch on `windowWidthSizeClass` for primary layout decisions. Use `windowHeightSizeClass` as a secondary signal (e.g., to hide a bottom bar in landscape).
+**Key point**: Always branch on `windowWidthSizeClass` for primary layout decisions. Use `windowHeightSizeClass` as a secondary signal (e.g., to hide a bottom bar in landscape). LARGE and EXTRA_LARGE are useful for desktop windowing and ChromeOS — for most mobile and tablet apps, branching on COMPACT, MEDIUM, and EXPANDED is sufficient.
 
 
 ## Adaptive Layouts
@@ -62,14 +66,13 @@ fun MyApp() {
 #### Dependency
 
 ```kotlin
-implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0")
-implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0")
+implementation("androidx.compose.material3.adaptive:adaptive-layout:<latest>")
+implementation("androidx.compose.material3.adaptive:adaptive-navigation:<latest>")
 ```
 
 #### Basic Usage
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun ListDetailScreen() {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -132,7 +135,7 @@ ListDetailPaneScaffold(
 #### Dependency
 
 ```kotlin
-implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.4.0")
+implementation("androidx.compose.material3:material3-adaptive-navigation-suite:<latest>")
 ```
 
 #### Usage
@@ -366,7 +369,6 @@ Google recommends three canonical layouts for large screens:
 #### SupportingPaneScaffold
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun SupportingPaneScreen() {
     val navigator = rememberSupportingPaneScaffoldNavigator()
@@ -697,7 +699,6 @@ Android Studio provides foldable emulator profiles with virtual hinge controls:
 #### Compose UI Testing with Overridden Window Size
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Test
 fun listDetailLayout_expandedWidth_showsBothPanes() {
     composeTestRule.setContent {

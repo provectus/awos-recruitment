@@ -444,7 +444,7 @@ AnimatedContent(targetState = screen, label = "screen") { target ->
     }
 }
 
-// Shared element transitions (Compose 1.7+)
+// Shared element transitions
 SharedTransitionLayout {
     AnimatedContent(targetState = showDetail) { isDetail ->
         if (isDetail) {

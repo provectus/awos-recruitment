@@ -144,7 +144,7 @@ Use `Modifier.onFocusChanged {}` or the built-in `IndicationNodeFactory` from `t
 
 ## Leanback (Legacy)
 
-The `androidx.leanback` library was the original TV UI toolkit built on Fragments and RecyclerView.
+The `androidx.leanback` library is **deprecated**. It was the original TV UI toolkit built on Fragments and RecyclerView. For new TV projects, use Compose for TV exclusively — Leanback is not needed.
 
 ### BrowseSupportFragment
 ---
@@ -165,7 +165,7 @@ class MainFragment : BrowseSupportFragment() {
 
 ### Migration to Compose for TV
 ---
-Leanback is in maintenance mode. Migration path:
+Leanback is deprecated. Migration path:
 
 | Leanback Component | Compose for TV Replacement |
 |---|---|
@@ -547,22 +547,22 @@ val tokenResponse = authClient.pollForToken(
 android {
     defaultConfig {
         minSdk = 21           // broadest Android TV reach
-        targetSdk = 35        // latest stable
+        targetSdk = <latest-stable-api>
     }
 }
 
 dependencies {
     // Compose for TV (Material 3)
-    implementation("androidx.tv:tv-foundation:1.0.0")
-    implementation("androidx.tv:tv-material:1.0.0")
+    implementation("androidx.tv:tv-foundation:<latest>")  // currently in beta
+    implementation("androidx.tv:tv-material:<latest>")
 
     // Media3
-    implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-session:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("androidx.media3:media3-exoplayer:<latest>")
+    implementation("androidx.media3:media3-session:<latest>")
+    implementation("androidx.media3:media3-ui:<latest>")
 
     // Engage SDK (Google TV discovery)
-    implementation("com.google.android.engage:engage-core:1.5.5")
+    implementation("com.google.android.engage:engage-core:<latest>")
 
     // TV Provider (channels / Watch Next)
     implementation("androidx.tvprovider:tvprovider:1.0.0")

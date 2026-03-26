@@ -178,6 +178,31 @@ class SearchViewModel @Inject constructor(
 }
 ```
 
+#### saved() Property Delegate (Lifecycle 2.9+)
+
+A lazy property delegate that works with `@Serializable` classes. Automatically saves and restores across process death with minimal boilerplate.
+
+```kotlin
+@Serializable
+data class FormData(val name: String = "", val email: String = "")
+
+@HiltViewModel
+class FormViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    // Automatically saved and restored across process death
+    var formData by savedStateHandle.saved { FormData() }
+        private set
+
+    fun updateName(name: String) {
+        formData = formData.copy(name = name)
+    }
+}
+```
+
+Use `saved()` for structured state objects. Use `getStateFlow()` when you need reactive observation of individual values.
+
 Rules for `SavedStateHandle`:
 - Store only small, serializable data (IDs, query strings, scroll positions).
 - Do not store large objects (bitmaps, lists of hundreds of items). Use a local database or cache instead.
@@ -846,6 +871,55 @@ class MainActivity : ComponentActivity() {
     }
 }
 ```
+
+
+## Predictive Back and Edge-to-Edge
+
+### Predictive Back
+---
+Recent Android versions enable predictive back system animations by default. `onBackPressed()` is no longer called and `KeyEvent.KEYCODE_BACK` is not dispatched for apps targeting these versions.
+
+**Required migration:**
+- **Compose**: Use `BackHandler` for simple back handling. Use `PredictiveBackHandler` for custom progress-based back animations.
+- **Views**: Use `OnBackPressedDispatcher` and register `OnBackPressedCallback`.
+- **Never** override `onBackPressed()` or intercept `KEYCODE_BACK` directly.
+
+```kotlin
+// Compose — simple back handling
+BackHandler(enabled = showDialog) {
+    dismissDialog()
+}
+
+// Compose — predictive back with animation progress
+PredictiveBackHandler { progress: Flow<BackEventCompat> ->
+    progress.collect { event ->
+        // event.progress: 0.0 to 1.0
+        // Animate UI based on progress
+    }
+}
+```
+
+### Edge-to-Edge
+---
+Edge-to-edge rendering is mandatory on recent platform versions. Call `enableEdgeToEdge()` in `onCreate` before `setContent`.
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    setContent { AppTheme { AppNavHost() } }
+}
+```
+
+Handle system bar insets in your layouts:
+
+```kotlin
+Modifier
+    .fillMaxSize()
+    .systemBarsPadding() // or use WindowInsets.systemBars with padding()
+```
+
+The legacy opt-out (`windowOptOutEdgeToEdgeEnforcement`) is deprecated and will be removed in a future platform version.
 
 
 ## Deep Links and Intents

@@ -51,7 +51,7 @@ truth = { module = "com.google.truth:truth", version.ref = "truth" }
 ```kotlin
 // build.gradle.kts (app or feature module)
 plugins {
-    id("de.mannodermaus.android-junit5") // JUnit 5 support for Android
+    id("de.mannodermaus.android-junit-framework") // JUnit 5+ support for Android
 }
 
 dependencies {
@@ -356,6 +356,8 @@ fun `combines user and preferences into profile`() = runTest {
 ## Compose UI Testing
 
 Compose tests use semantics tree, not view hierarchy. Both local (Robolectric) and on-device (instrumented) execution are supported.
+
+> **Compose Testing v2:** Recent versions of `ui-test-junit4` introduce v2 testing APIs that use `StandardTestDispatcher` by default (v1 used `UnconfinedTestDispatcher`). The v1 APIs (`createComposeRule()`, `createAndroidComposeRule()`) are being deprecated. If your project uses a recent alpha/beta Compose testing version (1.11.0+), migrate to the v2 APIs. The finders, actions, and assertions (`onNodeWithText`, `performClick`, `assertIsDisplayed`) remain the same across both versions.
 
 ### Gradle Note
 

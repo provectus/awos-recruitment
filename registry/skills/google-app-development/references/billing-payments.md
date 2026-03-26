@@ -603,7 +603,7 @@ Google Play supports alternative billing systems in certain markets. This is opt
 
 ### User Choice Billing
 
-Users choose between Google Play's billing and a third-party payment provider at checkout. Available in select markets (EEA, US, others). Google reduces its service fee by 4% when the user selects the alternative.
+Users choose between Google Play's billing and a third-party payment provider at checkout. Available in select markets (check Play Console for current availability). Google reduces its service fee when the user selects the alternative — check Play Console for current rates.
 
 **Requirements:**
 - PBL 5.2+ for user choice billing APIs.
@@ -613,8 +613,8 @@ Users choose between Google Play's billing and a third-party payment provider at
 ### When to Consider
 
 - Apps with existing payment infrastructure (web, iOS) that want a consistent cross-platform experience.
-- Markets where alternative billing is mandated (EEA Digital Markets Act compliance).
-- High-volume apps where the 4% fee reduction is material.
+- Markets where alternative billing is mandated by regulation.
+- High-volume apps where the fee reduction is material.
 
 > For implementation details, see the [official guide](https://developer.android.com/google/play/billing/alternative/alternative-billing-with-user-choice-in-app).
 

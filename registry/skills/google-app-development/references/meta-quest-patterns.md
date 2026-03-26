@@ -9,6 +9,8 @@ Adapting Android APK apps to run on Meta Quest headsets.
 
 Meta Quest headsets run a modified Android OS (based on AOSP). Standard Android APKs can run on Quest in a "2D panel" mode, but delivering a proper experience requires adapting for VR/MR interaction models.
 
+> This reference focuses on adapting Android APK apps to run on Meta Quest — either in 2D panel mode or with basic VR features (controller input, passthrough). For native 3D/VR-exclusive development, refer to the Meta Horizon OS documentation.
+
 Key differences from standard Android:
 - **No touchscreen** — input comes from controllers, hand tracking, or gaze.
 - **No Google Play Services** — no GMS, no Google Sign-In, no Google Maps, no Firebase Cloud Messaging via GMS.
@@ -44,7 +46,7 @@ dependencyResolutionManagement {
 android {
     defaultConfig {
         minSdk = 29 // Quest 2 minimum; Quest 3 supports 29+
-        targetSdk = 32
+        targetSdk = <latest-stable-api>
     }
 
     buildTypes {
@@ -58,8 +60,8 @@ android {
 }
 
 dependencies {
-    implementation("com.meta.spatial:spatial-sdk:0.5.0")
-    implementation("com.meta.platform:platform-sdk:67.0.0")
+    implementation("com.meta.spatial:spatial-sdk:<latest>")  // check https://developers.meta.com/horizon/release-notes/spatial-sdk/
+    implementation("com.meta.platform:platform-sdk:<latest>") // check https://developers.meta.com/horizon/downloads/package/meta-xr-platform-sdk/
 }
 ```
 
@@ -92,6 +94,7 @@ Declare VR intent category and Quest-specific metadata in `AndroidManifest.xml`:
         <meta-data
             android:name="com.oculus.supportedDevices"
             android:value="quest2|questpro|quest3" />
+        <!-- Check Meta developer docs for current device identifiers -->
 
         <activity
             android:name=".MainActivity"
@@ -145,6 +148,8 @@ Quest does not have Google Play Services. Authentication uses Meta accounts, and
 #### Entitlement Check
 
 Every Quest app distributed through the Meta Quest Store must verify the user is entitled to run it. This prevents piracy and validates the purchase.
+
+> **Note:** The Platform SDK still uses `com.oculus.*` package names in its API. This is the correct import path regardless of the Meta Horizon OS rebranding.
 
 ```kotlin
 import com.oculus.platform.Platform

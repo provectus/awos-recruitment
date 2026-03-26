@@ -1,6 +1,6 @@
 # Android Auto Patterns Reference
 
-> Target: Car App Library 1.4+
+> Target: latest stable Car App Library
 
 >[toc]
 
@@ -187,21 +187,21 @@ NavigationTemplate.Builder()
     .build()
 ```
 
-#### MapTemplate
+#### MapWithContentTemplate
 
-Best for: map-centric apps that need interactive content alongside the map (POI browsing, parking, charging stations). Available in Car App Library 1.4+.
+Best for: map-centric apps that need interactive content alongside the map (POI browsing, parking, charging stations). Combines a map surface with List, Grid, Pane, or Message content.
 
 ```kotlin
-MapTemplate.Builder()
+MapWithContentTemplate.Builder()
     .setMapController(
         MapController.Builder()
             .setMapActionStrip(mapActionStrip)
             .build()
     )
-    .setPane(
-        Pane.Builder()
-            .addRow(Row.Builder().setTitle("Station Name").addText("0.3 mi").build())
-            .addAction(Action.Builder().setTitle("Navigate").setOnClickListener { /* ... */ }.build())
+    .setContentTemplate(
+        ListTemplate.Builder()
+            .setTitle("Nearby Chargers")
+            .setSingleList(placeList)
             .build()
     )
     .build()
@@ -215,7 +215,7 @@ MapTemplate.Builder()
 | Visual category grid | `GridTemplate` | Icon-driven; limited text |
 | Simple message/dialog | `MessageTemplate` | Max 2 actions |
 | Active navigation | `NavigationTemplate` | Requires NAVIGATION category |
-| Map with details pane | `MapTemplate` | 1.4+; for POI/charging |
+| Map with details pane | `MapWithContentTemplate` | For POI/charging; combines map with any content template |
 | Long-form text | `LongMessageTemplate` | Terms of service, legal text |
 | User input | `SearchTemplate` | Voice/keyboard input |
 | Sign-in | `SignInTemplate` | QR code or PIN-based auth |
@@ -489,6 +489,8 @@ POI and charging/EV apps use `MapTemplate` (1.4+) and `PlaceListMapTemplate` to 
 
 #### PlaceListMapTemplate
 
+> **Deprecated:** `PlaceListMapTemplate` is deprecated. Use `MapWithContentTemplate` with a `ListTemplate` content instead.
+
 Shows a list of places pinned on a map.
 
 ```kotlin
@@ -520,12 +522,12 @@ PlaceListMapTemplate.Builder()
     .build()
 ```
 
-#### MapTemplate for Charging/POI Detail
+#### MapWithContentTemplate for Charging/POI Detail
 
-Use `MapTemplate` with a `Pane` to show details alongside the map.
+Use `MapWithContentTemplate` with a content template to show details alongside the map.
 
 ```kotlin
-MapTemplate.Builder()
+MapWithContentTemplate.Builder()
     .setMapController(
         MapController.Builder()
             .setMapActionStrip(
@@ -535,17 +537,20 @@ MapTemplate.Builder()
             )
             .build()
     )
-    .setPane(
-        Pane.Builder()
-            .setHeader(PaneTemplate.Header.Builder().setTitle("Station A").build())
-            .addRow(Row.Builder().setTitle("CCS 150kW").addText("Available").build())
-            .addRow(Row.Builder().setTitle("Price").addText("$0.35/kWh").build())
-            .addAction(
-                Action.Builder()
-                    .setTitle("Start Charging")
-                    .setOnClickListener { /* initiate session */ }
-                    .build()
-            )
+    .setContentTemplate(
+        PaneTemplate.Builder(
+            Pane.Builder()
+                .addRow(Row.Builder().setTitle("CCS 150kW").addText("Available").build())
+                .addRow(Row.Builder().setTitle("Price").addText("$0.35/kWh").build())
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Start Charging")
+                        .setOnClickListener { /* initiate session */ }
+                        .build()
+                )
+                .build()
+        )
+            .setTitle("Station A")
             .build()
     )
     .build()
@@ -813,7 +818,7 @@ Declare the appropriate category in your manifest. Only approved categories are 
 ```xml
 <meta-data
     android:name="androidx.car.app.minCarAppApiLevel"
-    android:value="5" /> <!-- Car App Library 1.4 = API level 5+ -->
+    android:value="<minimum-required>" /> <!-- Set to the minimum API level your app requires -->
 ```
 
 - Target API level 33+ for new submissions.
