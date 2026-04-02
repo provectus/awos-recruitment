@@ -1,0 +1,13 @@
+name: "atlassian"
+description: "Atlassian Jira and Confluence integration — manage issues, sprints, boards, backlogs in Jira; create, update, search, and publish pages in Confluence."
+config:
+  atlassian:
+    type: stdio
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-atlassian"
+    env:
+      ATLASSIAN_API_TOKEN: "${ATLASSIAN_API_TOKEN}"
+      ATLASSIAN_EMAIL: "${ATLASSIAN_EMAIL}"
+      ATLASSIAN_DOMAIN: "${ATLASSIAN_DOMAIN}"
