@@ -172,7 +172,7 @@ Default retention: **24 hours** (extendable to 365 days at additional cost). If 
 |---|---|---|
 | Ordering | Best-effort | Strict per message group |
 | Lambda scaling | Up to 1,000 concurrent (or reserved limit) | 1 concurrent per message group |
-| Throughput | Nearly unlimited | 300 messages/s (3,000 with batching) |
+| Throughput | Nearly unlimited | 300 messages/s (3,000 with batching); up to 70,000 messages/s with high-throughput FIFO mode |
 | Duplicates | Possible | Exactly-once delivery |
 
 ### Visibility Timeout alignment

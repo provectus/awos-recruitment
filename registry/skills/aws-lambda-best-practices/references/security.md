@@ -78,7 +78,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 
 | Benefit | Cost |
 |---|---|
-| Network isolation for private resources | Additional cold start latency (ENI attachment) |
+| Network isolation for private resources | Minor additional cold start latency (Hyperplane ENI attachment -- significantly improved since 2019) |
 | Security group and NACL controls | Requires VPC endpoint or NAT for public services |
 | Private connectivity to on-premises | ENI quota consumption |
 | Compliance with network segmentation policies | More complex networking configuration |

@@ -4,12 +4,13 @@
 
 The handler is Lambda's entry point. A well-designed handler is thin, testable, and separates concerns:
 
-### Structure
-
 ```
-1. Parse/validate the incoming event
-2. Call business logic (pure functions, no Lambda-specific dependencies)
-3. Format and return the response
+Module level:  initialize DB client, validator (reused across invocations)
+
+Handler:
+  1. Validate incoming event
+  2. Call business logic (pure function, no Lambda dependencies)
+  3. Return structured response
 ```
 
 ### Why this matters
@@ -18,9 +19,21 @@ The handler is Lambda's entry point. A well-designed handler is thin, testable, 
 - **Portability** -- if you later move to ECS or another compute, the business logic doesn't change
 - **Readability** -- the handler reads as a pipeline: input -> process -> output
 
-### Anti-pattern: monolithic handler
+### Anti-pattern: fat handler
 
-Avoid putting validation, business logic, data access, error handling, and response formatting all in the handler. This makes functions hard to test, debug, and maintain.
+```
+Handler:
+  Create new DB connection           <-- re-created every invocation
+  If event type is "order":          <-- routing logic in handler
+    50 lines of validation...
+    80 lines of business logic...
+    30 lines of error handling...
+    Write to DB                      <-- data access mixed in
+    Send email                       <-- side effects buried deep
+    Catch all exceptions --> 500     <-- generic catch-all hides real errors
+```
+
+This is untestable, unreusable, and impossible to reason about when it grows. Split validation, business logic, and data access into separate modules.
 
 ## Execution Environment Reuse
 
@@ -48,7 +61,7 @@ Lambda may reuse the execution environment (the container running your function)
 |---|---|
 | Package size | Larger package = longer initialization |
 | Number of imports/dependencies | More imports = longer module-level execution |
-| VPC attachment | Adds network interface setup time |
+| VPC attachment | Adds ENI setup time on first invocation; significantly reduced since Hyperplane ENI improvements (seconds, not minutes) |
 | Runtime | Interpreted languages (Python, Node.js) generally start faster than compiled (Java, .NET) |
 | Provisioned concurrency | Eliminates cold starts entirely (at additional cost) |
 
@@ -107,23 +120,27 @@ Lambda reuses execution environments, but idle connections get purged. Without k
 
 ### Database connections
 
-| Pattern | When to use |
-|---|---|
-| Connection per invocation | Never (high overhead, connection exhaustion under concurrency) |
-| Module-level connection | Simple functions with low concurrency |
-| Connection pooling (via RDS Proxy) | Functions connecting to RDS at any concurrency |
-| DynamoDB / S3 (HTTP-based) | No connection pooling needed -- SDK handles this |
+| Pattern | Verdict | When to use |
+|---|---|---|
+| Module-level connection + RDS Proxy | Best | Any function connecting to RDS with non-trivial concurrency |
+| Module-level connection (no proxy) | Good | Low-concurrency functions with simple connection needs |
+| Connection per invocation | Avoid for concurrent workloads | Acceptable only for very-low-concurrency functions that run infrequently |
+| HTTP-based services (DynamoDB, S3, SQS) | No pooling needed | SDK handles connection management |
 
 ### RDS Proxy
 
-For relational databases, **always use RDS Proxy** with Lambda:
+For relational databases with non-trivial concurrency, **use RDS Proxy** with Lambda:
 
 - Pools and shares database connections across function instances
 - Handles connection cleanup when Lambda scales down
 - Supports IAM authentication (no passwords in config)
 - Without it: 1,000 concurrent Lambda invocations = 1,000 database connections
 
+For low-concurrency functions (e.g., cron jobs, admin tools), a module-level connection without RDS Proxy is acceptable and avoids the additional cost.
+
 ## Recursive Invocations
+
+See `anti-patterns.md` for full analysis of why recursive patterns feel right, impact tables, and safeguards. This section provides a quick prevention checklist.
 
 A recursive invocation occurs when a Lambda function directly or indirectly triggers itself:
 
@@ -137,7 +154,7 @@ A recursive invocation occurs when a Lambda function directly or indirectly trig
 - **Use prefixes or suffixes** -- trigger on `input/` prefix, write to `output/` prefix
 - **Add a recursion guard** -- check for a recursion marker in the event and bail out
 - **Emergency stop** -- if detected, set reserved concurrency to 0 immediately to halt all invocations while you fix the code
-- **Lambda recursive loop detection** -- Lambda automatically detects and stops recursive loops between Lambda, SQS, and SNS (limited scope)
+- **Lambda recursive loop detection** -- Lambda automatically detects and stops recursive loops between Lambda, SQS, and SNS (limited scope -- do not rely on this as sole protection)
 
 ## Environment Variables
 

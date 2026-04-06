@@ -48,12 +48,14 @@ Lambda publishes these metrics to CloudWatch automatically (no instrumentation r
 
 ## Embedded Metric Format (EMF)
 
-### Why EMF over PutMetricData
+### Why prefer EMF over PutMetricData
 
 | Approach | Latency impact | Cost | Complexity |
 |---|---|---|---|
 | `PutMetricData` API call in handler | Adds network round-trip to each invocation | API call charges + higher function duration | Error handling for API failures |
 | EMF (metrics in structured logs) | Zero -- metrics emitted as log lines | Standard CloudWatch Logs ingestion | Minimal -- structured log lines |
+
+EMF is the default choice for most use cases. Use `PutMetricData` only when you need high-resolution metrics (1-second resolution) or immediate metric availability without log ingestion delay.
 
 ### How EMF works
 
