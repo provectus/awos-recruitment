@@ -83,7 +83,7 @@ A payment function must handle:
 
 | Need | Use |
 |---|---|
-| Multi-step workflows within a bounded context | **AWS Step Functions** -- JSON/YAML-defined state machines with built-in error handling, retries, wait states, parallel execution, and visual monitoring. Workflows can run up to 1 year. |
+| Multi-step workflows within a bounded context | **AWS Step Functions** -- state machines with built-in error handling, retries, wait states, parallel execution, and visual monitoring. Workflows can run up to 1 year. |
 | Coordination across multiple microservices | **Amazon EventBridge** -- serverless event bus that routes events based on rules, decoupling producers from consumers |
 | Simple async handoff between two steps | **SQS queue** between Lambda functions |
 
@@ -96,7 +96,8 @@ A payment function must handle:
 Lambda functions invoke other Lambda functions synchronously, forming a chain where each caller waits for the downstream function to return.
 
 ```
-Create Order --> (waits) --> Process Payment --> (waits) --> Create Invoice
+Create Order --> (waits 2s) --> Process Payment --> (waits 3s) --> Create Invoice
+Result: 5s billed x 3 functions = 15s of compute for 5s of work
 ```
 
 ### Why it feels right
@@ -147,7 +148,7 @@ Step Functions state machine:
 A Lambda function writes to the same resource that triggered it, creating an infinite invocation loop.
 
 ```
-S3 put event --> Lambda function --> writes object to SAME S3 bucket --> S3 put event --> Lambda ...
+S3 put event --> Lambda function --> writes to SAME S3 bucket --> S3 put event --> Lambda ...
 ```
 
 ### Why it feels right
@@ -205,11 +206,8 @@ If a recursive loop is running:
 A Lambda function performs multiple independent operations sequentially, waiting for each to complete before starting the next.
 
 ```
-Lambda handler:
-  1. Write to S3        (wait 200ms)
-  2. Write to DynamoDB  (wait 100ms)
-  3. Call external API  (wait 500ms)
-  Total: 800ms billed duration
+Sequential: S3 (200ms) + DynamoDB (100ms) + external API (500ms) = 800ms billed
+Concurrent: max(200ms, 100ms, 500ms) = 500ms billed
 ```
 
 ### Why it feels right
@@ -228,18 +226,7 @@ Lambda handler:
 
 ### What to do instead
 
-**If operations are independent:** run them concurrently within the same function.
-
-```
-Lambda handler:
-  parallel:
-    - Write to S3        (200ms)
-    - Write to DynamoDB  (100ms)
-    - Call external API   (500ms)
-  Total: 500ms billed duration (longest task)
-```
-
-Use your language's concurrency primitives (Promise.all, asyncio.gather, CompletableFuture, goroutines, etc.).
+**If operations are independent:** run them concurrently within the same function using your language's concurrency primitives.
 
 **If operations are dependent** (B needs A's result): split into separate functions connected by events.
 

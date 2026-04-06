@@ -15,7 +15,7 @@ Lambda allocates CPU power proportional to configured memory:
 | 1,769 MB | 1 full vCPU | 1.0 |
 | 3,538 MB | 2 vCPU | 2.0 |
 | 5,307 MB | 3 vCPU | 3.0 |
-| 10,240 MB | ~6 vCPU | 5.8 |
+| 10,240 MB | ~6 vCPU | ~5.8 |
 
 ### Finding optimal memory
 
