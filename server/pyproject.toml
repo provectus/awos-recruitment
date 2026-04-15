@@ -5,7 +5,7 @@ description = "MCP server providing AI coding assistants with a discovery engine
 requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.0.0",
-    "fastmcp>=2.14.5",
+    "fastmcp>=3.2.0",
     "posthog>=7.0.0",
     "python-dotenv>=1.0.0",
     "python-frontmatter>=1.1.0",
