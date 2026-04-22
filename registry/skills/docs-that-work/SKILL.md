@@ -3,7 +3,8 @@ name: docs-that-work
 description: >-
   Project documentation guidelines. Use when asked to "write documentation",
   "create a CLAUDE.md", "write a README", "document this project",
-  "improve documentation", or when creating/updating CLAUDE.md or README.md files.
+  "improve documentation", "publish to Confluence", or when creating/updating
+  CLAUDE.md or README.md files.
 ---
 
 # Docs That Work
@@ -83,7 +84,8 @@ If you're unsure whether something needs docs, apply the three-question test fro
 
 ## Deep Dives
 
-| Topic                                                  | Reference                       |
-| ------------------------------------------------------ | ------------------------------- |
-| CLAUDE.md and README templates                         | `references/claude-md-guide.md` |
-| Anti-patterns, bloat examples, the three-question test | `references/anti-patterns.md`   |
+| Topic                                                  | Reference                              |
+| ------------------------------------------------------ | -------------------------------------- |
+| CLAUDE.md and README templates                         | `references/claude-md-guide.md`        |
+| Anti-patterns, bloat examples, the three-question test | `references/anti-patterns.md`          |
+| Confluence publishing and sync                         | `references/confluence-publishing.md`  |
