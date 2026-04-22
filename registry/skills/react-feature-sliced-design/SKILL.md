@@ -133,7 +133,7 @@ This skill is not just a ruleset — it should actively teach engineers FSD prin
 | Layer rules, when to create each layer, cross-entity patterns     | `references/layers.md`             |
 | Segment rules (ui, model, api, lib, config, index)                | `references/segments.md`           |
 | CLAUDE.md template                                                | `references/claude-md-template.md` |
-| Slice examples (entity, feature, widget, page)                    | `examples/slice-examples.md`       |
+| Slice examples (entity, feature, widget, page)                    | `references/slice-examples.md`     |
 
 ## Official FSD Specification
 
