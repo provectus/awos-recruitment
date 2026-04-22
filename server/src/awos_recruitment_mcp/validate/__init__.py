@@ -11,6 +11,15 @@ from pydantic import ValidationError as PydanticValidationError
 
 from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetadata
 
+# Top-level entries permitted inside a skill directory. Kept in lockstep with
+# what the /bundle/skills endpoint actually ships: SKILL.md (file) and the flat
+# files under references/ (directory). README.md is allowed as local docs even
+# though it's not bundled. Type is enforced alongside name — e.g. a file named
+# "references" or a directory named "SKILL.md" is still rejected, since the
+# bundler would drop them for the same reason as any other stray entry.
+_ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
+_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references"})
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationError:
@@ -138,6 +147,78 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                     message="Skill body (markdown content) is empty",
                 )
             )
+
+        # Ensure the on-disk layout matches what /bundle/skills ships.  The
+        # bundler only includes SKILL.md and flat files under references/;
+        # everything else is silently dropped at install time (the root cause
+        # of #56). Surface anything outside the allowlist as a validation error
+        # so authors notice before shipping.  Dotfiles are skipped — macOS
+        # sprinkles .DS_Store into every directory that's been opened in
+        # Finder, and flagging those would just create noise.
+        for child in sorted(entry.iterdir()):
+            if child.name.startswith("."):
+                continue
+
+            if child.is_file():
+                if child.name not in _ALLOWED_SKILL_FILES:
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"Unexpected file '{child.name}' in skill — "
+                                "the install bundle only ships SKILL.md and "
+                                "flat files under references/"
+                            ),
+                        )
+                    )
+                continue
+
+            if not child.is_dir():
+                # Symlinks, sockets, etc. — tar.add wouldn't handle these the
+                # way skill authors expect.
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Unexpected non-file/non-dir entry '{child.name}' "
+                            "in skill directory"
+                        ),
+                    )
+                )
+                continue
+
+            if child.name not in _ALLOWED_SKILL_DIRS:
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Unexpected directory '{child.name}/' in skill "
+                            "— the install bundle only ships SKILL.md and "
+                            "flat files under references/"
+                        ),
+                    )
+                )
+                continue
+
+            # Allowed dir (references/) — the bundler walks it with iterdir()
+            # and only adds is_file() entries, so anything non-file is dropped.
+            for ref_child in sorted(child.iterdir()):
+                if ref_child.name.startswith(".") or ref_child.is_file():
+                    continue
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Nested entry '{child.name}/{ref_child.name}' "
+                            "is not a flat file — the install bundle only "
+                            "ships flat files under references/"
+                        ),
+                    )
+                )
 
         results.append(
             ValidationResult(

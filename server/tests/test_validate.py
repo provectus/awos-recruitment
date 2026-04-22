@@ -192,6 +192,17 @@ def test_agent_optional_fields_default_none():
 # ---------------------------------------------------------------------------
 
 
+def _make_skill_dir(tmp_path: Path, name: str, description: str) -> Path:
+    """Create a minimal well-formed skill directory and return its path."""
+    skill_dir = tmp_path / "skills" / name
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: {description}\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    return skill_dir
+
+
 def test_validate_skill_empty_body(tmp_path: Path):
     """A SKILL.md with valid front matter but an empty body should produce errors."""
     skill_dir = tmp_path / "skills" / "empty-body"
@@ -249,6 +260,136 @@ def test_validate_skill_valid(tmp_path: Path):
     )
     assert results[0].errors == [], (
         f"Expected no errors, got: {results[0].errors}"
+    )
+
+
+def test_validate_skill_rejects_unexpected_toplevel_dir(tmp_path: Path):
+    """A non-allowlisted directory (e.g. rules/) should be flagged as unexpected."""
+    skill_dir = _make_skill_dir(tmp_path, "has-rules", "stray rules folder")
+    rules_dir = skill_dir / "rules"
+    rules_dir.mkdir()
+    (rules_dir / "rule-a.md").write_text("# Rule A\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, (
+        "Expected invalid result when a non-allowlisted folder is present"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("rules" in m and "Unexpected directory" in m for m in error_messages), (
+        f"Expected an 'Unexpected directory \"rules/\"' error, got: {error_messages}"
+    )
+
+
+def test_validate_skill_rejects_unexpected_toplevel_file(tmp_path: Path):
+    """An unknown top-level file should also be flagged."""
+    skill_dir = _make_skill_dir(tmp_path, "has-extra", "stray file")
+    (skill_dir / "notes.txt").write_text("scratch\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any("notes.txt" in m for m in error_messages), (
+        f"Expected an error mentioning 'notes.txt', got: {error_messages}"
+    )
+
+
+def test_validate_skill_rejects_nested_references_dir(tmp_path: Path):
+    """A subdirectory inside references/ should be flagged — the bundler only ships flat files."""
+    skill_dir = _make_skill_dir(tmp_path, "nested-refs", "references has a subfolder")
+    nested = skill_dir / "references" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "buried.md").write_text("# Buried\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any("references/sub" in m for m in error_messages), (
+        f"Expected an error mentioning 'references/sub', got: {error_messages}"
+    )
+
+
+def test_validate_skill_ignores_dotfiles(tmp_path: Path):
+    """macOS/VCS dotfiles (.DS_Store, .gitkeep) must not trigger layout errors."""
+    skill_dir = _make_skill_dir(tmp_path, "dotfiles-ok", "dotfiles should be ignored")
+    (skill_dir / ".DS_Store").write_bytes(b"\x00\x01\x02")
+    refs = skill_dir / "references"
+    refs.mkdir()
+    (refs / "a.md").write_text("# A\n")
+    (refs / ".DS_Store").write_bytes(b"\x00\x01\x02")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected dotfiles to be ignored, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+
+
+def test_validate_skill_rejects_file_named_references(tmp_path: Path):
+    """A regular file named 'references' must not satisfy the references/ dir slot."""
+    skill_dir = _make_skill_dir(tmp_path, "file-refs", "references is a file, not a dir")
+    (skill_dir / "references").write_text("oops, should be a directory\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, (
+        "Expected a file named 'references' to be rejected"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "Unexpected file" in m and "references" in m for m in error_messages
+    ), f"Expected 'Unexpected file references' error, got: {error_messages}"
+
+
+def test_validate_skill_reports_multiple_layout_errors(tmp_path: Path):
+    """One skill with several layout problems should surface every one."""
+    skill_dir = _make_skill_dir(tmp_path, "many-issues", "lots of layout problems")
+    (skill_dir / "rules").mkdir()
+    (skill_dir / "rules" / "a.md").write_text("# A\n")
+    (skill_dir / "notes.txt").write_text("scratch\n")
+    nested = skill_dir / "references" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "buried.md").write_text("# Buried\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    messages = [e.message for e in results[0].errors]
+    assert any("rules/" in m and "Unexpected directory" in m for m in messages), (
+        f"Expected rules/ directory error, got: {messages}"
+    )
+    assert any("notes.txt" in m and "Unexpected file" in m for m in messages), (
+        f"Expected notes.txt file error, got: {messages}"
+    )
+    assert any("references/sub" in m for m in messages), (
+        f"Expected nested references/sub error, got: {messages}"
+    )
+
+
+def test_validate_skill_allows_readme_and_flat_references(tmp_path: Path):
+    """README.md at the top level and flat files under references/ are fine."""
+    skill_dir = _make_skill_dir(tmp_path, "well-formed", "proper layout")
+    (skill_dir / "README.md").write_text("# Readme\n")
+    refs = skill_dir / "references"
+    refs.mkdir()
+    (refs / "a.md").write_text("# A\n")
+    (refs / "b.md").write_text("# B\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected layout to pass, got errors: "
+        f"{[e.message for e in results[0].errors]}"
     )
 
 
