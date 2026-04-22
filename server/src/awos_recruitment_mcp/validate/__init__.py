@@ -159,41 +159,7 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
             if child.name.startswith("."):
                 continue
 
-            if child.is_dir():
-                if child.name not in _ALLOWED_SKILL_DIRS:
-                    errors.append(
-                        ValidationError(
-                            file=relative_path,
-                            field=None,
-                            message=(
-                                f"Unexpected directory '{child.name}/' in skill "
-                                "— the install bundle only ships SKILL.md and "
-                                "flat files under references/"
-                            ),
-                        )
-                    )
-                    continue
-
-                # Allowed dir (references/) — the bundler walks it with
-                # iterdir() and only adds is_file() entries, so nested
-                # directories would be silently dropped.
-                for ref_child in sorted(child.iterdir()):
-                    if ref_child.name.startswith("."):
-                        continue
-                    if not ref_child.is_file():
-                        errors.append(
-                            ValidationError(
-                                file=relative_path,
-                                field=None,
-                                message=(
-                                    f"Nested entry '{child.name}/{ref_child.name}"
-                                    f"{'/' if ref_child.is_dir() else ''}' is "
-                                    "not included in the install bundle — only "
-                                    "flat files under references/ are shipped"
-                                ),
-                            )
-                        )
-            elif child.is_file():
+            if child.is_file():
                 if child.name not in _ALLOWED_SKILL_FILES:
                     errors.append(
                         ValidationError(
@@ -206,9 +172,11 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                             ),
                         )
                     )
-            else:
+                continue
+
+            if not child.is_dir():
                 # Symlinks, sockets, etc. — tar.add wouldn't handle these the
-                # way skill authors expect. Flag them.
+                # way skill authors expect.
                 errors.append(
                     ValidationError(
                         file=relative_path,
@@ -216,6 +184,38 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         message=(
                             f"Unexpected non-file/non-dir entry '{child.name}' "
                             "in skill directory"
+                        ),
+                    )
+                )
+                continue
+
+            if child.name not in _ALLOWED_SKILL_DIRS:
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Unexpected directory '{child.name}/' in skill "
+                            "— the install bundle only ships SKILL.md and "
+                            "flat files under references/"
+                        ),
+                    )
+                )
+                continue
+
+            # Allowed dir (references/) — the bundler walks it with iterdir()
+            # and only adds is_file() entries, so anything non-file is dropped.
+            for ref_child in sorted(child.iterdir()):
+                if ref_child.name.startswith(".") or ref_child.is_file():
+                    continue
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Nested entry '{child.name}/{ref_child.name}' "
+                            "is not a flat file — the install bundle only "
+                            "ships flat files under references/"
                         ),
                     )
                 )
