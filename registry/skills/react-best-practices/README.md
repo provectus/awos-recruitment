@@ -26,11 +26,11 @@ The rules cover:
 
 Once installed, the skill activates automatically when Claude Code detects React-related tasks — writing components, reviewing performance, refactoring code, or optimizing bundles.
 
-Each rule is a standalone `.md` file in `rules/`:
+Each rule is a standalone `.md` file in `references/`:
 
 ```
-rules/async-parallel.md
-rules/rerender-memo.md
+references/async-parallel.md
+references/rerender-memo.md
 ```
 
 Every rule file contains:

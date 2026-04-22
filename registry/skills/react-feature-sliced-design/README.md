@@ -29,4 +29,4 @@ npx @provectusinc/awos-recruitment skill react-feature-sliced-design
 | `references/layers.md` | Layer descriptions, decision tree, `@x` cross-imports |
 | `references/segments.md` | Segment rules (ui, model, api, lib, config, index) |
 | `references/claude-md-template.md` | CLAUDE.md template for slices |
-| `examples/slice-examples.md` | Generic slice example — structure and public API |
+| `references/slice-examples.md` | Generic slice example — structure and public API |

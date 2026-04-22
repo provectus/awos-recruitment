@@ -81,4 +81,4 @@ Comprehensive performance optimization guide for React applications. Contains 37
 
 ## How to Use
 
-Each rule file in `rules/` contains: explanation, incorrect/correct code examples, and context. Read individual files as needed.
+Each rule file in `references/` contains: explanation, incorrect/correct code examples, and context. Read individual files as needed.
