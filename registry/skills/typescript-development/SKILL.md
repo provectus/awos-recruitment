@@ -242,4 +242,5 @@ import { helper } from "./utils";      // Wrong — fails at runtime
 For detailed type system features and advanced patterns, consult:
 - **`references/type-system.md`** — Generics, utility types, conditional types, mapped types, template literal types, type guards, discriminated unions, branded types, satisfies operator, const assertions, declaration merging
 - **`references/patterns.md`** — Immutability patterns, error handling (Result type, custom errors), async patterns (generators, concurrency), builder pattern, type-safe event emitter, overloaded functions, module patterns, enum alternatives, assertion functions, narrowing patterns
+- **`references/type-inference.md`** — Variable inference, function return inference, generic inference, contextual typing, satisfies operator, infer keyword, control flow analysis, type guards, narrowing patterns, best practices for when to annotate vs let inference work
 - **`references/project-structure.md`** — tsconfig.json essentials (strict mode flags, module config, safety flags), ESM/CJS setup, directory layout, organizing types, barrel exports, declaration files, import organization, path aliases, gitignore
