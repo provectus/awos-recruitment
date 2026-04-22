@@ -17,7 +17,7 @@
 
 ### Standalone vs companion
 
-watchOS 10+ apps are standalone by default. A companion iPhone app is optional. The watch app has its own bundle identifier, lifecycle, and App Store presence.
+watchOS apps have supported standalone mode since watchOS 6 (via `WKRunsIndependentlyOfCompanionApp`). New Xcode watchOS project templates create standalone apps by default. A companion iPhone app is optional. The watch app has its own bundle identifier, lifecycle, and App Store presence.
 
 ```swift
 // Standalone watchOS app entry point
@@ -75,9 +75,9 @@ enum Route: Hashable {
 
 ## Complications
 
-### WidgetKit-based complications (watchOS 10+)
+### WidgetKit-based complications (watchOS 9+)
 
-watchOS 10 migrated complications to WidgetKit. ClockKit is deprecated.
+ClockKit was deprecated in watchOS 9. Complications are now built with WidgetKit using the same `TimelineProvider` pattern as home screen widgets.
 
 ```swift
 import WidgetKit
@@ -506,12 +506,8 @@ final class AppDelegate: NSObject, WKApplicationDelegate {
                 // Handle background URL session completion
                 urlTask.setTaskCompletedWithSnapshot(false)
 
-            case let snapshotTask as WKSnapshotRefreshBackgroundTask:
-                snapshotTask.setTaskCompleted(
-                    restoredDefaultState: true,
-                    estimatedSnapshotExpiration: .distantFuture,
-                    userInfo: nil
-                )
+            // WKSnapshotRefreshBackgroundTask is deprecated since watchOS 7.
+            // The snapshot-based dock was replaced by Smart Stack in watchOS 10.
 
             default:
                 task.setTaskCompletedWithSnapshot(false)
@@ -780,6 +776,57 @@ Key points:
 - The system uses relevance alongside user behavior to rank widgets.
 - Widgets can also provide a `duration` to indicate how long the relevance score applies.
 
+## watchOS 11+ Features
+
+### Live Activities on Apple Watch
+
+Live Activities from iPhone automatically appear in the Smart Stack on Apple Watch (watchOS 11). Customize the watch presentation with `supplementalActivityFamilies`:
+
+```swift
+struct MyWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        ActivityConfiguration(for: DeliveryAttributes.self) { context in
+            // Lock Screen / Dynamic Island
+            DeliveryLiveActivityView(context: context)
+        } dynamicIsland: { context in
+            // Dynamic Island views
+        }
+        .supplementalActivityFamilies([.small]) // Enable Apple Watch Smart Stack
+    }
+}
+```
+
+Without customization, the Dynamic Island compact views are used on Apple Watch. Add `supplementalActivityFamilies([.small])` and provide a dedicated view for the watch-sized presentation.
+
+### Interactive Widgets (watchOS 11+)
+
+Widgets on watchOS now support `Button` and `Toggle` backed by App Intents, allowing up to 3 actionable buttons per widget without launching the app:
+
+```swift
+struct QuickActionsWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "QuickActions", provider: Provider()) { entry in
+            VStack {
+                Text(entry.status)
+                Button(intent: ToggleStatusIntent()) {
+                    Label("Toggle", systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+        }
+        .supportedFamilies([.accessoryRectangular])
+    }
+}
+```
+
+### Double Tap Gesture (watchOS 11+)
+
+Designate a primary action for the Double Tap gesture in your app, widgets, and Live Activities:
+
+```swift
+Button("Start Timer", action: startTimer)
+    .handGestureShortcut(.primaryAction) // Triggered by Double Tap
+```
+
 ## Limitations
 
 ### Memory budget
@@ -806,8 +853,10 @@ watchOS apps typically have 30-50 MB of usable memory depending on the device. T
 |---|---|---|
 | Apple Watch SE (40mm) | 162pt | 324 x 394 |
 | Apple Watch SE (44mm) | 176pt | 352 x 430 |
-| Apple Watch Series 9/10 (41mm) | 170pt | 352 x 430 |
-| Apple Watch Series 9/10 (45mm) | 185pt | 396 x 484 |
+| Apple Watch Series 9 (41mm) | 170pt | 352 x 430 |
+| Apple Watch Series 9 (45mm) | 185pt | 396 x 484 |
+| Apple Watch Series 10 (42mm) | 176pt | 374 x 446 |
+| Apple Watch Series 10 (46mm) | 191pt | 416 x 496 |
 | Apple Watch Ultra 2 (49mm) | 205pt | 410 x 502 |
 
 - Always use dynamic type and scalable layouts.

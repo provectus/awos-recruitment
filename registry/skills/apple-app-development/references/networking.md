@@ -83,7 +83,7 @@ struct Endpoint {
     }
 }
 
-final class URLSessionAPIClient: APIClient {
+final class URLSessionAPIClient: APIClient, Sendable {
     private let session: URLSession
     private let baseURL: URL
     private let decoder: JSONDecoder
@@ -392,30 +392,26 @@ func urlSession(_ session: URLSession, task: URLSessionTask,
 actor TokenManager {
     private var accessToken: String?
     private var refreshToken: String?
-    private var isRefreshing = false
+    private var refreshTask: Task<String, Error>?
 
     func validToken() async throws -> String {
         if let token = accessToken, !isExpired(token) {
             return token
         }
-        return try await refreshAccessToken()
-    }
-
-    private func refreshAccessToken() async throws -> String {
-        guard !isRefreshing else {
-            // Wait for ongoing refresh
-            try await Task.sleep(for: .milliseconds(100))
-            return try await validToken()
+        // All concurrent callers share a single refresh task
+        if let existingTask = refreshTask {
+            return try await existingTask.value
         }
-        isRefreshing = true
-        defer { isRefreshing = false }
-
-        // Perform refresh
-        guard let refreshToken else { throw AuthError.noRefreshToken }
-        let newTokens = try await authService.refresh(refreshToken)
-        accessToken = newTokens.access
-        refreshToken = newTokens.refresh
-        return newTokens.access
+        let task = Task { [self] () throws -> String in
+            defer { refreshTask = nil }
+            guard let refreshToken else { throw AuthError.noRefreshToken }
+            let newTokens = try await authService.refresh(refreshToken)
+            accessToken = newTokens.access
+            self.refreshToken = newTokens.refresh
+            return newTokens.access
+        }
+        refreshTask = task
+        return try await task.value
     }
 }
 
@@ -460,7 +456,7 @@ Use `NWPathMonitor` (Network framework) instead of deprecated `SCNetworkReachabi
 ```swift
 import Network
 
-@Observable
+@MainActor @Observable
 class NetworkMonitor {
     var isConnected = true
     var isExpensive = false
@@ -491,7 +487,7 @@ Add Alamofire when you need interceptors, automatic retry, or cleaner certificat
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/Alamofire/Alamofire.git", from: "5.10.0")
+.package(url: "https://github.com/Alamofire/Alamofire.git", from: "<latest-stable>")
 ```
 
 ### Basic Requests
@@ -531,18 +527,12 @@ class AuthInterceptor: RequestInterceptor {
         self.tokenManager = tokenManager
     }
 
-    func adapt(_ urlRequest: URLRequest, for session: Session,
-               completion: @escaping (Result<URLRequest, Error>) -> Void) {
+    // Alamofire 5.10+ supports async adapt — prefer this over wrapping Task in completion handler
+    func adapt(_ urlRequest: URLRequest, for session: Session) async throws -> URLRequest {
         var request = urlRequest
-        Task {
-            do {
-                let token = try await tokenManager.validToken()
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                completion(.success(request))
-            } catch {
-                completion(.failure(error))
-            }
-        }
+        let token = try await tokenManager.validToken()
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return request
     }
 
     func retry(_ request: Request, for session: Session, dueTo error: Error,

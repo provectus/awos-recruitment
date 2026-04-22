@@ -1,6 +1,6 @@
 # StoreKit Reference (In-App Purchases & Subscriptions)
 
-Comprehensive guide to monetization on Apple platforms using StoreKit 2. Covers product loading, purchase flows, transaction management, subscriptions, StoreKit SwiftUI views, testing, and server-side verification. StoreKit 2 is the modern Swift-native API (iOS 15+) — do not use the original StoreKit API for new code.
+Comprehensive guide to monetization on Apple platforms using StoreKit 2. Covers product loading, purchase flows, transaction management, subscriptions, StoreKit SwiftUI views, testing, and server-side verification. StoreKit 2 is the modern Swift-native API (iOS 15+). The original StoreKit API (`SKPaymentQueue`, `SKProduct`, etc.) is formally **deprecated** as of iOS 18 — do not use it for new code.
 
 ## Architecture Overview
 
@@ -109,11 +109,18 @@ let result = try await product.purchase(options: [
 ])
 ```
 
-#### Purchase with Confirmation Scene (iOS 17+)
+#### Purchase with UI Context
 
 ```swift
-// Specify where to present the purchase confirmation
-let result = try await product.purchase(confirmIn: windowScene)
+// iOS 18.2+: Requires a UIViewController context to present the purchase sheet reliably.
+// Without it, the payment sheet may fail to appear ("Could not get confirmation scene ID").
+let result = try await product.purchase(confirmIn: viewController) // UIViewController on iOS
+
+// iOS 17–18.1: UIWindowScene context (still works but deprecated in favor of UIViewController)
+// let result = try await product.purchase(confirmIn: windowScene)
+
+// macOS: Use NSWindow as the confirmation context
+// let result = try await product.purchase(confirmIn: window)
 ```
 
 

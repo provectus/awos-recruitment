@@ -395,9 +395,7 @@ func application(
             return .newData
         case "badge-update":
             let count = userInfo["badge_count"] as? Int ?? 0
-            await MainActor.run {
-                UNUserNotificationCenter.current().setBadgeCount(count)
-            }
+            try? await UNUserNotificationCenter.current().setBadgeCount(count)
             return .newData
         default:
             return .noData
@@ -420,6 +418,20 @@ APNs payload for silent push:
 ```
 
 Note: Push notification delegate methods still require `UIApplicationDelegate` / `@UIApplicationDelegateAdaptor`. There is no pure SwiftUI equivalent.
+
+### Live Activities Push Notifications (iOS 16.1+)
+
+Live Activities use ActivityKit push notifications to update or end activities remotely. See `references/widgets-app-intents.md` for full Live Activities coverage.
+
+```swift
+// Observe push token for a Live Activity
+for await tokenData in activity.pushTokenUpdates {
+    let token = tokenData.map { String(format: "%02x", $0) }.joined()
+    // Send token to your server for APNs updates
+}
+```
+
+iOS 18 introduced **broadcast push notifications** for Live Activities — send a single push via a channel ID instead of tracking per-device tokens. This is critical for high-audience scenarios (sports scores, flight tracking). See `references/widgets-app-intents.md` for details.
 
 ## Deep Links and Universal Links
 
@@ -808,7 +820,20 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-// Access in views
+// In your App struct, inject the delegate into the environment
+@main
+struct MyApp: App {
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environment(appDelegate) // Required — @UIApplicationDelegateAdaptor does NOT auto-inject
+        }
+    }
+}
+
+// Then access in any view
 struct SettingsView: View {
     @Environment(AppDelegate.self) private var appDelegate
 

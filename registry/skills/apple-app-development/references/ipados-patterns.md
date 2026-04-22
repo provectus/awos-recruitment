@@ -807,50 +807,52 @@ struct PresentationApp: App {
 
 ```swift
 @Observable
+// NOTE: UIScreen.screens, UIScreen.didConnectNotification, and UIScreen.didDisconnectNotification
+// are deprecated since iOS 16. Use UIScene-based detection instead (see Scene-based section below).
+// This legacy pattern is shown only for apps targeting iOS 15 and earlier.
 class ExternalDisplayManager {
-    var externalScreen: UIScreen?
     var externalWindow: UIWindow?
 
     init() {
-        observeScreenConnections()
+        observeSceneConnections()
     }
 
-    private func observeScreenConnections() {
+    private func observeSceneConnections() {
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(screenDidConnect),
-            name: UIScreen.didConnectNotification,
+            selector: #selector(sceneDidConnect),
+            name: UIScene.willConnectNotification,
             object: nil
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(screenDidDisconnect),
-            name: UIScreen.didDisconnectNotification,
+            selector: #selector(sceneDidDisconnect),
+            name: UIScene.didDisconnectNotification,
             object: nil
         )
 
-        // Check for already-connected screens
-        if let screen = UIScreen.screens.dropFirst().first {
-            configureExternalScreen(screen)
+        // Check for already-connected external scenes
+        for scene in UIApplication.shared.connectedScenes {
+            if let windowScene = scene as? UIWindowScene,
+               windowScene.session.role == .externalDisplayNonInteractive {
+                configureExternalDisplay(windowScene)
+            }
         }
     }
 
-    @objc private func screenDidConnect(_ notification: Notification) {
-        guard let screen = notification.object as? UIScreen else { return }
-        configureExternalScreen(screen)
+    @objc private func sceneDidConnect(_ notification: Notification) {
+        guard let windowScene = notification.object as? UIWindowScene,
+              windowScene.session.role == .externalDisplayNonInteractive else { return }
+        configureExternalDisplay(windowScene)
     }
 
-    @objc private func screenDidDisconnect(_ notification: Notification) {
+    @objc private func sceneDidDisconnect(_ notification: Notification) {
         externalWindow?.isHidden = true
         externalWindow = nil
-        externalScreen = nil
     }
 
-    private func configureExternalScreen(_ screen: UIScreen) {
-        externalScreen = screen
-        let window = UIWindow(frame: screen.bounds)
-        window.screen = screen
-
+    private func configureExternalDisplay(_ windowScene: UIWindowScene) {
+        let window = UIWindow(windowScene: windowScene)
         let hostingController = UIHostingController(
             rootView: ExternalDisplayView()
         )
@@ -888,3 +890,59 @@ Rules:
 - Handle connect/disconnect gracefully. The external display can be removed at any time.
 - External displays have no touch input. Ensure all interaction happens on the iPad screen.
 - Test with both wired (USB-C/HDMI) and wireless (AirPlay) external displays.
+
+
+## iPadOS 18+ Features
+
+### Floating Tab Bar / Sidebar Adaptable
+
+iPadOS 18 introduced a new tab bar that floats at the top of the app, morphs into a sidebar, and supports user customization. Use `.tabViewStyle(.sidebarAdaptable)` and `TabSection` for grouping:
+
+```swift
+TabView {
+    Tab("Home", systemImage: "house") {
+        HomeView()
+    }
+
+    Tab("Search", systemImage: "magnifyingglass") {
+        SearchView()
+    }
+
+    TabSection("Library") {
+        Tab("Favorites", systemImage: "heart") {
+            FavoritesView()
+        }
+        Tab("Downloads", systemImage: "arrow.down.circle") {
+            DownloadsView()
+        }
+    }
+}
+.tabViewStyle(.sidebarAdaptable) // Floating tab bar + sidebar toggle
+```
+
+The tab bar collapses into a compact pill on scroll. Users can customize which tabs appear. In compact size classes, it falls back to a standard tab bar.
+
+### Apple Pencil Pro (iPadOS 18+)
+
+Apple Pencil Pro introduces hardware-driven gestures and haptics:
+
+```swift
+// Squeeze gesture — show custom tool palette
+let pencilInteraction = UIPencilInteraction()
+pencilInteraction.delegate = self // UIPencilInteractionDelegate
+
+// In delegate:
+func pencilInteraction(_ interaction: UIPencilInteraction,
+                       didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze) {
+    showToolPalette()
+}
+
+// Barrel roll — rotation angle available in PKStrokePoint
+// Access via PKStrokePoint.rollAngle for rotation-aware brush shapes
+
+// Haptic feedback — trigger custom haptics through the Pencil
+let generator = UIImpactFeedbackGenerator(style: .light)
+generator.impactOccurred() // Felt through Pencil Pro when in contact with screen
+```
+
+Features: squeeze gesture (custom tool palette), barrel roll (gyroscope rotation for shaped tools), haptic feedback engine, hover distance detection (iPad Pro M2+).

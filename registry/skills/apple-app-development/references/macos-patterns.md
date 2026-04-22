@@ -48,7 +48,7 @@ struct MyApp: App {
         }
         .defaultSize(width: 400, height: 300)
         .windowResizability(.contentMinSize)
-        .defaultPosition(.trailing)
+        .defaultPosition(.trailing) // UnitPoint — positions window at trailing edge of screen
     }
 }
 ```
@@ -684,7 +684,7 @@ struct DrawingApp: App {
 }
 
 struct DrawingCanvas: View {
-    @ObservedObject var document: DrawingDocument
+    var document: DrawingDocument
     @Environment(\.undoManager) var undoManager
 
     func addShape(_ shape: Shape) {

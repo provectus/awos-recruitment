@@ -1,7 +1,7 @@
 # Swift Concurrency Reference (Apple Platforms)
 
 ## Contents
-- async/await fundamentals, typed throws (Swift 6+)
+- async/await fundamentals, typed throws (Swift 6+), Result-based error handling for async
 - Structured concurrency (`async let`, `TaskGroup`, cancellation)
 - Actors (custom, `@MainActor`, global actors, isolation, `nonisolated`)
 - Sendable (protocol, `@Sendable` closures, `sending` parameter)
@@ -10,6 +10,7 @@
 - AsyncSequence and AsyncStream (building, consuming, bridging)
 - Migrating from GCD
 - Migrating from Combine
+- Swift 6.2 — Approachable Concurrency (`defaultIsolation`, `nonisolated(nonsending)`, `@concurrent`)
 - Common pitfalls (data races, reentrancy, deadlocks)
 - Testing async code
 
@@ -59,7 +60,7 @@ func fetchData(from url: URL) async throws(NetworkError) -> Data {
     }
 }
 
-// Caller gets exhaustive switch on NetworkError — no catch-all needed
+// Single typed-throws call — error type is inferred correctly
 do {
     let data = try await fetchData(from: url)
 } catch .timeout {
@@ -71,8 +72,50 @@ do {
 }
 ```
 
+**Caveat — async inference gaps:** Typed throws has known compiler limitations in async contexts (as of Swift 6.1). Error type inference breaks with `async let` ([swift#76169](https://github.com/swiftlang/swift/issues/76169)), nested `do`-`catch` ([swift#75260](https://github.com/swiftlang/swift/issues/75260)), and generic error type parameters. Exhaustive pattern-matching in `catch` clauses is also not supported ([swift#74555](https://github.com/swiftlang/swift/issues/74555)) — you must use `catch { switch error { ... } }` instead.
+
+### Result-based error handling for async
+
+When combining multiple async calls with custom error types, prefer `Result<Success, Failure>`. Typed throws loses error type propagation when multiple `async throws(E)` calls appear in the same `do`-`catch` block — the compiler widens to `any Error`. `Result` preserves per-call error typing and allows callers to handle each error independently:
+
+```swift
+func fetchData(from url: URL) async -> Result<Data, NetworkError> {
+    let data: Data
+    let response: URLResponse
+    do {
+        (data, response) = try await URLSession.shared.data(from: url)
+    } catch {
+        return .failure(.timeout)
+    }
+    guard let http = response as? HTTPURLResponse else {
+        return .failure(.serverError(statusCode: 0))
+    }
+    switch http.statusCode {
+    case 200...299: return .success(data)
+    case 401: return .failure(.unauthorized)
+    default: return .failure(.serverError(statusCode: http.statusCode))
+    }
+}
+
+// Each call preserves its error type — no compiler inference issues
+let dataResult = await fetchData(from: url)
+let configResult = await fetchConfig(from: configURL)
+
+switch dataResult {
+case .success(let data):
+    process(data)
+case .failure(.timeout):
+    showRetryPrompt()
+case .failure(.unauthorized):
+    navigateToLogin()
+case .failure(.serverError(let code)):
+    showServerError(code)
+}
+```
+
 Rules:
-- Use typed throws for domain-specific APIs where callers benefit from exhaustive handling.
+- Use typed throws for simple, single-call async contexts or synchronous code where callers benefit from exhaustive handling.
+- Prefer `Result<Success, Failure>` when combining multiple async calls with custom error types — typed throws inference breaks in this scenario.
 - Continue using untyped `throws` at module boundaries or when errors are heterogeneous.
 - Typed throws compose — `throws(NetworkError)` inside `throws(AppError)` requires mapping.
 
@@ -787,15 +830,18 @@ Task {
 
 ### When to keep Combine
 
+Combine is not deprecated and remains the right tool for specific patterns. AsyncStream is **unicast** (single consumer), while Combine subjects are **multicast** (multiple subscribers with backpressure). They are complementary, not interchangeable.
+
+- **Multi-subscriber reactive streams** — `CurrentValueSubject`, `PassthroughSubject` with multiple observers. AsyncStream cannot replicate this without manual fan-out.
+- **Complex stream operators** — `debounce`, `throttle`, `combineLatest`, `merge`, `scan`, `switchToLatest` with backpressure. AsyncSequence operators are more limited.
 - **SwiftUI `@Published` with `ObservableObject`** — if targeting iOS 16 or earlier.
-- **Complex stream operators** — `debounce`, `throttle`, `combineLatest`, `merge` with backpressure. AsyncSequence operators are more limited.
 - **KVO observation** — Combine's `publisher(for:)` is still convenient for observing UIKit properties.
 
-### When to replace with async/await
+### When to use async/await instead
 
 - **Single-shot async work** — API calls, database queries. Use `async throws` instead of `Future`.
-- **Simple data flow** — replace `PassthroughSubject`/`CurrentValueSubject` with `AsyncStream` or actors.
-- **iOS 17+ projects** — `@Observable` replaces `ObservableObject`/`@Published` entirely.
+- **Single-consumer async sequences** — bridging a delegate/callback API for one consumer. Use `AsyncStream`.
+- **iOS 17+ view model state** — `@Observable` replaces `ObservableObject`/`@Published` entirely, no Combine needed.
 
 ### Bridging: `values` property (AsyncPublisher)
 
@@ -858,48 +904,135 @@ class SearchViewModel {
 }
 ```
 
-### Replacing `CurrentValueSubject` with actor + AsyncStream
+### Choosing the right tool
+
+| Need | Recommended tool |
+|---|---|
+| SwiftUI view model state (iOS 17+) | `@Observable` |
+| Single-shot async data fetching | `async/await` |
+| Single-consumer async sequence | `AsyncStream` / `AsyncSequence` |
+| Multi-subscriber reactive streams | Combine (`CurrentValueSubject`, `PassthroughSubject`) |
+| Complex stream operators (`combineLatest`, `debounce`, etc.) | Combine |
+| Cross-platform async sequences | `AsyncSequence` + Swift Async Algorithms |
+
+## Swift 6.2 — Approachable Concurrency
+
+Swift 6.2 (Xcode 26) introduces **Approachable Concurrency** — a set of defaults that dramatically reduce annotation burden while preserving data-race safety. The key idea: most app code is UI code and should run on `MainActor` by default; only code that genuinely needs concurrency opts into it explicitly.
+
+### `defaultIsolation` build setting
+
+New projects created in Xcode 26 default to `MainActor` isolation for all code. This means every function, property, and type is implicitly `@MainActor` unless explicitly opted out. `@MainActor` annotations on view models, views, and App types become unnecessary — they are already on MainActor.
+
+Enable in **Package.swift**:
 
 ```swift
-// Before
-class SettingsStore {
-    let theme = CurrentValueSubject<Theme, Never>(.system)
+// swift-tools-version: 6.2
+let package = Package(
+    name: "MyApp",
+    targets: [
+        .executableTarget(
+            name: "MyApp",
+            swiftSettings: [
+                .defaultIsolation(MainActor.self)
+            ]
+        )
+    ]
+)
+```
+
+In Xcode, set the **Default Isolation** build setting to `MainActor` (the default for new Xcode 26 projects).
+
+With `defaultIsolation(MainActor.self)` enabled, this:
+
+```swift
+// Before — explicit annotation required
+@MainActor
+@Observable
+class ProfileViewModel {
+    var name: String = ""
+    func load() async { /* … */ }
+}
+```
+
+becomes:
+
+```swift
+// After — already on MainActor by default, no annotation needed
+@Observable
+class ProfileViewModel {
+    var name: String = ""
+    func load() async { /* … */ }
+}
+```
+
+### `nonisolated(nonsending)` (SE-0461)
+
+Under Approachable Concurrency, `nonisolated async` functions default to running on the **caller's actor** instead of hopping to the global concurrent executor. The compiler applies `nonisolated(nonsending)` semantics automatically — the function inherits the caller's isolation context.
+
+```swift
+// Under Swift 6.2 Approachable Concurrency, this function stays
+// on whatever actor the caller is running on (e.g. MainActor).
+nonisolated func processUserInput(_ text: String) async -> String {
+    // No actor hop — runs on the caller's executor
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-// After
-actor SettingsStore {
-    private var _theme: Theme = .system
-    private var continuations: [UUID: AsyncStream<Theme>.Continuation] = [:]
+@MainActor
+func handleInput() async {
+    // processUserInput runs on MainActor — no hop to global executor
+    let cleaned = await processUserInput(rawInput)
+    label.text = cleaned
+}
+```
 
-    var theme: Theme { _theme }
+This eliminates a major source of unexpected thread hops in Swift 5.x / 6.0 code, where every `nonisolated async` call silently moved to a background thread.
 
-    func setTheme(_ theme: Theme) {
-        _theme = theme
-        for (_, continuation) in continuations {
-            continuation.yield(theme)
-        }
+### `@concurrent` attribute
+
+When you **do** want a function to leave the caller's actor and run on the global concurrent executor, mark it `@concurrent`. This is the explicit opt-in that replaces the old implicit behavior of `nonisolated async`.
+
+```swift
+@concurrent
+func compressImage(_ data: Data) async -> Data {
+    // Runs on the global concurrent executor — off MainActor.
+    // Safe for CPU-intensive work that should not block UI.
+    return HeavyImageProcessor.compress(data)
+}
+
+@MainActor
+func uploadPhoto() async {
+    let raw = selectedPhotoData
+    // Hops off MainActor into the concurrent pool
+    let compressed = await compressImage(raw)
+    // Back on MainActor
+    await api.upload(compressed)
+}
+```
+
+Use `@concurrent` for CPU-bound work (image processing, parsing large payloads, cryptographic operations) that would block the main thread.
+
+### `nonisolated` on types and extensions (Swift 6.1+)
+
+Starting in Swift 6.1, you can apply `nonisolated` to an entire type or extension to opt all members out of the enclosing default isolation:
+
+```swift
+// Opts the entire struct out of MainActor default isolation
+nonisolated struct MathUtilities {
+    static func fibonacci(_ n: Int) -> Int {
+        n <= 1 ? n : fibonacci(n - 1) + fibonacci(n - 2)
     }
+}
 
-    func themeUpdates() -> AsyncStream<Theme> {
-        AsyncStream { continuation in
-            let id = UUID()
-            continuation.yield(_theme) // Emit current value
-            Task { await storeContinuation(continuation, id: id) }
-            continuation.onTermination = { _ in
-                Task { await self.removeContinuation(id: id) }
-            }
-        }
-    }
-
-    private func storeContinuation(_ continuation: AsyncStream<Theme>.Continuation, id: UUID) {
-        continuations[id] = continuation
-    }
-
-    private func removeContinuation(id: UUID) {
-        continuations[id] = nil
+// Opts all members in this extension out of default isolation
+nonisolated extension DataParser {
+    func parse(_ data: Data) throws -> ParsedResult {
+        // No actor isolation — can be called from any context
+        try JSONDecoder().decode(ParsedResult.self, from: data)
     }
 }
 ```
+
+This is particularly useful in codebases with `defaultIsolation(MainActor.self)` where utility types, pure-logic modules, or model layers should remain actor-independent.
 
 ## Common Pitfalls
 
@@ -1016,31 +1149,48 @@ struct ChatView: View {
 }
 ```
 
-### 5. Reference cycles with Task closures
+### 5. `[weak self]` in Task closures
 
-`Task { }` closures capture `self` strongly. This is usually fine for `@MainActor` view models held by a view (the view owns the model, the model does not own the view), but can cause leaks in other contexts.
+`Task { }` closures capture `self` strongly, but a strong capture alone is **not** a retain cycle. A cycle requires a mutual strong reference — `self` must also hold the `Task`. A fire-and-forget Task completes and releases `self` naturally.
+
+Do not cargo-cult `[weak self]` from GCD/completion handlers into Task closures — it adds unnecessary optionality without solving a real problem.
 
 ```swift
-// Potential leak: mutual strong reference
-class Coordinator {
-    var onComplete: (() -> Void)?
+// No cycle — Task holds self, but self does NOT hold Task
+func start() {
+    Task {
+        await self.doWork() // Fine — released on Task completion
+    }
+}
 
-    func start() {
-        Task {
-            await doWork()
-            self.onComplete?() // Strong capture of self
+// Cycle — self stores Task, Task captures self
+class Poller {
+    private var pollingTask: Task<Void, Never>?  // self -> Task
+
+    func startPolling() {
+        pollingTask = Task {                      // Task -> self
+            while !Task.isCancelled {
+                await self.fetchData()            // CYCLE: self -> pollingTask -> self
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    // Fix: [weak self] because self stores the Task
+    func startPollingFixed() {
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.fetchData()
+                try? await Task.sleep(for: .seconds(30))
+            }
         }
     }
 }
-
-// Fix: use [weak self]
-func start() {
-    Task { [weak self] in
-        await self?.doWork()
-        self?.onComplete?()
-    }
-}
 ```
+
+Use `[weak self]` only when:
+- `self` stores the `Task` in a property (mutual strong reference — actual retain cycle).
+- Long-running Task (e.g., async sequence iteration) where you want to stop work if the owning object is deallocated — a correctness choice, not a memory leak fix.
 
 ### 6. Using Task.detached when Task suffices
 
@@ -1066,7 +1216,7 @@ Task {
 | Actor reentrancy changes state | Re-check state after every `await` inside actors |
 | Blocking main thread on async work | Make the function `async`, never use semaphores/locks to bridge |
 | Task runs after view disappears | Use `.task` modifier instead of `Task { }` in `onAppear` |
-| Strong reference cycle in Task | Use `[weak self]` in long-lived Task closures |
+| Retain cycle when self stores Task | Use `[weak self]` only when self holds the Task in a property |
 | Unnecessary `Task.detached` | Prefer `Task { }` — it inherits context and is simpler |
 | Silent cancellation (no checking) | Check `Task.isCancelled` or call `try Task.checkCancellation()` in loops |
 

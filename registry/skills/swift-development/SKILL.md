@@ -16,6 +16,7 @@ Applicable to all Swift targets: Apple platforms, server-side (Vapor, Hummingbir
 - **`references/concurrency.md`** — Actors, task groups, async sequences, Sendable, isolation, GCD migration, Combine interop
 - **`references/patterns.md`** — Property wrappers, result builders, key paths, Codable, extensions, copy-on-write, DSL design
 - **`references/project-structure.md`** — Swift Package Manager setup, multi-target packages, build configurations, plugins, testing setup
+- **`references/static-analysis.md`** — SwiftLint (configuration, rules, custom rules, auto-correct), SwiftFormat (configuration, formatting rules), combined setup, CI/CD integration, pre-commit hooks
 
 ## Code Style
 
@@ -69,7 +70,14 @@ guard let user = fetchUser(id) else { return }  // early exit — preferred
 ### Safe patterns
 
 ```swift
-// Optional binding
+// Shorthand optional binding (Swift 5.7+) — use when binding name matches the variable
+if let name {
+    print(name)
+}
+
+guard let user else { return }
+
+// Explicit binding — only when intentionally binding to a different name
 if let email = user.email {
     sendConfirmation(to: email)
 }
@@ -81,6 +89,8 @@ let nested = fetchUser(id).flatMap { $0.address }        // Address?
 // Coalescing with throwing
 let user = try optionalUser ?? { throw AppError.notFound }()
 ```
+
+Always use shorthand optional binding when the binding name matches the original variable name. Write `if let value { }` instead of `if let value = value { }`. This applies to all optional binding contexts: `if let`, `guard let`, `while let`, and multi-condition bindings (e.g., `guard let foo, let bar else { }`). Only use the explicit `if let renamed = original` form when intentionally binding to a different name.
 
 NEVER use `!` to silence the compiler. Acceptable only with a provable invariant and a comment explaining why.
 
@@ -308,6 +318,7 @@ Prefer Swift Testing (`@Test`, `#expect`) over XCTest for new code. Use XCTest w
 | Mistake | Fix |
 |---|---|
 | Force-unwrapping (`!`) without invariant | Use `guard let`, `if let`, `??`, or optional chaining |
+| `if let value = value { }` when names match | Use shorthand: `if let value { }` (Swift 5.7+) |
 | Catching `Error` broadly | Catch specific error types at appropriate boundaries |
 | `Task { }` without cancellation handling | Check `Task.isCancelled` or use `Task.checkCancellation()` |
 | Using GCD (`DispatchQueue`) in new code | Use Swift Concurrency (`async/await`, actors) |
@@ -319,3 +330,4 @@ Prefer Swift Testing (`@Test`, `#expect`) over XCTest for new code. Use XCTest w
 | `Any` / `AnyObject` without reason | Use generics or existentials with constraints |
 | `Double` for money | Use `Decimal` with explicit rounding |
 | Hard-coded dependencies | Protocol-based DI via init injection |
+| `#if` directives for multi-target polymorphism | Use DI or separate file implementations per target; reserve `#if` for `DEBUG`, `os()`, `canImport()` |
