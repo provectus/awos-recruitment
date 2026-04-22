@@ -252,6 +252,95 @@ def test_validate_skill_valid(tmp_path: Path):
     )
 
 
+def test_validate_skill_rejects_unexpected_toplevel_dir(tmp_path: Path):
+    """A non-allowlisted directory (e.g. rules/) should be flagged as unexpected."""
+    skill_dir = tmp_path / "skills" / "has-rules"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: has-rules\ndescription: Skill with a stray rules folder\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    rules_dir = skill_dir / "rules"
+    rules_dir.mkdir()
+    (rules_dir / "rule-a.md").write_text("# Rule A\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, (
+        "Expected invalid result when a non-allowlisted folder is present"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("rules" in m and "Unexpected" in m for m in error_messages), (
+        f"Expected an 'Unexpected entry \"rules\"' error, got: {error_messages}"
+    )
+
+
+def test_validate_skill_rejects_unexpected_toplevel_file(tmp_path: Path):
+    """An unknown top-level file should also be flagged."""
+    skill_dir = tmp_path / "skills" / "has-extra"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: has-extra\ndescription: Skill with a stray file\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    (skill_dir / "notes.txt").write_text("scratch\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any("notes.txt" in m for m in error_messages), (
+        f"Expected an error mentioning 'notes.txt', got: {error_messages}"
+    )
+
+
+def test_validate_skill_rejects_nested_references_dir(tmp_path: Path):
+    """A subdirectory inside references/ should be flagged — the bundler only ships flat files."""
+    skill_dir = tmp_path / "skills" / "nested-refs"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: nested-refs\ndescription: references has a subfolder\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    nested = skill_dir / "references" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "buried.md").write_text("# Buried\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any("references/sub" in m for m in error_messages), (
+        f"Expected an error mentioning 'references/sub', got: {error_messages}"
+    )
+
+
+def test_validate_skill_allows_readme_and_flat_references(tmp_path: Path):
+    """README.md at the top level and flat files under references/ are fine."""
+    skill_dir = tmp_path / "skills" / "well-formed"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: well-formed\ndescription: Proper layout\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    (skill_dir / "README.md").write_text("# Readme\n")
+    refs = skill_dir / "references"
+    refs.mkdir()
+    (refs / "a.md").write_text("# A\n")
+    (refs / "b.md").write_text("# B\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected layout to pass, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # McpDefinition / McpServerConfig model tests
 # ---------------------------------------------------------------------------

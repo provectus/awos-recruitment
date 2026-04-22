@@ -11,6 +11,13 @@ from pydantic import ValidationError as PydanticValidationError
 
 from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetadata
 
+# Top-level entries permitted inside a skill directory. Kept in lockstep with
+# what the /bundle/skills endpoint actually ships: SKILL.md and the flat files
+# under references/. README.md is allowed as local documentation (not bundled).
+_ALLOWED_SKILL_ENTRIES: frozenset[str] = frozenset(
+    {"SKILL.md", "README.md", "references"}
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationError:
@@ -138,6 +145,43 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                     message="Skill body (markdown content) is empty",
                 )
             )
+
+        # Ensure the on-disk layout matches what /bundle/skills ships.  Anything
+        # outside the allowlist (e.g. a rules/ or examples/ folder) would be
+        # silently dropped at install time — surface it as a validation error
+        # so skill authors can rename it to references/ instead.
+        for child in sorted(entry.iterdir()):
+            if child.name in _ALLOWED_SKILL_ENTRIES:
+                continue
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message=(
+                        f"Unexpected entry '{child.name}' in skill directory — "
+                        "only SKILL.md, README.md, and references/ are allowed "
+                        "(the install bundle drops everything else)"
+                    ),
+                )
+            )
+
+        # The bundler uses iterdir() on references/ and only adds is_file()
+        # entries, so nested subdirectories are dropped too.
+        references_dir = entry / "references"
+        if references_dir.is_dir():
+            for ref_child in sorted(references_dir.iterdir()):
+                if ref_child.is_dir():
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"Nested directory 'references/{ref_child.name}/' "
+                                "is not included in the install bundle — only "
+                                "flat files under references/ are shipped"
+                            ),
+                        )
+                    )
 
         results.append(
             ValidationResult(
