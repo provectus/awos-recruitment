@@ -271,8 +271,8 @@ def test_validate_skill_rejects_unexpected_toplevel_dir(tmp_path: Path):
         "Expected invalid result when a non-allowlisted folder is present"
     )
     error_messages = [e.message for e in results[0].errors]
-    assert any("rules" in m and "Unexpected" in m for m in error_messages), (
-        f"Expected an 'Unexpected entry \"rules\"' error, got: {error_messages}"
+    assert any("rules" in m and "Unexpected directory" in m for m in error_messages), (
+        f"Expected an 'Unexpected directory \"rules/\"' error, got: {error_messages}"
     )
 
 
@@ -315,6 +315,82 @@ def test_validate_skill_rejects_nested_references_dir(tmp_path: Path):
     error_messages = [e.message for e in results[0].errors]
     assert any("references/sub" in m for m in error_messages), (
         f"Expected an error mentioning 'references/sub', got: {error_messages}"
+    )
+
+
+def test_validate_skill_ignores_dotfiles(tmp_path: Path):
+    """macOS/VCS dotfiles (.DS_Store, .gitkeep) must not trigger layout errors."""
+    skill_dir = tmp_path / "skills" / "dotfiles-ok"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: dotfiles-ok\ndescription: Dotfiles should be ignored\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    (skill_dir / ".DS_Store").write_bytes(b"\x00\x01\x02")
+    refs = skill_dir / "references"
+    refs.mkdir()
+    (refs / "a.md").write_text("# A\n")
+    (refs / ".DS_Store").write_bytes(b"\x00\x01\x02")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected dotfiles to be ignored, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+
+
+def test_validate_skill_rejects_file_named_references(tmp_path: Path):
+    """A regular file named 'references' must not satisfy the references/ dir slot."""
+    skill_dir = tmp_path / "skills" / "file-refs"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: file-refs\ndescription: references is a file, not a dir\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    (skill_dir / "references").write_text("oops, should be a directory\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, (
+        "Expected a file named 'references' to be rejected"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "Unexpected file" in m and "references" in m for m in error_messages
+    ), f"Expected 'Unexpected file references' error, got: {error_messages}"
+
+
+def test_validate_skill_reports_multiple_layout_errors(tmp_path: Path):
+    """One skill with several layout problems should surface every one."""
+    skill_dir = tmp_path / "skills" / "many-issues"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: many-issues\ndescription: lots of layout problems\n---\n\n"
+        "# Body\n\nContent here.\n"
+    )
+    (skill_dir / "rules").mkdir()
+    (skill_dir / "rules" / "a.md").write_text("# A\n")
+    (skill_dir / "notes.txt").write_text("scratch\n")
+    nested = skill_dir / "references" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "buried.md").write_text("# Buried\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    messages = [e.message for e in results[0].errors]
+    assert any("rules/" in m and "Unexpected directory" in m for m in messages), (
+        f"Expected rules/ directory error, got: {messages}"
+    )
+    assert any("notes.txt" in m and "Unexpected file" in m for m in messages), (
+        f"Expected notes.txt file error, got: {messages}"
+    )
+    assert any("references/sub" in m for m in messages), (
+        f"Expected nested references/sub error, got: {messages}"
     )
 
 
