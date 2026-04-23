@@ -2,7 +2,7 @@
 
 Covers Android-specific project organization, Gradle configuration, build variants, and CI/CD. For generic Kotlin/Gradle project structure (single-module layout, version catalog basics, compiler options, testing setup), see the `kotlin-development` skill's `references/project-structure.md`.
 
-Targets **AGP 8.x+** and **Kotlin 2.x**.
+Targets latest stable **AGP** and **Kotlin 2.x**.
 
 ## Multi-Module Architecture
 
@@ -133,12 +133,12 @@ plugins {
 
 android {
     namespace = "com.example.myapp"
-    compileSdk = 35
+    compileSdk = <latest-stable-api>  // use latest stable Android API level
 
     defaultConfig {
         applicationId = "com.example.myapp"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = <latest-stable-api>  // must match Play Store requirements
         versionCode = 1
         versionName = "1.0.0"
 
@@ -146,12 +146,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 
     buildFeatures {
@@ -172,15 +172,15 @@ plugins {
 
 android {
     namespace = "com.example.core.network"
-    compileSdk = 35
+    compileSdk = <latest-stable-api>
 
     defaultConfig {
         minSdk = 26
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 ```
@@ -189,10 +189,10 @@ android {
 
 | Property | Recommendation | Notes |
 |---|---|---|
-| `compileSdk` | Latest stable (35) | Access newest APIs at compile time |
-| `targetSdk` | Latest stable (35) | Opt into latest platform behavior, required for Play Store |
-| `minSdk` | 26+ (Android 8.0) | Covers 95%+ of active devices; 24 if broader reach needed |
-| `jvmTarget` | `"17"` | AGP 8.x requires JDK 17 minimum |
+| `compileSdk` | Latest stable API level | Access newest APIs at compile time |
+| `targetSdk` | Latest stable API level | Required by Play Store annually; opt into latest platform behavior |
+| `minSdk` | 90%+ device coverage (currently 26+) | Adapt to project requirements; if the project already defines a minSdk, confirm before changing |
+| `jvmTarget` | `"21"` (recommended), `"17"` (minimum) | JDK 21 LTS preferred for new projects; JDK 17 is the AGP minimum |
 
 ### Compose compiler (Kotlin 2.x)
 
@@ -266,39 +266,39 @@ android.nonTransitiveRClass=true
 
 ```toml
 [versions]
-agp = "8.7.3"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
+agp = "<latest>"
+kotlin = "<latest>"
+ksp = "<latest>"
 
 # AndroidX
-core-ktx = "1.15.0"
-lifecycle = "2.8.7"
-activity-compose = "1.9.3"
-navigation-compose = "2.8.5"
-compose-bom = "2024.12.01"
-room = "2.6.1"
-hilt = "2.53.1"
-hilt-navigation-compose = "1.2.0"
-datastore = "1.1.1"
+core-ktx = "<latest>"
+lifecycle = "<latest>"
+activity-compose = "<latest>"
+navigation-compose = "<latest>"
+compose-bom = "<latest>"
+room = "<latest>"
+hilt = "<latest>"
+hilt-navigation-compose = "<latest>"
+datastore = "<latest>"
 
 # Networking
-retrofit = "2.11.0"
-okhttp = "4.12.0"
-ktor = "3.0.3"
-serialization = "1.7.3"
+retrofit = "<latest>"
+okhttp = "<latest>"
+ktor = "<latest>"
+serialization = "<latest>"
 
 # Image loading
-coil = "3.0.4"
+coil = "<latest>"
 
 # Testing
-junit = "4.13.2"
-junit5 = "5.11.4"
-truth = "1.4.4"
-mockk = "1.13.13"
-turbine = "1.2.0"
-coroutines = "1.9.0"
-espresso = "3.6.1"
-test-runner = "1.6.2"
+junit = "<latest>"
+junit5 = "<latest>"
+truth = "<latest>"
+mockk = "<latest>"
+turbine = "<latest>"
+coroutines = "<latest>"
+espresso = "<latest>"
+test-runner = "<latest>"
 
 [libraries]
 # AndroidX Core
@@ -383,7 +383,7 @@ dependencies {
 }
 ```
 
-Never pin individual Compose library versions when using the BOM — it causes version conflicts.
+Prefer BOM-managed versions for consistency. Individual library versions can be overridden when needed, but be aware that alpha/beta overrides may pull in alpha transitive dependencies.
 
 
 ## Convention Plugins
@@ -444,7 +444,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("org.jetbrains.kotlin.android")
 
             extensions.configure<LibraryExtension> {
-                compileSdk = 35
+                compileSdk = <latest-stable-api>
 
                 defaultConfig {
                     minSdk = 26
@@ -452,8 +452,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 }
 
                 compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
+                    sourceCompatibility = JavaVersion.VERSION_21
+                    targetCompatibility = JavaVersion.VERSION_21
                 }
             }
         }
@@ -673,34 +673,57 @@ AGP 8.x uses R8 by default (drop-in replacement for ProGuard with the same rule 
 ### `proguard-rules.pro` (app module)
 
 ```proguard
-# Keep application entry points
--keep class com.example.myapp.MainApplication { *; }
+# --- Obfuscation ---
+-flattenpackagehierarchy
+-renamesourcefileattribute SourceFile
 
-# Kotlin serialization
--keepattributes *Annotation*, InnerClasses
+# --- Attributes to preserve ---
+-keepattributes LineNumberTable, SourceFile, Signature, *Annotation*, InnerClasses, EnclosingMethod
+
+# --- Crashlytics: readable stack traces for exceptions ---
+-keep public class * extends java.lang.Exception
+
+# --- Enums: prevent removal of values()/valueOf() ---
+-keepclassmembers enum * { *; }
+
+# --- Strip Kotlin intrinsics (parameter names, null-check messages) from release ---
+-assumenosideeffects class kotlin.jvm.internal.Intrinsics {
+    public static void checkNotNullParameter(...);
+    public static void checkNotNullExpressionValue(...);
+    public static void checkReturnedValueIsNotNull(...);
+    public static void checkFieldIsNotNull(...);
+    public static void checkParameterIsNotNull(...);
+    public static void throwUninitializedPropertyAccessException(...);
+}
+
+# --- Reflection: keep classes accessed via reflection (add as needed) ---
+# -keep class com.example.myapp.SomeReflectedClass { *; }
+
+# --- Kotlin serialization ---
 -dontnote kotlinx.serialization.**
 -keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
 -keepclasseswithmembers class com.example.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Retrofit
--keepattributes Signature, Exceptions
+# --- Retrofit ---
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 
-# Room
+# --- Room ---
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
 
-# Hilt
+# --- Hilt ---
 -keep class dagger.hilt.** { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 
-# Compose — R8 full mode compatibility
+# --- Compose — R8 full mode compatibility ---
 -dontwarn androidx.compose.**
 ```
+
+> **Tip:** If shrinking causes issues during investigation, use `-dontshrink` temporarily to isolate whether the problem is shrinking vs obfuscation. Do not ship with `-dontshrink`.
 
 ### Consumer ProGuard rules (library modules)
 
@@ -741,137 +764,30 @@ AGP 8.x enables R8 full mode by default. Key differences from compatibility mode
 Upload `mapping.txt` to Play Console and Firebase Crashlytics for readable stack traces.
 
 
-## CI/CD
-
-### Common Gradle commands
+## Common Gradle Commands
 
 ```bash
-# Build debug APK
-./gradlew assembleDebug
+# Build
+./gradlew assembleDebug            # Debug APK
+./gradlew assembleRelease          # Release APK
+./gradlew bundleRelease            # Release AAB (Play Store)
 
-# Build release APK
-./gradlew assembleRelease
+# Test & lint
+./gradlew testDebugUnitTest        # Unit tests
+./gradlew connectedDebugAndroidTest # Instrumented tests
+./gradlew lintDebug                # Lint check
+./gradlew check                    # Full check (lint + tests)
 
-# Build release AAB (for Play Store)
-./gradlew bundleRelease
-
-# Run unit tests
-./gradlew testDebugUnitTest
-
-# Run instrumented tests
-./gradlew connectedDebugAndroidTest
-
-# Lint check
-./gradlew lintDebug
-
-# Full check (lint + tests)
-./gradlew check
-
-# Clean build
-./gradlew clean assembleRelease
-
-# List all tasks
-./gradlew tasks --group=build
-
-# Dependency tree
-./gradlew :app:dependencies --configuration releaseRuntimeClasspath
+# Utilities
+./gradlew clean assembleRelease    # Clean build
+./gradlew tasks --group=build      # List build tasks
+./gradlew :app:dependencies --configuration releaseRuntimeClasspath  # Dependency tree
 ```
-
-### APK vs AAB
 
 | Format | Use case |
 |---|---|
-| APK (`.apk`) | Direct install, testing, Firebase App Distribution, sideloading |
+| APK (`.apk`) | Direct install, testing, sideloading, Firebase App Distribution |
 | AAB (`.aab`) | Play Store upload (required since 2021), Google generates optimized APKs per device |
-
-### Firebase App Distribution
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Distribute via Gradle plugin
-# build.gradle.kts
-plugins {
-    id("com.google.firebase.appdistribution")
-}
-
-android {
-    buildTypes {
-        debug {
-            firebaseAppDistribution {
-                appId = "1:123456789:android:abcdef"
-                groups = "qa-team"
-                releaseNotes = "Build from CI — ${System.getenv("CI_COMMIT_SHA") ?: "local"}"
-            }
-        }
-    }
-}
-```
-
-```bash
-# Upload from CI
-./gradlew assembleDebug appDistributionUploadDebug
-```
-
-### Play Store deployment
-
-```bash
-# Using Gradle Play Publisher plugin (triple-t)
-# build.gradle.kts
-plugins {
-    id("com.github.triplet.play") version "3.11.0"
-}
-
-play {
-    serviceAccountCredentials.set(file("play-service-account.json"))
-    track.set("internal")  # internal -> alpha -> beta -> production
-    defaultToAppBundles.set(true)
-}
-```
-
-```bash
-# Publish to internal track
-./gradlew publishBundle
-
-# Promote from internal to production
-./gradlew promoteArtifact --from-track internal --to-track production
-```
-
-### CI pipeline example (GitHub Actions)
-
-```yaml
-# .github/workflows/android.yml
-name: Android CI
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew check
-      - run: ./gradlew assembleRelease
-        env:
-          KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-apk
-          path: app/build/outputs/apk/release/*.apk
-```
 
 
 ## Asset and Resource Management
