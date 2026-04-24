@@ -5,21 +5,21 @@
 # ---- ALB -----------------------------------------------------------------
 
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
+  name               = "${local.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
 
   tags = {
-    Name = "${var.project_name}-alb"
+    Name = "${local.project_name}-alb"
   }
 }
 
 # ---- Target Group --------------------------------------------------------
 
 resource "aws_lb_target_group" "mcp" {
-  name                 = "${var.project_name}-tg"
+  name                 = "${local.project_name}-tg"
   port                 = 8000
   protocol             = "HTTP"
   target_type          = "ip"
@@ -36,7 +36,7 @@ resource "aws_lb_target_group" "mcp" {
   }
 
   tags = {
-    Name = "${var.project_name}-tg"
+    Name = "${local.project_name}-tg"
   }
 }
 

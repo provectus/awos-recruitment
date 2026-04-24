@@ -9,12 +9,12 @@ data "aws_availability_zones" "available" {
 # ---- VPC ------------------------------------------------------------------
 
 resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
+  cidr_block           = local.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = {
-    Name = "${var.project_name}-vpc"
+    Name = "${local.project_name}-vpc"
   }
 }
 
@@ -27,7 +27,7 @@ resource "aws_subnet" "public_a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-a"
+    Name = "${local.project_name}-public-a"
   }
 }
 
@@ -38,7 +38,7 @@ resource "aws_subnet" "public_b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-b"
+    Name = "${local.project_name}-public-b"
   }
 }
 
@@ -50,7 +50,7 @@ resource "aws_subnet" "private_a" {
   availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = {
-    Name = "${var.project_name}-private-a"
+    Name = "${local.project_name}-private-a"
   }
 }
 
@@ -60,7 +60,7 @@ resource "aws_subnet" "private_b" {
   availability_zone = data.aws_availability_zones.available.names[1]
 
   tags = {
-    Name = "${var.project_name}-private-b"
+    Name = "${local.project_name}-private-b"
   }
 }
 
@@ -70,7 +70,7 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-igw"
+    Name = "${local.project_name}-igw"
   }
 }
 
@@ -80,7 +80,7 @@ resource "aws_eip" "nat" {
   domain = "vpc"
 
   tags = {
-    Name = "${var.project_name}-nat-eip"
+    Name = "${local.project_name}-nat-eip"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -91,7 +91,7 @@ resource "aws_nat_gateway" "main" {
   subnet_id     = aws_subnet.public_a.id
 
   tags = {
-    Name = "${var.project_name}-nat"
+    Name = "${local.project_name}-nat"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -108,7 +108,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-public-rt"
+    Name = "${local.project_name}-public-rt"
   }
 }
 
@@ -133,7 +133,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = {
-    Name = "${var.project_name}-private-rt"
+    Name = "${local.project_name}-private-rt"
   }
 }
 

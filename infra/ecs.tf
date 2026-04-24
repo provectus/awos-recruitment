@@ -5,10 +5,10 @@
 # ---- ECS Cluster ---------------------------------------------------------
 
 resource "aws_ecs_cluster" "main" {
-  name = var.project_name
+  name = local.project_name
 
   tags = {
-    Name = "${var.project_name}-cluster"
+    Name = "${local.project_name}-cluster"
   }
 }
 
@@ -26,11 +26,11 @@ data "aws_iam_policy_document" "ecs_assume_role" {
 }
 
 resource "aws_iam_role" "ecs_execution" {
-  name               = "${var.project_name}-ecs-execution"
+  name               = "${local.project_name}-ecs-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
   tags = {
-    Name = "${var.project_name}-ecs-execution"
+    Name = "${local.project_name}-ecs-execution"
   }
 }
 
@@ -42,7 +42,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
 data "aws_iam_policy_document" "ssm_read" {
   statement {
     actions   = ["ssm:GetParameters"]
-    resources = ["arn:aws:ssm:${var.aws_region}:*:parameter/${var.project_name}/prod/*"]
+    resources = ["arn:aws:ssm:${local.aws_region}:*:parameter/${local.project_name}/prod/*"]
   }
   statement {
     actions   = ["kms:Decrypt"]
@@ -51,7 +51,7 @@ data "aws_iam_policy_document" "ssm_read" {
 }
 
 resource "aws_iam_role_policy" "ecs_execution_ssm" {
-  name   = "${var.project_name}-ssm-read"
+  name   = "${local.project_name}-ssm-read"
   role   = aws_iam_role.ecs_execution.id
   policy = data.aws_iam_policy_document.ssm_read.json
 }
@@ -59,18 +59,18 @@ resource "aws_iam_role_policy" "ecs_execution_ssm" {
 # ---- Task IAM Role -------------------------------------------------------
 
 resource "aws_iam_role" "ecs_task" {
-  name               = "${var.project_name}-ecs-task"
+  name               = "${local.project_name}-ecs-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
   tags = {
-    Name = "${var.project_name}-ecs-task"
+    Name = "${local.project_name}-ecs-task"
   }
 }
 
 # ---- Task Definition -----------------------------------------------------
 
 resource "aws_ecs_task_definition" "mcp" {
-  family                   = "${var.project_name}-mcp"
+  family                   = "${local.project_name}-mcp"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 1024
@@ -126,7 +126,7 @@ resource "aws_ecs_task_definition" "mcp" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.mcp.name
-          "awslogs-region"        = var.aws_region
+          "awslogs-region"        = local.aws_region
           "awslogs-stream-prefix" = "mcp"
         }
       }
@@ -134,14 +134,14 @@ resource "aws_ecs_task_definition" "mcp" {
   ])
 
   tags = {
-    Name = "${var.project_name}-mcp-task"
+    Name = "${local.project_name}-mcp-task"
   }
 }
 
 # ---- ECS Service ---------------------------------------------------------
 
 resource "aws_ecs_service" "mcp" {
-  name            = "${var.project_name}-mcp"
+  name            = "${local.project_name}-mcp"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.mcp.arn
   desired_count   = 2
@@ -172,6 +172,13 @@ resource "aws_ecs_service" "mcp" {
   depends_on = [aws_lb_listener.https]
 
   tags = {
-    Name = "${var.project_name}-mcp-service"
+    Name = "${local.project_name}-mcp-service"
+  }
+
+  # CI registers new task-definition revisions on each deploy. Without
+  # this, a subsequent `terraform apply` would roll the service back to
+  # the revision Terraform created.
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 }

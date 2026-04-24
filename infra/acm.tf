@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_acm_certificate" "main" {
-  domain_name       = var.domain_name
+  domain_name       = local.domain_name
   validation_method = "DNS"
 
   tags = {
-    Name = "${var.project_name}-cert"
+    Name = "${local.project_name}-cert"
   }
 
   lifecycle {
@@ -29,7 +29,7 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = var.route53_zone_id
+  zone_id         = data.aws_route53_zone.this.zone_id
 }
 
 resource "aws_acm_certificate_validation" "main" {

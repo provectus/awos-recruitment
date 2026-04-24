@@ -5,12 +5,12 @@
 # ---- ALB Security Group ---------------------------------------------------
 
 resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
+  name        = "${local.project_name}-alb-sg"
   description = "Allow HTTP/HTTPS inbound traffic to the ALB"
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-alb-sg"
+    Name = "${local.project_name}-alb-sg"
   }
 }
 
@@ -44,12 +44,12 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
 # ---- ECS Security Group ---------------------------------------------------
 
 resource "aws_security_group" "ecs" {
-  name        = "${var.project_name}-ecs-sg"
+  name        = "${local.project_name}-ecs-sg"
   description = "Allow inbound from ALB and outbound HTTPS for ECR/SSM"
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-ecs-sg"
+    Name = "${local.project_name}-ecs-sg"
   }
 }
 

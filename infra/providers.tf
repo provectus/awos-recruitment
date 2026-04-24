@@ -1,13 +1,4 @@
 terraform {
-  required_version = "~> 1.9"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-
   backend "s3" {
     bucket         = "awos-recruitment-tfstate"
     key            = "prod/terraform.tfstate"
@@ -18,11 +9,11 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = local.aws_region
 
   default_tags {
     tags = {
-      Project   = var.project_name
+      Project   = local.project_name
       ManagedBy = "terraform"
     }
   }
