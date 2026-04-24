@@ -25,6 +25,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -36,38 +37,79 @@ jobs:
       - id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build and push image
-        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Register task definition and update service
         env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
         run: |
           set -euo pipefail
-          IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
-          docker build \
-            -t "${IMAGE_URI}" \
-            -t "${REGISTRY}/${ECR_REPOSITORY}:latest" \
-            server
-          docker push "${IMAGE_URI}"
-          docker push "${REGISTRY}/${ECR_REPOSITORY}:latest"
-          echo "uri=${IMAGE_URI}" >> "${GITHUB_OUTPUT}"
 
-      - name: Fetch current task definition
-        run: |
-          aws ecs describe-task-definition \
-            --task-definition "${TASK_FAMILY}" \
-            --query taskDefinition \
-            > task-definition.json
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
+            --task-definition "$TASK_FAMILY" \
+            --region "$AWS_REGION")
 
-      - uses: aws-actions/amazon-ecs-render-task-definition@v1
-        id: render
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.image.outputs.uri }}
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq \
+            --arg IMAGE "$IMAGE_URI" \
+            --arg CONTAINER "$CONTAINER_NAME" '
+              .taskDefinition
+              | (.containerDefinitions[] | select(.name == $CONTAINER)).image = $IMAGE
+              | del(
+                  .taskDefinitionArn,
+                  .revision,
+                  .status,
+                  .requiresAttributes,
+                  .compatibilities,
+                  .registeredAt,
+                  .registeredBy,
+                  .enableFaultInjection
+                )
+            ')
 
-      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.render.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+          NEW_REVISION=$(aws ecs register-task-definition \
+            --region "$AWS_REGION" \
+            --cli-input-json "$NEW_TASK_DEFINITION" \
+            --query 'taskDefinition.revision' \
+            --output text)
+
+          echo "Registered ${TASK_FAMILY}:${NEW_REVISION}"
+
+          aws ecs update-service \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "${TASK_FAMILY}:${NEW_REVISION}" \
+            > /dev/null
+
+          aws ecs wait services-stable \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+
+          # Detect circuit-breaker rollback: if the service stabilized on a
+          # different revision than the one we registered, deploy failed.
+          DEPLOYED_REVISION=$(aws ecs describe-services \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text | awk -F: '{print $NF}')
+
+          if [ "$DEPLOYED_REVISION" != "$NEW_REVISION" ]; then
+            echo "::error::Deployment rolled back. Expected revision ${NEW_REVISION}, service is on ${DEPLOYED_REVISION}."
+            exit 1
+          fi
+
+          echo "Service running ${TASK_FAMILY}:${NEW_REVISION}"
