@@ -20,7 +20,8 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v6
         with:
-          context: server
+          context: .
+          file: server/Dockerfile
           load: true
           tags: awos-recruitment-mcp:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
