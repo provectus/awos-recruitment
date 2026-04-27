@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: npm
           cache-dependency-path: cli/package-lock.json
@@ -61,7 +61,10 @@ jobs:
       - name: Rewrite package name to ${{ matrix.scope }}
         run: npm pkg set name="${{ matrix.scope }}"
 
+      - name: Upgrade npm
+        # Trusted-publisher OIDC flow requires npm >= 11.5.1.
+        # Node 22 currently ships with npm 10.9.x — too old.
+        run: npm install -g npm@latest
+
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
