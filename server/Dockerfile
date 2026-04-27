@@ -1,4 +1,4 @@
-## ---- Builder stage ----
+# ---- Builder stage ----
 # Installs dependencies and pre-downloads the ONNX embedding model
 # so the runtime image can start without network access to model registries.
 
