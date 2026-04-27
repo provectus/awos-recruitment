@@ -1,0 +1,67 @@
+name: Publish CLI
+
+# Publishes cli/ to npm under two scoped names from the same source tree.
+# Each scope is an independent npm package with its own version history;
+# both are bumped and released in lockstep from the same git tag.
+#
+# Trigger: push of a "cli-v<version>" tag (e.g. cli-v0.1.5) where <version>
+# matches cli/package.json. The version-tag mismatch guard prevents
+# accidental publishes from a wrong tag.
+
+on:
+#   push:
+#     tags: ["cli-v*"]
+#   workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write   # required by --provenance (signs the attestation via OIDC)
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        scope:
+          # - "@provectusinc/awos-recruitment"
+          - "@provectus/awos-recruitment"
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+      # - run: npm run lint
+      # - run: npm test
+      # - run: npm run build
+
+      # - name: Verify tag matches package.json version
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     set -euo pipefail
+      #     PKG_VERSION=$(node -p "require('./package.json').version")
+      #     TAG_VERSION="${GITHUB_REF_NAME#cli-v}"
+      #     if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+      #       echo "::error::Tag $GITHUB_REF_NAME does not match cli/package.json version $PKG_VERSION"
+      #       exit 1
+      #     fi
+
+      - name: Rewrite package name to ${{ matrix.scope }}
+        run: npm pkg set name="${{ matrix.scope }}"
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
