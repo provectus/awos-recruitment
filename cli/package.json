@@ -1,6 +1,6 @@
 {
   "name": "@provectusinc/awos-recruitment",
-  "version": "0.1.5",
+  "version": "0.1.4",
   "type": "module",
   "bin": "dist/index.js",
   "files": [
