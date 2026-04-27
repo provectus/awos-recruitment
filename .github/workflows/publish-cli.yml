@@ -61,10 +61,11 @@ jobs:
       - name: Rewrite package name to ${{ matrix.scope }}
         run: npm pkg set name="${{ matrix.scope }}"
 
-      - name: Upgrade npm
-        # Trusted-publisher OIDC flow requires npm >= 11.5.1.
-        # Node 22 currently ships with npm 10.9.x — too old.
-        run: npm install -g npm@latest
-
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        # Trusted-publisher OIDC flow requires npm >= 11.5.1.
+        # Node 22 ships with npm 10.9.x; self-upgrade via
+        # `npm install -g npm@latest` is broken (MODULE_NOT_FOUND on
+        # promise-retry mid-install). Use npx instead — it fetches a
+        # fresh npm@latest into a temp cache without touching the
+        # bundled binary.
+        run: npx -y npm@latest publish --provenance --access public
