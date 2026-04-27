@@ -10,5 +10,7 @@ locals {
   #   "ref:refs/tags/v*"     - only version tags
   #   "environment:prod"     - only workflows targeting the "prod" GitHub environment
   #   "*"                    - any workflow in the repo (least restrictive)
-  github_deploy_ref = "ref:refs/heads/main"
+  # TEMPORARY: opened to all workflow contexts (2026-04-27) for OIDC trust
+  # testing. Revert to "ref:refs/heads/main" once verification is complete.
+  github_deploy_ref = "*"
 }
