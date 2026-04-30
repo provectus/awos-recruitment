@@ -31,12 +31,9 @@ No modules.
 | [aws_ecs_service.mcp](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/ecs_service) | resource |
 | [aws_ecs_task_definition.mcp](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/ecs_task_definition) | resource |
 | [aws_eip.nat](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/eip) | resource |
-| [aws_iam_openid_connect_provider.github](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_openid_connect_provider) | resource |
 | [aws_iam_role.ecs_execution](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role) | resource |
 | [aws_iam_role.ecs_task](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role) | resource |
-| [aws_iam_role.github_deploy](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.ecs_execution_ssm](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role_policy) | resource |
-| [aws_iam_role_policy.github_deploy](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy_attachment.ecs_execution](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_internet_gateway.main](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/internet_gateway) | resource |
 | [aws_lb.main](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/lb) | resource |
@@ -44,7 +41,6 @@ No modules.
 | [aws_lb_listener.https](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/lb_listener) | resource |
 | [aws_lb_target_group.mcp](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/lb_target_group) | resource |
 | [aws_nat_gateway.main](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/nat_gateway) | resource |
-| [aws_route53_record.app](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/route53_record) | resource |
 | [aws_route53_record.cert_validation](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/route53_record) | resource |
 | [aws_route_table.private](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/route_table) | resource |
 | [aws_route_table.public](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/route_table) | resource |
@@ -72,12 +68,8 @@ No modules.
 | [aws_vpc_security_group_ingress_rule.alb_https](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.ecs_from_alb](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_availability_zones.available](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/availability_zones) | data source |
-| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.ecs_assume_role](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.github_deploy](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/iam_policy_document) | data source |
-| [aws_iam_policy_document.github_deploy_assume](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.ssm_read](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/iam_policy_document) | data source |
-| [aws_partition.current](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/partition) | data source |
 | [aws_route53_zone.this](https://registry.terraform.io/providers/hashicorp/aws/6.41.0/docs/data-sources/route53_zone) | data source |
 
 ## Inputs
@@ -92,5 +84,4 @@ No inputs.
 | <a name="output_ecr_repository_url"></a> [ecr\_repository\_url](#output\_ecr\_repository\_url) | URL of the ECR repository for the MCP server image |
 | <a name="output_ecs_cluster_name"></a> [ecs\_cluster\_name](#output\_ecs\_cluster\_name) | Name of the ECS cluster |
 | <a name="output_ecs_service_name"></a> [ecs\_service\_name](#output\_ecs\_service\_name) | Name of the ECS service |
-| <a name="output_github_deploy_role_arn"></a> [github\_deploy\_role\_arn](#output\_github\_deploy\_role\_arn) | ARN of the IAM role GitHub Actions assumes via OIDC to deploy |
 <!-- END_TF_DOCS -->

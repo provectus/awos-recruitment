@@ -17,8 +17,3 @@ output "ecs_service_name" {
   description = "Name of the ECS service"
   value       = aws_ecs_service.mcp.name
 }
-
-output "github_deploy_role_arn" {
-  description = "ARN of the IAM role GitHub Actions assumes via OIDC to deploy"
-  value       = aws_iam_role.github_deploy.arn
-}
