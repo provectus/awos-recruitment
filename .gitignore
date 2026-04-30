@@ -65,3 +65,8 @@ htmlcov/
 .coverage.*
 
 .serena
+
+.terraform/
+*.tfstate
+*.tfstate.backup
+terraform.tfvars

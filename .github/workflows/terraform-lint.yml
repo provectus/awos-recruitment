@@ -1,0 +1,25 @@
+name: Terraform Lint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run pre-commit-terraform
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/lint" \
+            -w /lint \
+            ghcr.io/antonbabenko/pre-commit-terraform:v1.105.0 \
+            run --all-files --color always --show-diff-on-failure
