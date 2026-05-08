@@ -61,9 +61,7 @@ module "ecs" {
   source = "../modules/ecs"
 
   ecs_cluster_name = local.project_name
-  env              = local.environment
   aws_region       = local.aws_region
-  vpc_id           = module.network.vpc_id
   private_subnets  = module.network.private_subnets
 
   task_family    = "${local.project_name}-mcp"

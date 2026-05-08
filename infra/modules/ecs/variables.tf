@@ -3,17 +3,6 @@ variable "ecs_cluster_name" {
   type        = string
 }
 
-# variable "env" {
-#   description = "Deployment environment name"
-#   type        = string
-# }
-
-# variable "vpc_id" {
-#   description = "ID of the VPC for ECS resources"
-#   type        = string
-#   default     = ""
-# }
-
 variable "execution_role_arn" {
   description = "ARN of the ECS task execution IAM role"
   type        = string
