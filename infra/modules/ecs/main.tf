@@ -92,7 +92,7 @@ resource "aws_ecs_service" "this" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
   name            = local.service_name
-  task_definition = resource.aws_ecs_task_definition.this.arn_without_revision
+  task_definition = aws_ecs_task_definition.this.arn_without_revision
 
   health_check_grace_period_seconds  = var.target_group_arn != null ? var.health_check_grace_period_seconds : null
   deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
