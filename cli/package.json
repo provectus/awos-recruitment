@@ -6,6 +6,11 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/provectus/awos-recruitment.git",
+    "directory": "cli"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

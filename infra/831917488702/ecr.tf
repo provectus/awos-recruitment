@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_ecr_repository" "mcp" {
-  name                 = "${var.project_name}-mcp"
+  name                 = "${local.project_name}-mcp"
   image_tag_mutability = "MUTABLE"
   force_delete         = false
 
@@ -12,7 +12,7 @@ resource "aws_ecr_repository" "mcp" {
   }
 
   tags = {
-    Name = "${var.project_name}-mcp"
+    Name = "${local.project_name}-mcp"
   }
 }
 
@@ -25,10 +25,10 @@ resource "aws_ecr_lifecycle_policy" "mcp" {
         rulePriority = 1
         description  = "Keep last 10 tagged images"
         selection = {
-          tagStatus   = "tagged"
+          tagStatus      = "tagged"
           tagPatternList = ["*"]
-          countType   = "imageCountMoreThan"
-          countNumber = 10
+          countType      = "imageCountMoreThan"
+          countNumber    = 10
         }
         action = {
           type = "expire"

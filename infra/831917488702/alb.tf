@@ -1,29 +1,28 @@
 # ---------------------------------------------------------------------------
-# Application Load Balancer, Target Group, and Listeners
+# Application Load Balancer, Target Group, and HTTP Listener
+# HTTPS listener intentionally omitted until ACM certificate is in place.
 # ---------------------------------------------------------------------------
 
 # ---- ALB -----------------------------------------------------------------
 
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
+  name               = "${local.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  security_groups    = [module.alb_sg.security_group_id]
+  subnets            = module.network.public_subnets
 
-  tags = {
-    Name = "${var.project_name}-alb"
-  }
+  tags = local.default_tags
 }
 
 # ---- Target Group --------------------------------------------------------
 
 resource "aws_lb_target_group" "mcp" {
-  name                 = "${var.project_name}-tg"
+  name                 = "${local.project_name}-tg"
   port                 = 8000
   protocol             = "HTTP"
   target_type          = "ip"
-  vpc_id               = aws_vpc.main.id
+  vpc_id               = module.network.vpc_id
   deregistration_delay = 30
 
   health_check {
@@ -35,9 +34,7 @@ resource "aws_lb_target_group" "mcp" {
     matcher             = "200"
   }
 
-  tags = {
-    Name = "${var.project_name}-tg"
-  }
+  tags = local.default_tags
 }
 
 # ---- HTTP Listener (redirect to HTTPS) -----------------------------------
@@ -65,7 +62,7 @@ resource "aws_lb_listener" "https" {
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = aws_acm_certificate_validation.main.certificate_arn
+  certificate_arn   = module.acm_certificates["tls-public-sub"].certificate_arn
 
   default_action {
     type             = "forward"

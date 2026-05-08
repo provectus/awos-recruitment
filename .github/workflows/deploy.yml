@@ -1,0 +1,116 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "registry/**"
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: awos-recruitment-mcp
+  ECS_CLUSTER: awos-recruitment
+  ECS_SERVICE: awos-recruitment-mcp
+  TASK_FAMILY: awos-recruitment-mcp
+  CONTAINER_NAME: mcp-server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Register task definition and update service
+        env:
+          IMAGE_URI: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          TASK_DEFINITION=$(aws ecs describe-task-definition \
+            --task-definition "$TASK_FAMILY" \
+            --region "$AWS_REGION")
+
+          NEW_TASK_DEFINITION=$(echo "$TASK_DEFINITION" | jq \
+            --arg IMAGE "$IMAGE_URI" \
+            --arg CONTAINER "$CONTAINER_NAME" '
+              .taskDefinition
+              | (.containerDefinitions[] | select(.name == $CONTAINER)).image = $IMAGE
+              | del(
+                  .taskDefinitionArn,
+                  .revision,
+                  .status,
+                  .requiresAttributes,
+                  .compatibilities,
+                  .registeredAt,
+                  .registeredBy,
+                  .enableFaultInjection
+                )
+            ')
+
+          NEW_REVISION=$(aws ecs register-task-definition \
+            --region "$AWS_REGION" \
+            --cli-input-json "$NEW_TASK_DEFINITION" \
+            --query 'taskDefinition.revision' \
+            --output text)
+
+          echo "Registered ${TASK_FAMILY}:${NEW_REVISION}"
+
+          aws ecs update-service \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "${TASK_FAMILY}:${NEW_REVISION}" \
+            > /dev/null
+
+          aws ecs wait services-stable \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+
+          # Detect circuit-breaker rollback: if the service stabilized on a
+          # different revision than the one we registered, deploy failed.
+          DEPLOYED_REVISION=$(aws ecs describe-services \
+            --region "$AWS_REGION" \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text | awk -F: '{print $NF}')
+
+          if [ "$DEPLOYED_REVISION" != "$NEW_REVISION" ]; then
+            echo "::error::Deployment rolled back. Expected revision ${NEW_REVISION}, service is on ${DEPLOYED_REVISION}."
+            exit 1
+          fi
+
+          echo "Service running ${TASK_FAMILY}:${NEW_REVISION}"

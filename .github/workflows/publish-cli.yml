@@ -1,0 +1,75 @@
+name: Publish CLI
+
+# Publishes cli/ to npm under one or more scoped names. Triggered when
+# a PR labeled "release" is merged to main; the version published is
+# whatever cli/package.json holds on main after the merge — bump it in
+# your release PR before merging.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: publish-cli
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # required by --provenance + npm trusted publisher OIDC
+  contents: read
+
+jobs:
+  publish:
+    if: |
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        scope:
+          - "@provectusinc/awos-recruitment"
+          - "@provectus/awos-recruitment"
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Pin to the merge commit so we read the package.json that
+          # was actually merged — not whatever main looks like later
+          # if other PRs land while this workflow is running.
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+
+      - name: Read version from package.json
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version not yet published
+        run: |
+          set -euo pipefail
+          if npm view "${{ matrix.scope }}@${{ steps.pkg.outputs.version }}" version 2>/dev/null \
+              | grep -qx "${{ steps.pkg.outputs.version }}"; then
+            echo "::error::${{ matrix.scope }}@${{ steps.pkg.outputs.version }} already exists on npm. Bump cli/package.json before merging the release PR."
+            exit 1
+          fi
+
+      - name: Rewrite package name to ${{ matrix.scope }}
+        run: npm pkg set name="${{ matrix.scope }}"
+
+      - name: Publish to npm
+        # Trusted-publisher OIDC requires npm >= 11.5.1; Node 22 ships
+        # with npm 10.9.x. Self-upgrade is broken (MODULE_NOT_FOUND on
+        # promise-retry), so use npx to pull a fresh npm@latest into
+        # the temp cache.
+        run: npx -y npm@latest publish --provenance --access public
