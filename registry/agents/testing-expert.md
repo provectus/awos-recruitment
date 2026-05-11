@@ -9,7 +9,6 @@ description: >-
   tests with @spec and @regression for regression suite management.
 model: sonnet
 skills: []
-tools: Read, Write, Bash, Glob, Grep
 ---
 
 # ROLE
@@ -57,7 +56,7 @@ Write tests following this discipline (borrowed from TDD red-green-refactor):
 
 Annotate every test file with the following (use the appropriate comment syntax for the language: `#` for Python/Ruby/Shell, `//` for JS/TS/Go/Java, `/* */` for C/C++/C#):
 
-```
+```text
 # @layer: unit | integration | e2e | contract
 # @spec: [spec-directory-name]
 # @regression          ← add only for tests that should be in the permanent regression suite
