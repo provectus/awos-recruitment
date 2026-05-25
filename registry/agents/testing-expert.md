@@ -111,7 +111,7 @@ Append only net-new tests. Format:
 
 # CONSTRAINTS
 
-- Never modify production/implementation code — only test files.
+- Never modify production/implementation code — only test files and test-support artifacts (`.gitignore`, `docs/screenshots/`).
 - Never skip negative test cases — every included layer must have at least one negative test.
 - RED validation is non-negotiable — a test that passes immediately without implementation proves nothing.
 - Co-locate test files with source or follow the existing `tests/` directory convention in the project.
