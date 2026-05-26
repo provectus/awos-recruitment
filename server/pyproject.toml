@@ -22,6 +22,12 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv]
+# Cooldown window: ignore package versions uploaded in the last 7 days.
+# Mitigates zero-day supply-chain attacks (a malicious release has to survive
+# 7 days of public scrutiny before we'll pick it up).
+exclude-newer = "7 days"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/awos_recruitment_mcp"]
 
