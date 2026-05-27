@@ -52,7 +52,7 @@ Examples:
 ```bash
 npx @provectusinc/awos-recruitment skill modern-python-development
 npx @provectusinc/awos-recruitment mcp context7 playwright
-npx @provectusinc/awos-recruitment agent test-agent
+npx @provectusinc/awos-recruitment agent testing-expert
 ```
 
 ## Documentation

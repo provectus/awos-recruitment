@@ -144,10 +144,10 @@ async def test_bundle_agents_tracks_found_capabilities(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent"]},
+            json={"names": ["testing-expert"]},
         )
 
-    mock_track_install.assert_called_once_with("test-agent", "agent")
+    mock_track_install.assert_called_once_with("testing-expert", "agent")
 
 
 @patch("awos_recruitment_mcp.server.track_install")
@@ -178,7 +178,7 @@ async def test_bundle_agents_tracks_only_found_in_mixed_request(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent", "nonexistent-agent"]},
+            json={"names": ["testing-expert", "nonexistent-agent"]},
         )
 
-    mock_track_install.assert_called_once_with("test-agent", "agent")
+    mock_track_install.assert_called_once_with("testing-expert", "agent")

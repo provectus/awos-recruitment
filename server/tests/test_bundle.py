@@ -458,7 +458,7 @@ async def test_agent_valid_request_returns_200(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent"]},
+            json={"names": ["testing-expert"]},
         )
 
     assert response.status_code == 200, (
@@ -472,15 +472,15 @@ async def test_agent_valid_request_returns_tar_gz(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent"]},
+            json={"names": ["testing-expert"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
         names = tar.getnames()
 
-    assert "test-agent.md" in names, (
-        f"Expected test-agent.md in archive, got {names}"
+    assert "testing-expert.md" in names, (
+        f"Expected testing-expert.md in archive, got {names}"
     )
 
 
@@ -495,7 +495,7 @@ async def test_agent_partial_matches_returns_200(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent", "nonexistent-agent"]},
+            json={"names": ["testing-expert", "nonexistent-agent"]},
         )
 
     assert response.status_code == 200, (
@@ -509,15 +509,15 @@ async def test_agent_partial_matches_contains_only_existing(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/agents",
-            json={"names": ["test-agent", "nonexistent-agent"]},
+            json={"names": ["testing-expert", "nonexistent-agent"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
         names = tar.getnames()
 
-    assert "test-agent.md" in names, (
-        f"Expected test-agent.md in archive, got {names}"
+    assert "testing-expert.md" in names, (
+        f"Expected testing-expert.md in archive, got {names}"
     )
     assert "nonexistent-agent.md" not in names, (
         f"Did not expect nonexistent-agent.md in archive, got {names}"

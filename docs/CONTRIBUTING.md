@@ -163,7 +163,7 @@ System prompt instructions go here.
 | Field | Type | Description |
 |-------|------|-------------|
 | `model` | string | Target model identifier (e.g., `opus`, `sonnet`, `haiku`). |
-| `skills` | list of strings | Skill names this agent references. Each must be kebab-case. **All referenced skills must exist in `registry/skills/`.** |
+| `skills` | list of strings | Skill names this agent references. Each must be kebab-case. **All referenced skills must exist in `registry/skills/`.** May be an empty list (`skills: []`) or omitted entirely when the agent does not depend on any skills (see `registry/agents/testing-expert.md` for an example with `skills: []`). |
 
 **No other fields are allowed.** The validator rejects unknown front matter fields.
 
@@ -173,7 +173,7 @@ When a user installs an agent, its referenced skills are automatically installed
 
 ### Example
 
-See `registry/agents/test-agent.md` for a complete example.
+See `registry/agents/testing-expert.md` for a complete example.
 
 ---
 
