@@ -557,6 +557,9 @@ actor SessionManager {
 ```
 
 ```swift
+// Use @MainActor to ensure thread-safe access to continuations dictionary.
+// Without isolation, delegate callbacks and download(from:) could race on the dictionary.
+@MainActor
 class DownloadService: NSObject, ABCDownloadDelegate {
     private var continuations: [String: CheckedContinuation<Data, Error>] = [:]
 
@@ -572,16 +575,20 @@ class DownloadService: NSObject, ABCDownloadDelegate {
 
     // MARK: - ABCDownloadDelegate
 
-    func download(_ download: ABCDownload, didFinishWith data: Data) {
+    nonisolated func download(_ download: ABCDownload, didFinishWith data: Data) {
         let key = download.url.absoluteString
-        continuations[key]?.resume(returning: data)
-        continuations[key] = nil
+        Task { @MainActor in
+            continuations[key]?.resume(returning: data)
+            continuations[key] = nil
+        }
     }
 
-    func download(_ download: ABCDownload, didFailWith error: Error) {
+    nonisolated func download(_ download: ABCDownload, didFailWith error: Error) {
         let key = download.url.absoluteString
-        continuations[key]?.resume(throwing: error)
-        continuations[key] = nil
+        Task { @MainActor in
+            continuations[key]?.resume(throwing: error)
+            continuations[key] = nil
+        }
     }
 }
 ```
@@ -760,6 +767,39 @@ Swift and Objective-C have different naming conventions. Conflicts appear when:
 let swiftRouter = MyApp.Router()
 let objcRouter = LegacyModule.ABCRouter()
 ```
+
+### Swift 6 Strict Concurrency and ObjC Interop
+
+Swift 6 strict concurrency significantly impacts Objective-C bridging:
+
+```swift
+// 1. Suppress concurrency warnings for pre-concurrency ObjC modules
+@preconcurrency import LegacyObjCFramework
+
+// 2. Completion handlers imported from ObjC are now @Sendable by default
+//    when async variants exist. If the ObjC code isn't actually thread-safe,
+//    use @preconcurrency import to suppress warnings.
+
+// 3. ObjC headers can opt out of Sendable checking:
+//    __attribute__((swift_attr("@Sendable")))     — mark a type as Sendable
+//    __attribute__((swift_attr("@nonSendable")))   — opt out of Sendable
+
+// 4. Actor-wrapped ObjC singletons — all calls become async from outside
+actor SafeObjCWrapper {
+    private let legacy = LegacyManager.shared()
+
+    func fetchData() -> Data {
+        legacy.getData()  // Safe: runs on actor's serial executor
+    }
+}
+// ObjC code cannot call actor methods directly — provide @objc nonisolated bridge if needed.
+```
+
+Rules:
+- Use `@preconcurrency import` for ObjC modules that haven't been audited for concurrency.
+- When wrapping ObjC singletons in actors, remember all calls become `async` from outside the actor.
+- Completion-handler-based ObjC APIs are automatically imported as `async` — verify thread safety before using.
+- Under Swift 6.2 default MainActor isolation, all ObjC interop code runs on MainActor unless explicitly marked `nonisolated` or `@concurrent`.
 
 ### Swift-Only Features Unavailable in Bridged Code
 

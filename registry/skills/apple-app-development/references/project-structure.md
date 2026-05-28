@@ -171,7 +171,7 @@ let package = Package(
         .library(name: "Core", targets: ["Core"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "<latest-stable>"),
     ],
     targets: [
         .target(
@@ -207,7 +207,7 @@ let package = Package(
         .library(name: "UIComponents", targets: ["UIComponents"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "<latest-stable>"),
     ],
     targets: [
         .target(name: "Core"),
@@ -761,6 +761,14 @@ struct MyCodeGenPlugin: BuildToolPlugin {
 
 ## CI/CD Considerations
 
+### Options
+
+| Tool | Type | Best For |
+|------|------|----------|
+| **Xcode Cloud** | Apple's first-party CI/CD (25 free compute hours/month) | Simple pipelines, tight Xcode integration, TestFlight distribution |
+| **Fastlane** | Open-source automation | Complex workflows, multi-lane builds, custom signing |
+| **GitHub Actions** | GitHub-native CI | Teams already on GitHub, matrix testing, custom runners |
+
 ### xcodebuild commands
 
 ```bash
@@ -894,20 +902,21 @@ fastlane match development
 ### TestFlight distribution
 
 ```bash
-# Using xcodebuild + altool (legacy)
+# Using altool (still works for App Store Connect uploads, but deprecated for notarization)
 xcrun altool --upload-app \
     --type ios \
     --file build/export/MyApp.ipa \
     --apiKey YOUR_KEY_ID \
     --apiIssuer YOUR_ISSUER_ID
 
-# Using notarytool / Apple Transporter (modern)
-xcrun notarytool submit build/export/MyApp.ipa \
-    --key ~/.private_keys/AuthKey_XXXX.p8 \
-    --key-id YOUR_KEY_ID \
-    --issuer YOUR_ISSUER_ID \
-    --wait
+# Using Apple Transporter (modern, recommended for CI)
+xcrun iTMSTransporter -m upload \
+    -assetFile build/export/MyApp.ipa \
+    -apiKey ~/.private_keys/AuthKey_XXXX.p8 \
+    -apiIssuer YOUR_ISSUER_ID
 ```
+
+> **Note:** `notarytool` is for **macOS app notarization only** — do not use it for iOS/tvOS/watchOS TestFlight uploads. For iOS uploads, use `altool`, Apple Transporter (`iTMSTransporter`), Fastlane, or Xcode Cloud.
 
 Prefer the App Store Connect API key (`.p8` file) over Apple ID credentials for CI authentication.
 
@@ -1045,6 +1054,61 @@ Rules for multi-platform:
 - Isolate platform-specific UI in platform-named directories.
 - Use `#if os()` sparingly and only in leaf views. Extract platform differences into dedicated types when the conditional logic grows beyond a few lines.
 - Test shared logic on one platform; test platform-specific code on its target platform.
+
+### Multi-target apps (same platform, different brands/products)
+
+When a project has multiple app targets (e.g., different branded apps sharing a codebase), **never use `#if` compiler directives or custom build flags to branch behavior between targets.** `#if` is designed to exclude code from compilation entirely (e.g., `#if DEBUG`, `#if os(iOS)`), not to implement polymorphism between app variants.
+
+Instead, use one of these approaches:
+
+**1. Dependency injection (preferred)** — define a protocol for the varying behavior, provide a per-target conformance, and inject at the composition root:
+
+```swift
+// Shared protocol
+protocol AppConfiguration {
+    var appName: String { get }
+    var primaryColor: Color { get }
+    var featureFlags: FeatureFlags { get }
+}
+
+// Target A implementation (in Target A's file membership)
+struct TargetAConfiguration: AppConfiguration {
+    let appName = "App A"
+    let primaryColor = Color.blue
+    let featureFlags = FeatureFlags(showPremium: true)
+}
+
+// Target B implementation (in Target B's file membership)
+struct TargetBConfiguration: AppConfiguration {
+    let appName = "App B"
+    let primaryColor = Color.green
+    let featureFlags = FeatureFlags(showPremium: false)
+}
+
+// Inject at app entry point
+@main
+struct MyApp: App {
+    let config: AppConfiguration = TargetAConfiguration() // per-target
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environment(\.appConfig, config)
+        }
+    }
+}
+```
+
+**2. Separate files per target** — create one file per target with the same type name, and assign each file to the correct target membership in Xcode. The linker resolves the right implementation at build time.
+
+```
+MyApp/
+├── Config/
+│   ├── AppConfig+TargetA.swift    # target membership: Target A only
+│   └── AppConfig+TargetB.swift    # target membership: Target B only
+```
+
+This keeps code clean, testable, and avoids the maintenance burden of scattered `#if` blocks that are hard to audit and easy to break.
 
 ## Dependency Management
 

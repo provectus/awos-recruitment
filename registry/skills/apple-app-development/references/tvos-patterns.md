@@ -34,12 +34,15 @@ struct MenuView: View {
 }
 ```
 
-Any view can opt in to focus with `.focusable()`:
+Any view can opt in to focus with `.focusable()`. Use `@FocusState` with `onChange(of:)` to react to focus changes:
 
 ```swift
+@FocusState private var isFocused: Bool
+
 Text("Focusable label")
     .focusable()
-    .onFocusChange { isFocused in
+    .focused($isFocused)
+    .onChange(of: isFocused) { _, newValue in
         // react to focus gain/loss
     }
 ```
@@ -296,8 +299,8 @@ tvOS apps render on large screens. Design for the living room viewing distance.
 
 | Resolution | When Used |
 |---|---|
-| 1920x1080 (1080p) | Apple TV HD |
-| 3840x2160 (4K) | Apple TV 4K |
+| 1920x1080 (1080p) | Apple TV HD (discontinued Oct 2022) |
+| 3840x2160 (4K) | Apple TV 4K (current, 3rd gen 2022+) |
 
 SwiftUI uses points, so the coordinate space is always **1920x1080** regardless of device. The system handles pixel doubling for 4K.
 
@@ -470,7 +473,7 @@ struct MyTVApp: App {
 
 ## TVMLKit
 
-TVMLKit is the JavaScript/XML-based framework for building tvOS UIs using TVML templates. It is a legacy approach.
+TVMLKit is the JavaScript/XML-based framework for building tvOS UIs using TVML templates. It is **deprecated** as of tvOS 18 (WWDC24). See Apple's "Migrate your TVML app to SwiftUI" session (WWDC24-10207) for migration guidance.
 
 ### When to Use
 
@@ -478,10 +481,10 @@ TVMLKit is the JavaScript/XML-based framework for building tvOS UIs using TVML t
 |---|---|---|
 | New apps | Yes | No |
 | Server-driven UI needed | SwiftUI + JSON config | Maybe (but consider alternatives) |
-| Existing TVMLKit codebase | Migrate when practical | Maintain if stable |
+| Existing TVMLKit codebase | Migrate (TVMLKit deprecated in tvOS 18) | Maintain if stable, plan migration |
 | Complex custom interactions | Yes | Limited |
 
-TVMLKit was useful when tvOS first launched (tvOS 9) for quickly building catalog-style apps with server-driven templates. For new development, SwiftUI is the clear choice. Apple has not significantly updated TVMLKit in recent years.
+TVMLKit was useful when tvOS first launched (tvOS 9) for quickly building catalog-style apps with server-driven templates. Apple officially deprecated TVMLKit in tvOS 18. For all new development, use SwiftUI.
 
 ### Basic Setup (Legacy Reference)
 

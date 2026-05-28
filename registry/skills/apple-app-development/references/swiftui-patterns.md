@@ -138,6 +138,29 @@ struct AsyncContentView<T, Loading: View, Loaded: View, Failed: View>: View {
 }
 ```
 
+### Custom Container APIs (iOS 18+)
+---
+
+iOS 18 introduced `ForEach(subviewOf:)` and `Group(subviews:)` for building custom container views that can introspect and rearrange their children — something previously impossible without workarounds.
+
+```swift
+struct TwoColumn: View {
+    @ViewBuilder var content: some View
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Group(subviews: content) { subviews in
+                // Access subviews as a RandomAccessCollection
+                VStack { ForEach(subviews.prefix(2)) { $0 } }
+                VStack { ForEach(subviews.dropFirst(2)) { $0 } }
+            }
+        }
+    }
+}
+```
+
+These APIs let containers inspect child count, apply per-child styling, and implement layouts like multi-column or card stacks declaratively.
+
 
 ## Property Wrappers
 
@@ -185,6 +208,8 @@ struct ProfileView: View {
     }
 }
 ```
+
+**Caveat:** Unlike `@StateObject`, `@State` re-evaluates the initializer expression on every view struct recreation (SwiftUI discards the new instance, but `init()` still runs). Avoid side effects in `@Observable` class initializers — use `.task` for deferred setup.
 
 ### @Binding
 ---
@@ -1108,6 +1133,17 @@ struct DynamicHeader: View {
 }
 ```
 
+> **iOS 18+:** For many geometry-reading use cases, `onGeometryChange(for:of:action:)` (back-deployed to iOS 16) is a simpler alternative that avoids the `PreferenceKey` boilerplate entirely:
+>
+> ```swift
+> headerContent
+>     .onGeometryChange(for: CGFloat.self) { proxy in
+>         proxy.size.height
+>     } action: { height in
+>         headerHeight = height
+>     }
+> ```
+
 
 ## Animations
 
@@ -1473,6 +1509,18 @@ struct PhotoActionView: View {
 ---
 
 Define a custom key to inject dependencies through the SwiftUI view hierarchy.
+
+> **iOS 18 / Xcode 16+:** The `@Entry` macro eliminates the boilerplate below and is back-deployed to iOS 13:
+>
+> ```swift
+> extension EnvironmentValues {
+>     @Entry var apiClient: APIClient = LiveAPIClient()
+> }
+> // Use: .environment(\.apiClient, MockAPIClient())
+> // Read: @Environment(\.apiClient) private var apiClient
+> ```
+>
+> The classic `EnvironmentKey` pattern shown below remains valid but is more verbose.
 
 ```swift
 // 1. Define the key
