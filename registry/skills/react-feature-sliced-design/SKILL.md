@@ -1,6 +1,6 @@
 ---
 name: react-feature-sliced-design
-description: This skill should be used when the user asks to "create a page", "add an entity", "build a widget", "create a feature", "scaffold FSD structure", "refactor to FSD", "where should I put this code", "what layer does X go in", "organize my React code", "FSD compliant", "fix layer violation", "explain FSD", "why is this in this layer", "review my FSD structure", or when writing, reviewing, or refactoring React/TypeScript code to ensure Feature-Sliced Design architecture compliance. Also triggers when the user places code in the wrong layer, imports across layers incorrectly, or breaks FSD conventions — the agent should proactively explain the violation and teach the correct approach.
+description: "Enforces Feature-Sliced Design (FSD) architecture in React/TypeScript projects by scaffolding compliant folder structures, validating layer boundaries and import directions, detecting and fixing layer violations, and teaching FSD conventions during code generation and review. Use when asked to 'create a page', 'add an entity', 'build a widget', 'scaffold FSD structure', 'refactor to FSD', 'where should I put this code', 'what layer does X go in', 'organize my React code', 'fix layer violation', or 'review my FSD structure'. Triggers on any React/TypeScript task involving FSD layers, slices, segments, cross-layer imports, or public API boundaries."
 version: 3.0.0
 ---
 
@@ -95,26 +95,72 @@ If using a component library:
 
 Every slice must have a `CLAUDE.md`. Keep it very short: what this module is for + anything non-obvious. Everything else is discoverable from code. See `references/claude-md-template.md` for the template.
 
+## Workflow: Adding a New Slice
+
+1. **Decide the layer** — use the Layer Decision Guide above
+2. **Scaffold** — create `src/{layer}/{slice-name}/` with needed segments (`ui/`, `model/`, `api/`, `lib/`)
+3. **Write the public API** — create `index.ts` with explicit named exports (no `export *`)
+4. **Validate imports** — verify all imports flow downward only; no same-layer imports exist
+5. **Add CLAUDE.md** — 1-3 sentences on what this slice does + any non-obvious context
+6. **Verify** — check: (a) no upward imports, (b) external code only imports from `index.ts`, (c) no `export *` re-exports
+
+## Inline Example: Entity Slice
+
+A minimal `entities/customer/` slice:
+
+```typescript
+// entities/customer/model/types.ts
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'inactive';
+}
+
+// entities/customer/model/use-customer.ts
+import { useState, useEffect } from 'react';
+import { fetchCustomer } from '../api';
+import type { Customer } from './types';
+
+export function useCustomer(id: string) {
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  useEffect(() => { fetchCustomer(id).then(setCustomer); }, [id]);
+  return customer;
+}
+
+// entities/customer/api/customer-api.ts
+import type { Customer } from '../model';
+export async function fetchCustomer(id: string): Promise<Customer> {
+  const res = await fetch(`/api/customers/${id}`);
+  return res.json();
+}
+
+// entities/customer/index.ts — PUBLIC API
+export { useCustomer } from './model';
+export type { Customer } from './model';
+export { CustomerCard } from './ui';
+```
+
 ## Teaching Behavior
 
-This skill is not just a ruleset — it should actively teach engineers FSD principles. Follow these guidelines:
+Actively teach FSD principles — explain decisions, don't just apply rules:
 
-**When writing code**, briefly explain your FSD decisions:
-- Why you chose a specific layer ("This is a `feature/` because it's a user action, not a domain entity")
-- Why something goes in a specific segment ("Hooks that call the API go in `api/`, business logic hooks in `model/`")
-- Keep explanations to 1-2 sentences — enough to teach, not lecture
+| Situation | Action |
+|-----------|--------|
+| Writing code | Explain layer/segment choice in 1-2 sentences |
+| Spot a violation | Flag it, explain why it breaks FSD, show the fix |
+| "Where should I put this?" | Walk through the Layer Decision Guide |
+| Reviewing code | Check FSD compliance, suggest corrections with reasoning |
+| Project deviates from guide | Ask for reasoning first — project consistency matters more than strict compliance |
 
-**When you spot a violation**, proactively flag it and explain the fix:
-- Layer violation: "This import goes upward (`entity → feature`) — FSD only allows downward imports. Move the shared logic to `shared/` or compose in a higher layer."
-- Same-layer import: "Entities can't import other entities directly. Use `@x` cross-imports or compose in a `widget/` or `feature/`."
-- Missing public API: "External code imports directly from `./ui/customer-card` — it should import from the slice's `index.ts`."
-- Wildcard re-export: "`export * from` hides what's public — list exports explicitly."
+### Common Violations Quick-Reference
 
-**When the engineer asks "where should I put this?"**, walk them through the Layer Decision Guide and explain your reasoning.
-
-**When reviewing code**, check for FSD compliance and suggest corrections with explanations, not just fixes.
-
-**When the project deviates from this guide**, don't treat it as an error automatically. Real projects may have minor differences in naming, segment layout, or file organization — and that's fine as long as there's a clear reason behind it. Ask the engineer for their reasoning before suggesting changes. Consistency within the project matters more than strict compliance with this document.
+| Violation | Fix |
+|-----------|-----|
+| Upward import (`entity → feature`) | Move shared logic to `shared/` or compose in a higher layer |
+| Same-layer import (`entity → entity`) | Use `@x` cross-imports or compose in `widget/`/`feature/` |
+| Direct internal import (`./ui/card`) | Import from slice's `index.ts` instead |
+| Wildcard re-export (`export *`) | List exports explicitly |
 
 ## Code Generation Rules
 
