@@ -178,6 +178,31 @@ class SearchViewModel @Inject constructor(
 }
 ```
 
+#### saved() Property Delegate (Lifecycle 2.9+)
+
+A lazy property delegate that works with `@Serializable` classes. Automatically saves and restores across process death with minimal boilerplate.
+
+```kotlin
+@Serializable
+data class FormData(val name: String = "", val email: String = "")
+
+@HiltViewModel
+class FormViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    // Automatically saved and restored across process death
+    var formData by savedStateHandle.saved { FormData() }
+        private set
+
+    fun updateName(name: String) {
+        formData = formData.copy(name = name)
+    }
+}
+```
+
+Use `saved()` for structured state objects. Use `getStateFlow()` when you need reactive observation of individual values.
+
 Rules for `SavedStateHandle`:
 - Store only small, serializable data (IDs, query strings, scroll positions).
 - Do not store large objects (bitmaps, lists of hundreds of items). Use a local database or cache instead.
@@ -777,7 +802,7 @@ The modern Android recommendation is a **single Activity** with Compose Navigati
 - Simpler shared state via navigation-graph-scoped ViewModels.
 - Smoother transitions and animations (no Activity transition overhead).
 - Consistent back stack management through `NavController`.
-- Easier deep link handling -- one entry point.
+- Easier deep link handling — one entry point for custom routing.
 - Better support for edge-to-edge, predictive back gestures, and Material transitions.
 
 **Architecture:**
@@ -848,6 +873,55 @@ class MainActivity : ComponentActivity() {
 ```
 
 
+## Predictive Back and Edge-to-Edge
+
+### Predictive Back
+---
+Recent Android versions enable predictive back system animations by default. `onBackPressed()` is no longer called and `KeyEvent.KEYCODE_BACK` is not dispatched for apps targeting these versions.
+
+**Required migration:**
+- **Compose**: Use `BackHandler` for simple back handling. Use `PredictiveBackHandler` for custom progress-based back animations.
+- **Views**: Use `OnBackPressedDispatcher` and register `OnBackPressedCallback`.
+- **Never** override `onBackPressed()` or intercept `KEYCODE_BACK` directly.
+
+```kotlin
+// Compose — simple back handling
+BackHandler(enabled = showDialog) {
+    dismissDialog()
+}
+
+// Compose — predictive back with animation progress
+PredictiveBackHandler { progress: Flow<BackEventCompat> ->
+    progress.collect { event ->
+        // event.progress: 0.0 to 1.0
+        // Animate UI based on progress
+    }
+}
+```
+
+### Edge-to-Edge
+---
+Edge-to-edge rendering is mandatory on recent platform versions. Call `enableEdgeToEdge()` in `onCreate` before `setContent`.
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    setContent { AppTheme { AppNavHost() } }
+}
+```
+
+Handle system bar insets in your layouts:
+
+```kotlin
+Modifier
+    .fillMaxSize()
+    .systemBarsPadding() // or use WindowInsets.systemBars with padding()
+```
+
+The legacy opt-out (`windowOptOutEdgeToEdgeEnforcement`) is deprecated and will be removed in a future platform version.
+
+
 ## Deep Links and Intents
 
 ### Intent Filters in AndroidManifest
@@ -884,40 +958,14 @@ class MainActivity : ComponentActivity() {
 
 Enable **App Links verification** (`android:autoVerify="true"`) and host a `/.well-known/assetlinks.json` file on your domain for `https` links.
 
-### NavDeepLink in Compose Navigation
+### Custom Deep Link Routing (Recommended)
 ---
 
-```kotlin
-NavHost(navController = navController, startDestination = "home") {
-    composable(
-        route = "product/{productId}",
-        arguments = listOf(navArgument("productId") { type = NavType.StringType }),
-        deepLinks = listOf(
-            navDeepLink {
-                uriPattern = "https://www.example.com/product/{productId}"
-            },
-            navDeepLink {
-                uriPattern = "myapp://open/product/{productId}"
-            },
-            navDeepLink {
-                // Handle share intents
-                action = Intent.ACTION_SEND
-                mimeType = "text/plain"
-            }
-        ),
-    ) { backStackEntry ->
-        val productId = backStackEntry.arguments?.getString("productId")
-        ProductScreen(productId = productId.orEmpty())
-    }
-}
-```
-
-### Handling Incoming Intents
----
-In a single-Activity setup, handle intents in `onCreate` and `onNewIntent`:
+Intercept deep links at the Activity level and route them through your own navigation logic. This gives full control over auth checks, conditional navigation, and back stack construction — unlike `navDeepLink` which couples URIs directly to composable destinations.
 
 ```kotlin
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -926,23 +974,49 @@ class MainActivity : ComponentActivity() {
             MyAppTheme {
                 MyAppNavHost(navController = navController)
             }
-            // NavController automatically handles the initial intent
-            // when navDeepLink patterns are declared in the NavHost
+            // Route the initial deep link after composition
+            LaunchedEffect(Unit) {
+                intent?.let { routeDeepLink(it, navController) }
+            }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Required for singleTop/singleTask launch modes
-        // NavController handles deep links automatically if navDeepLink is declared
-        navController.handleDeepLink(intent)
+        // Handle deep links arriving while the Activity is already running
+        routeDeepLink(intent, navController)
     }
 }
+```
 
-// For custom intent extras or actions beyond URI matching:
-private fun handleDeepLink(intent: Intent, navController: NavController) {
-    when (intent.action) {
-        "com.example.ACTION_SHOW_NOTIFICATION" -> {
+#### Deep Link Router
+
+Centralize all URI → navigation mapping in a single router. This is the place to add auth gates, feature flags, and conditional redirects.
+
+```kotlin
+fun routeDeepLink(intent: Intent, navController: NavController) {
+    val uri = intent.data ?: return
+
+    when {
+        // https://www.example.com/product/{id} or myapp://open/product/{id}
+        uri.pathSegments.firstOrNull() == "product" -> {
+            val productId = uri.lastPathSegment ?: return
+            navController.navigate("product/$productId")
+        }
+
+        // https://www.example.com/user/{id}
+        uri.pathSegments.firstOrNull() == "user" -> {
+            val userId = uri.lastPathSegment ?: return
+            // Auth gate: redirect to login if needed, then forward
+            if (!isUserLoggedIn()) {
+                navController.navigate("login?redirect=user/$userId")
+            } else {
+                navController.navigate("user/$userId")
+            }
+        }
+
+        // Custom actions
+        intent.action == "com.example.ACTION_SHOW_NOTIFICATION" -> {
             val notificationId = intent.getStringExtra("notification_id") ?: return
             navController.navigate("notifications/$notificationId")
         }
@@ -950,30 +1024,27 @@ private fun handleDeepLink(intent: Intent, navController: NavController) {
 }
 ```
 
+#### Why Custom Routing over navDeepLink
+
+| Concern | `navDeepLink` | Custom routing |
+|---------|---------------|----------------|
+| Auth gates | Not supported — navigates directly | Full control — redirect to login, then forward |
+| Conditional navigation | Not supported | Check state, feature flags, A/B tests before routing |
+| Complex back stacks | Limited | Build arbitrary back stacks via `NavOptions` |
+| Centralized logging | Scattered across graph | Single entry point for analytics and debugging |
+| Refactoring | URI patterns coupled to route names | URIs decoupled — change routes without breaking links |
+
+> **Note:** `navDeepLink { uriPattern = ... }` is available in Compose Navigation for simple cases where URIs map 1:1 to destinations with no intermediate logic. For most production apps, prefer custom routing.
+
 ### Implicit vs Explicit Deep Links
 
 | Type | Mechanism | Use Case |
 |------|-----------|----------|
-| **Implicit** | URI-based intent filter + `navDeepLink` | External links (browser, email, other apps) |
-| **Explicit** | `PendingIntent` with `NavDeepLinkBuilder` or `TaskStackBuilder` | Notifications, widgets, shortcuts |
+| **Implicit** | URI-based intent filter → custom router | External links (browser, email, other apps) |
+| **Explicit** | `PendingIntent` with `TaskStackBuilder` | Notifications, widgets, shortcuts |
 
 ### PendingIntent (Notifications, Widgets, Alarms)
 ---
-
-#### Using NavDeepLinkBuilder (with XML nav graph)
-
-```kotlin
-fun createNotificationDeepLink(context: Context, productId: String): PendingIntent {
-    return NavDeepLinkBuilder(context)
-        .setGraph(R.navigation.nav_graph)
-        .setDestination("product/{productId}")
-        .setArguments(bundleOf("productId" to productId))
-        .setComponentName(MainActivity::class.java)
-        .createPendingIntent()
-}
-```
-
-#### Using TaskStackBuilder (Compose-only, no XML graph)
 
 ```kotlin
 fun createDeepLinkPendingIntent(context: Context, itemId: String): PendingIntent {
@@ -997,8 +1068,7 @@ fun createDeepLinkPendingIntent(context: Context, itemId: String): PendingIntent
 ### Key Rules for Deep Links
 ---
 - Always use `FLAG_IMMUTABLE` for PendingIntents targeting Android 12+.
-- Validate and sanitize all incoming deep link parameters -- they are untrusted external input.
+- Validate and sanitize all incoming deep link parameters — they are untrusted external input.
 - Test deep links via ADB: `adb shell am start -a android.intent.action.VIEW -d "https://www.example.com/product/123" com.example.app`.
-- For Compose Navigation, ensure deep link URI patterns match the route argument names exactly.
-- Handle the case where a deep link targets a destination that requires authentication -- redirect to login first, then forward to the original destination after auth completes.
+- Handle the case where a deep link targets a destination that requires authentication — redirect to login first, then forward to the original destination after auth completes.
 - For custom schemes (`myapp://`), consider migrating to App Links (`https://`) for better security and user experience.

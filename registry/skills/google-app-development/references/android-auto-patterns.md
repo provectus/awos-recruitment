@@ -1,262 +1,122 @@
 # Android Auto Patterns Reference
 
-> Target: Car App Library 1.4+
+> Target: latest stable Car App Library
 
 >[toc]
 
-
-## Car App Library Architecture
-
-### Core Components
----
-
-The Car App Library (`androidx.car.app`) provides a host-agnostic framework for building Android Auto apps. The architecture follows a service-session-screen model.
-
-#### CarAppService
-
-`CarAppService` is the entry point. It is a bound `Service` that the car host connects to. Declare it in `AndroidManifest.xml` with the appropriate intent filter.
-
-```xml
-<service
-    android:name=".MyCarAppService"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="androidx.car.app.CarAppService" />
-        <category android:name="androidx.car.app.category.NAVIGATION" /> <!-- or POI, IOT, etc. -->
-    </intent-filter>
-</service>
-```
-
-```kotlin
-class MyCarAppService : CarAppService() {
-    override fun createHostValidator(): HostValidator {
-        return HostValidator.ALLOW_ALL_HOSTS_VALIDATOR // use specific hosts in production
-    }
-
-    override fun onCreateSession(): Session {
-        return MySession()
-    }
-}
-```
-
-#### Session
-
-A `Session` represents a single connection to the car host. It owns the `Screen` back stack and receives lifecycle callbacks. Each connection creates a new `Session` instance.
-
-```kotlin
-class MySession : Session() {
-    override fun onCreateScreen(intent: Intent): Screen {
-        return MainScreen(carContext)
-    }
-}
-```
-
-#### Screen
-
-A `Screen` is the basic UI unit. Each screen returns a single `Template` from `onGetTemplate()`. Screens are pushed/popped via `ScreenManager`.
-
-```kotlin
-class MainScreen(carContext: CarContext) : Screen(carContext) {
-    override fun onGetTemplate(): Template {
-        return ListTemplate.Builder()
-            .setTitle("Main Menu")
-            .setSingleList(buildItemList())
-            .build()
-    }
-}
-```
-
-#### ScreenManager
-
-`ScreenManager` manages a back stack of `Screen` instances. Use it to navigate between screens.
-
-```kotlin
-// Push a new screen
-screenManager.push(DetailScreen(carContext))
-
-// Pop back
-screenManager.pop()
-
-// Pop to root
-screenManager.popToRoot()
-```
-
-The template depth limit (see Constraints below) applies to the back stack depth.
-
-
-## Templates
-
-### Template Catalog
----
-
-Car App Library 1.4+ provides a set of templates designed for driver-safe interaction. Each template enforces distraction guidelines at the host level.
-
-#### ListTemplate
-
-Best for: browsable lists of items (settings, song lists, destinations).
-
-```kotlin
-val itemList = ItemList.Builder()
-    .addItem(
-        Row.Builder()
-            .setTitle("Item Title")
-            .addText("Secondary text")
-            .setOnClickListener { screenManager.push(DetailScreen(carContext)) }
-            .setImage(CarIcon.Builder(IconCompat.createWithResource(carContext, R.drawable.ic_item)).build())
-            .build()
-    )
-    .build()
-
-ListTemplate.Builder()
-    .setTitle("Browse")
-    .setSingleList(itemList)
-    .setHeaderAction(Action.BACK)
-    .build()
-```
-
-#### GridTemplate
-
-Best for: icon-driven menus, category selection, home screens with visual tiles.
-
-```kotlin
-val gridItemList = ItemList.Builder()
-    .addItem(
-        GridItem.Builder()
-            .setTitle("Category")
-            .setImage(CarIcon.Builder(icon).build())
-            .setOnClickListener { /* navigate */ }
-            .build()
-    )
-    .build()
-
-GridTemplate.Builder()
-    .setTitle("Home")
-    .setSingleList(gridItemList)
-    .setHeaderAction(Action.APP_ICON)
-    .build()
-```
-
-#### MessageTemplate
-
-Best for: confirmation dialogs, error states, simple informational messages.
-
-```kotlin
-MessageTemplate.Builder("Are you sure you want to cancel navigation?")
-    .setTitle("Confirm")
-    .setIcon(CarIcon.Builder(iconCompat).build())
-    .addAction(
-        Action.Builder()
-            .setTitle("Yes")
-            .setOnClickListener { /* handle */ }
-            .build()
-    )
-    .addAction(
-        Action.Builder()
-            .setTitle("No")
-            .setOnClickListener { screenManager.pop() }
-            .build()
-    )
-    .build()
-```
-
-#### NavigationTemplate
-
-Best for: active turn-by-turn navigation with map rendering.
-
-- Requires `androidx.car.app.category.NAVIGATION` category.
-- Displays routing information, maneuver icons, and ETA.
-- Draws map content via `SurfaceCallback`.
-
-```kotlin
-NavigationTemplate.Builder()
-    .setNavigationInfo(
-        RoutingInfo.Builder()
-            .setCurrentStep(
-                Step.Builder("Main Street")
-                    .setManeuver(
-                        Maneuver.Builder(Maneuver.TYPE_TURN_NORMAL_LEFT)
-                            .setIcon(CarIcon.Builder(turnIcon).build())
-                            .build()
-                    )
-                    .build(),
-                Distance.create(0.5, Distance.UNIT_MILES)
-            )
-            .build()
-    )
-    .setActionStrip(actionStrip)
-    .build()
-```
-
-#### MapTemplate
-
-Best for: map-centric apps that need interactive content alongside the map (POI browsing, parking, charging stations). Available in Car App Library 1.4+.
-
-```kotlin
-MapTemplate.Builder()
-    .setMapController(
-        MapController.Builder()
-            .setMapActionStrip(mapActionStrip)
-            .build()
-    )
-    .setPane(
-        Pane.Builder()
-            .addRow(Row.Builder().setTitle("Station Name").addText("0.3 mi").build())
-            .addAction(Action.Builder().setTitle("Navigate").setOnClickListener { /* ... */ }.build())
-            .build()
-    )
-    .build()
-```
-
-### Template Selection Guide
-
-| Use Case | Template | Notes |
-|----------|----------|-------|
-| Browsable list of items | `ListTemplate` | Most common; supports images, text rows |
-| Visual category grid | `GridTemplate` | Icon-driven; limited text |
-| Simple message/dialog | `MessageTemplate` | Max 2 actions |
-| Active navigation | `NavigationTemplate` | Requires NAVIGATION category |
-| Map with details pane | `MapTemplate` | 1.4+; for POI/charging |
-| Long-form text | `LongMessageTemplate` | Terms of service, legal text |
-| User input | `SearchTemplate` | Voice/keyboard input |
-| Sign-in | `SignInTemplate` | QR code or PIN-based auth |
+Android Auto is a **phone projection protocol** — the app runs on the user's phone and projects its UI onto the car's display via USB or wireless connection. For the shared Car App Library API (CarAppService, Session, Screen, Templates, Constraints, Lifecycle, Testing), see `car-app-library.md`. This file covers Auto-specific patterns only.
 
 
 ## Media Apps
 
-### MediaBrowserService and MediaSession
+### Media3 MediaLibraryService
 ---
 
-Media apps for Android Auto do **not** use the Car App Library. They use the standard `MediaBrowserServiceCompat` + `MediaSessionCompat` pattern. The Auto host renders the UI automatically.
+Media apps for Android Auto do **not** use the Car App Library. They expose a browsable media tree via Media3's `MediaLibraryService`. The Auto host renders the UI automatically.
 
-#### MediaBrowserService
+#### MediaLibraryService
 
-Expose a browse tree of playable and browsable `MediaItem` objects.
+`MediaLibraryService` is the Media3 replacement for the deprecated `MediaBrowserServiceCompat`. It exposes a browse tree of `MediaItem` objects that the Auto host navigates and plays.
 
 ```kotlin
-class MyMediaBrowserService : MediaBrowserServiceCompat() {
+class AutoMediaService : MediaLibraryService() {
+
+    private var mediaSession: MediaLibrarySession? = null
 
     override fun onCreate() {
         super.onCreate()
-        val session = MediaSessionCompat(this, "MyMediaService")
-        sessionToken = session.sessionToken
-        session.setCallback(MyMediaSessionCallback())
-        session.isActive = true
+        val player = ExoPlayer.Builder(this)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true // handle audio focus
+            )
+            .setHandleAudioBecomingNoisy(true)
+            .build()
+
+        mediaSession = MediaLibrarySession.Builder(this, player, LibrarySessionCallback())
+            .build()
     }
 
-    override fun onGetRoot(
-        clientPackageName: String,
-        clientUid: Int,
-        rootHints: Bundle?
-    ): BrowserRoot {
-        return BrowserRoot("ROOT_ID", null)
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
+        mediaSession
+
+    override fun onDestroy() {
+        mediaSession?.run {
+            player.release()
+            release()
+        }
+        super.onDestroy()
+    }
+}
+```
+
+#### Browse Tree
+
+Expose a hierarchical browse tree via `LibrarySessionCallback`. The Auto host calls `onGetLibraryRoot` and `onGetChildren` to navigate the tree.
+
+```kotlin
+class LibrarySessionCallback : MediaLibrarySession.Callback {
+
+    override fun onGetLibraryRoot(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        params: LibraryParams?
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val root = MediaItem.Builder()
+            .setMediaId("ROOT")
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setTitle("My Music")
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .build()
+            )
+            .build()
+        return Futures.immediateFuture(LibraryResult.ofItem(root, params))
     }
 
-    override fun onLoadChildren(
+    override fun onGetChildren(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
         parentId: String,
-        result: Result<MutableList<MediaItem>>
-    ) {
-        result.detach()
-        // Load items asynchronously, then result.sendResult(items)
+        page: Int,
+        pageSize: Int,
+        params: LibraryParams?
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val children = when (parentId) {
+            "ROOT" -> listOf(
+                buildBrowsableItem("PLAYLISTS", "Playlists", MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS),
+                buildBrowsableItem("ALBUMS", "Albums", MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
+                buildBrowsableItem("RECENT", "Recently Played", MediaMetadata.MEDIA_TYPE_FOLDER_MIXED),
+            )
+            "PLAYLISTS" -> loadPlaylists()
+            "ALBUMS" -> loadAlbums()
+            "RECENT" -> loadRecentTracks()
+            else -> emptyList()
+        }
+        return Futures.immediateFuture(LibraryResult.ofItemList(children, params))
+    }
+
+    private fun buildBrowsableItem(
+        mediaId: String,
+        title: String,
+        mediaType: @MediaMetadata.MediaType Int,
+    ): MediaItem {
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setTitle(title)
+                    .setMediaType(mediaType)
+                    .build()
+            )
+            .build()
     }
 }
 ```
@@ -264,48 +124,89 @@ class MyMediaBrowserService : MediaBrowserServiceCompat() {
 #### Browse Tree Structure
 
 ```
-ROOT_ID
-├── PLAYLISTS
-│   ├── Playlist A
-│   └── Playlist B
-├── ALBUMS
-│   ├── Album 1
-│   └── Album 2
-└── RECENTLY_PLAYED
-    ├── Song X
-    └── Song Y
+ROOT
+├── PLAYLISTS      (browsable)
+│   ├── Playlist A (playable)
+│   └── Playlist B (playable)
+├── ALBUMS         (browsable)
+│   ├── Album 1    (browsable → tracks)
+│   └── Album 2    (browsable → tracks)
+└── RECENT         (browsable)
+    ├── Song X     (playable)
+    └── Song Y     (playable)
 ```
 
-- Use `MediaDescriptionCompat` to set title, subtitle, and icon URI.
-- Mark items as `FLAG_BROWSABLE` (folder) or `FLAG_PLAYABLE` (leaf).
+- Set `isBrowsable = true` for folders, `isPlayable = true` for leaf items.
+- Set `mediaType` on metadata for proper icon rendering in the Auto host.
 - Limit browse tree depth and breadth per Auto content guidelines.
 
-#### Playback Controls
+#### Playable Items
 
 ```kotlin
-class MyMediaSessionCallback : MediaSessionCompat.Callback() {
-    override fun onPlay() { /* start playback */ }
-    override fun onPause() { /* pause */ }
-    override fun onSkipToNext() { /* next track */ }
-    override fun onSkipToPrevious() { /* previous track */ }
-    override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) { /* play specific item */ }
-    override fun onPlayFromSearch(query: String?, extras: Bundle?) { /* voice search */ }
+fun buildPlayableItem(id: String, title: String, artist: String, artworkUri: Uri): MediaItem {
+    return MediaItem.Builder()
+        .setMediaId(id)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist)
+                .setArtworkUri(artworkUri)
+                .setIsBrowsable(false)
+                .setIsPlayable(true)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                .build()
+        )
+        .setRequestMetadata(
+            MediaItem.RequestMetadata.Builder()
+                .setMediaUri(Uri.parse("content://media/$id"))
+                .build()
+        )
+        .build()
 }
 ```
 
-Set `PlaybackStateCompat` actions to control which buttons appear:
+#### Voice Search
+
+Handle voice-initiated playback via `onAddMediaItems`:
 
 ```kotlin
-val stateBuilder = PlaybackStateCompat.Builder()
-    .setActions(
-        PlaybackStateCompat.ACTION_PLAY or
-        PlaybackStateCompat.ACTION_PAUSE or
-        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-    )
-    .setState(PlaybackStateCompat.STATE_PLAYING, position, 1.0f)
-mediaSession.setPlaybackState(stateBuilder.build())
+override fun onAddMediaItems(
+    mediaSession: MediaSession,
+    controller: MediaSession.ControllerInfo,
+    mediaItems: List<MediaItem>
+): ListenableFuture<List<MediaItem>> {
+    // Media3 sends voice search queries as MediaItems with search RequestMetadata
+    val resolvedItems = mediaItems.map { item ->
+        val searchQuery = item.requestMetadata.searchQuery
+        if (searchQuery != null) {
+            // Resolve search query to actual playable items
+            searchMediaCatalog(searchQuery).first()
+        } else {
+            // Resolve by mediaId
+            resolveMediaItem(item.mediaId)
+        }
+    }
+    return Futures.immediateFuture(resolvedItems)
+}
 ```
+
+#### Manifest Declaration
+
+```xml
+<service
+    android:name=".AutoMediaService"
+    android:exported="true"
+    android:foregroundServiceType="mediaPlayback">
+    <intent-filter>
+        <action android:name="androidx.media3.session.MediaLibraryService" />
+    </intent-filter>
+</service>
+
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+```
+
+For detailed ExoPlayer, audio focus, and MediaSession patterns, see `media-playback.md`.
 
 
 ## Messaging Apps
@@ -385,50 +286,7 @@ Key requirements:
 ### Turn-by-Turn Navigation
 ---
 
-Navigation apps use the `NavigationTemplate` and the `NavigationManager` API.
-
-#### SurfaceCallback
-
-Implement `SurfaceCallback` to draw maps on the car display surface.
-
-```kotlin
-class MyNavigationSession : Session() {
-
-    private val surfaceCallback = object : SurfaceCallback {
-        override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
-            val surface = surfaceContainer.surface ?: return
-            // Initialize rendering (e.g., OpenGL, Canvas)
-            drawMap(surface)
-        }
-
-        override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-            // Release rendering resources
-        }
-
-        override fun onVisibleAreaChanged(visibleArea: Rect) {
-            // Adjust map rendering to visible area (accounts for template overlays)
-        }
-
-        override fun onStableAreaChanged(stableArea: Rect) {
-            // Area that remains constant (safe zone for persistent UI)
-        }
-
-        override fun onScroll(distanceX: Float, distanceY: Float) {
-            // Handle pan gestures
-        }
-
-        override fun onScale(focusX: Float, focusY: Float, scaleFactor: Float) {
-            // Handle pinch-to-zoom
-        }
-    }
-
-    override fun onCreateScreen(intent: Intent): Screen {
-        carContext.getCarService(AppManager::class.java)
-            .setSurfaceCallback(surfaceCallback)
-        return NavigationScreen(carContext)
-    }
-}
-```
+Navigation apps use the `NavigationTemplate` and the `NavigationManager` API. For `SurfaceCallback` map rendering, see `car-app-library.md`.
 
 #### NavigationManager
 
@@ -485,47 +343,12 @@ You can also provide a custom `CarIcon` for non-standard maneuvers.
 ### Point-of-Interest Templates
 ---
 
-POI and charging/EV apps use `MapTemplate` (1.4+) and `PlaceListMapTemplate` to display locations on the map alongside detail panes.
+POI and charging/EV apps use `MapWithContentTemplate` to display locations on the map alongside detail panes. For template details, see `car-app-library.md`.
 
-#### PlaceListMapTemplate
-
-Shows a list of places pinned on a map.
+#### MapWithContentTemplate for Charging/POI Detail
 
 ```kotlin
-val placeList = ItemList.Builder()
-    .addItem(
-        Row.Builder()
-            .setTitle("Charging Station A")
-            .addText("2 chargers available")
-            .setMetadata(
-                Metadata.Builder()
-                    .setPlace(
-                        Place.Builder(
-                            CarLocation.create(37.7749, -122.4194)
-                        )
-                            .setMarker(PlaceMarker.Builder().build())
-                            .build()
-                    )
-                    .build()
-            )
-            .setOnClickListener { screenManager.push(StationDetailScreen(carContext)) }
-            .build()
-    )
-    .build()
-
-PlaceListMapTemplate.Builder()
-    .setTitle("Nearby Chargers")
-    .setItemList(placeList)
-    .setHeaderAction(Action.BACK)
-    .build()
-```
-
-#### MapTemplate for Charging/POI Detail
-
-Use `MapTemplate` with a `Pane` to show details alongside the map.
-
-```kotlin
-MapTemplate.Builder()
+MapWithContentTemplate.Builder()
     .setMapController(
         MapController.Builder()
             .setMapActionStrip(
@@ -535,75 +358,34 @@ MapTemplate.Builder()
             )
             .build()
     )
-    .setPane(
-        Pane.Builder()
-            .setHeader(PaneTemplate.Header.Builder().setTitle("Station A").build())
-            .addRow(Row.Builder().setTitle("CCS 150kW").addText("Available").build())
-            .addRow(Row.Builder().setTitle("Price").addText("$0.35/kWh").build())
-            .addAction(
-                Action.Builder()
-                    .setTitle("Start Charging")
-                    .setOnClickListener { /* initiate session */ }
-                    .build()
-            )
+    .setContentTemplate(
+        PaneTemplate.Builder(
+            Pane.Builder()
+                .addRow(Row.Builder().setTitle("CCS 150kW").addText("Available").build())
+                .addRow(Row.Builder().setTitle("Price").addText("$0.35/kWh").build())
+                .addAction(
+                    Action.Builder()
+                        .setTitle("Start Charging")
+                        .setOnClickListener { /* initiate session */ }
+                        .build()
+                )
+                .build()
+        )
+            .setTitle("Station A")
             .build()
     )
     .build()
 ```
 
-Required category for POI apps:
+Required categories:
 
 ```xml
+<!-- POI apps -->
 <category android:name="androidx.car.app.category.POI" />
-```
 
-For EV charging apps specifically:
-
-```xml
+<!-- EV charging apps -->
 <category android:name="androidx.car.app.category.CHARGING" />
 ```
-
-
-## Constraints and Limitations
-
-### Distraction and Safety Guidelines
----
-
-Android Auto enforces strict constraints to minimize driver distraction. These are enforced at the host level and cannot be bypassed.
-
-#### Template Depth Limit
-
-- Maximum **5 templates** in the back stack (screen depth).
-- `Screen` pushes beyond this limit will throw an exception.
-- `ScreenManager.popToRoot()` resets the depth counter.
-- Refreshing the current template (calling `invalidate()` on the same `Screen`) does **not** count toward the depth limit.
-
-#### List Item Limits
-
-| Constraint | Limit |
-|------------|-------|
-| `ItemList` items (list/grid) | **6** items (may vary by OEM/host) |
-| `ActionStrip` actions | **4** actions |
-| `Pane` rows | **4** rows |
-| `Pane` actions | **2** actions |
-| `MessageTemplate` actions | **2** actions |
-
-Use `ConstraintManager` to query the actual limits at runtime:
-
-```kotlin
-val constraintManager = carContext.getCarService(ConstraintManager::class.java)
-val listLimit = constraintManager.getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_LIST)
-val gridLimit = constraintManager.getContentLimit(ConstraintManager.CONTENT_LIMIT_TYPE_GRID)
-```
-
-#### Additional Constraints
-
-- **Text length**: long strings are truncated by the host. Keep titles and descriptions short.
-- **Images**: use `CarIcon` with appropriate sizing. Large bitmaps are scaled/rejected.
-- **Interaction**: no free-form text input while driving (keyboard disabled). `SearchTemplate` uses voice input while moving.
-- **Refresh rate**: avoid calling `invalidate()` more than once per second. Excessive refreshes are throttled by the host.
-- **No custom views**: all UI must go through templates. You cannot inflate custom layouts.
-- **Dark mode**: support both light and dark `CarIcon` variants. The host switches automatically.
 
 
 ## Testing
@@ -611,7 +393,7 @@ val gridLimit = constraintManager.getContentLimit(ConstraintManager.CONTENT_LIMI
 ### Desktop Head Unit (DHU)
 ---
 
-The DHU simulates an Android Auto head unit on your development machine.
+The DHU simulates an Android Auto head unit on your development machine. For unit testing with `TestCarContext` and `SessionController`, see `car-app-library.md`.
 
 #### Setup
 
@@ -643,181 +425,17 @@ mic play <audio_file.wav>
 nav focus
 ```
 
-### TestCarContext
----
-
-`TestCarContext` (from `androidx.car.app.testing`) provides a test-friendly `CarContext` for unit tests.
-
-```kotlin
-@Test
-fun mainScreen_displaysListTemplate() {
-    val testCarContext = TestCarContext.createCarContext(ApplicationProvider.getApplicationContext())
-    val screen = MainScreen(testCarContext)
-    val template = screen.onGetTemplate()
-
-    assertThat(template).isInstanceOf(ListTemplate::class.java)
-    val listTemplate = template as ListTemplate
-    assertThat(listTemplate.title).isEqualTo("Main Menu")
-}
-```
-
-#### Testing Screen Navigation
-
-```kotlin
-@Test
-fun clickingItem_pushesDetailScreen() {
-    val testCarContext = TestCarContext.createCarContext(ApplicationProvider.getApplicationContext())
-    val screen = MainScreen(testCarContext)
-    val template = screen.onGetTemplate() as ListTemplate
-
-    // Simulate click on first item
-    val firstItem = template.singleList!!.items[0] as Row
-    firstItem.onClickDelegate.sendClick()
-
-    val screenManager = testCarContext.getCarService(ScreenManager::class.java)
-    assertThat(screenManager.screenStack).hasSize(2)
-}
-```
-
-#### Instrumented Testing
-
-Use `SessionController` for end-to-end session testing:
-
-```kotlin
-@Test
-fun session_createsCorrectInitialScreen() {
-    val session = MySession()
-    val controller = SessionController(
-        session,
-        TestCarContext.createCarContext(ApplicationProvider.getApplicationContext())
-    )
-    controller.create(Intent())
-
-    val currentScreen = session.carContext
-        .getCarService(ScreenManager::class.java)
-        .top
-
-    assertThat(currentScreen).isInstanceOf(MainScreen::class.java)
-}
-```
-
-
-## Lifecycle
-
-### CarAppService Lifecycle
----
-
-The `CarAppService` and `Session` lifecycle follows Android bound-service semantics, combined with Car App Library-specific callbacks.
-
-#### Connection Flow
-
-```
-Host connects to CarAppService
-    → CarAppService.onCreateSession()
-        → Session.onCreateScreen(intent)
-            → Screen.onGetTemplate()  (initial template rendered)
-        → Session.onNewIntent(intent)  (subsequent intents)
-    → Session lifecycle: ON_CREATE → ON_START → ON_RESUME
-```
-
-#### Disconnection Flow
-
-```
-Host disconnects
-    → Session lifecycle: ON_PAUSE → ON_STOP → ON_DESTROY
-    → CarAppService.onDestroy()  (if no more sessions)
-```
-
-#### Key Lifecycle Callbacks
-
-```kotlin
-class MySession : Session() {
-    override fun onCreateScreen(intent: Intent): Screen {
-        // Called once per session; return the root screen
-        return MainScreen(carContext)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        // Called when a new intent is sent to an existing session
-        // e.g., notification tap while already connected
-    }
-
-    override fun onCarConfigurationChanged(newConfiguration: Configuration) {
-        // Called when car configuration changes (e.g., day/night mode)
-    }
-}
-```
-
-#### Lifecycle-Aware Components
-
-`Session` implements `LifecycleOwner`. Use it to scope work:
-
-```kotlin
-class MySession : Session() {
-    override fun onCreateScreen(intent: Intent): Screen {
-        lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                // Start location updates
-            }
-            override fun onStop(owner: LifecycleOwner) {
-                // Stop location updates
-            }
-        })
-        return MainScreen(carContext)
-    }
-}
-```
-
-#### CarContext
-
-`CarContext` is available after `onCreateScreen()`. It provides access to car services, navigation intents, and host info:
-
-```kotlin
-// Check API level supported by the connected host
-val hostApiLevel = carContext.carAppApiLevel
-
-// Start navigation in another app
-carContext.startCarApp(
-    Intent(CarContext.ACTION_NAVIGATE, Uri.parse("geo:37.7749,-122.4194"))
-)
-
-// Request permissions
-carContext.requestPermissions(listOf(Manifest.permission.ACCESS_FINE_LOCATION)) { granted, rejected ->
-    // handle result
-}
-```
-
 
 ## Distribution
 
 ### Play Store for Android Auto
 ---
 
-#### App Categories
-
-Declare the appropriate category in your manifest. Only approved categories are accepted:
-
-| Category | Manifest Value |
-|----------|---------------|
-| Navigation | `androidx.car.app.category.NAVIGATION` |
-| Parking / POI | `androidx.car.app.category.POI` |
-| Charging (EV) | `androidx.car.app.category.CHARGING` |
-| Media | Standard `MediaBrowserService` (no category needed) |
-| Messaging | Standard notifications (no category needed) |
-| IoT | `androidx.car.app.category.IOT` |
-
 #### Minimum Requirements
-
-- Declare `minCarAppApiLevel` in `AndroidManifest.xml`:
-
-```xml
-<meta-data
-    android:name="androidx.car.app.minCarAppApiLevel"
-    android:value="5" /> <!-- Car App Library 1.4 = API level 5+ -->
-```
 
 - Target API level 33+ for new submissions.
 - Include both mobile and Auto experiences in the same APK/AAB (Auto is not a separate listing).
+- Set `minCarAppApiLevel` in manifest (see `car-app-library.md`).
 
 #### Review Guidelines
 

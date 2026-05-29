@@ -18,18 +18,19 @@ Fire Tablets are AOSP-based Android tablets manufactured by Amazon. They run sta
 
 ### Hardware Comparison
 
-| Model | Display | Resolution | Density | RAM | Storage | Fire OS | API Level |
-|---|---|---|---|---|---|---|---|
-| Fire 7 (2022) | 7" IPS | 1024 x 600 | ~170 dpi (mdpi) | 2 GB | 16/32 GB | 8 | 30 (Android 11) |
-| Fire HD 8 (2022) | 8" IPS | 1280 x 800 | ~189 dpi (mdpi/hdpi) | 2 GB | 32/64 GB | 8 | 30 (Android 11) |
-| Fire HD 10 (2023) | 10.1" IPS | 1920 x 1200 | ~224 dpi (hdpi) | 3 GB | 32/64 GB | 8 | 30 (Android 11) |
-| Fire Max 11 (2023) | 11" IPS | 2000 x 1200 | ~213 dpi (hdpi) | 4 GB | 64/128 GB | 8 | 30 (Android 11) |
+| Tier | RAM | Density | Display | Notes |
+|---|---|---|---|---|
+| Low | 2 GB | mdpi (~170 dpi) | 7" ~1024x600 | Reduce image cache, simplify animations, use mdpi assets |
+| Mid | 3 GB | mdpi-hdpi (~190 dpi) | 8" ~1280x800 | Standard experience, moderate asset quality |
+| High | 3-4 GB | hdpi (~220 dpi) | 10-11" ~1920x1200+ | Full experience, stylus support possible |
+
+For the current device lineup and exact specifications, see the [Amazon Fire Tablet Device Specifications](https://developer.amazon.com/docs/fire-tablets/ft-device-specifications.html).
 
 ### Performance Tiers
 
-- **Low tier** (Fire 7): Slowest SoC, 2 GB RAM, lowest resolution. Treat this as a constrained device -- reduce image cache sizes, avoid heavy animations, limit background work. The 1024x600 resolution at 7" yields ~170 dpi, which maps to `mdpi` density bucket.
-- **Mid tier** (Fire HD 8): Modest improvement over Fire 7. Still 2 GB RAM but a faster processor and higher resolution. Standard experience with moderate asset quality.
-- **High tier** (Fire HD 10, Fire Max 11): 3-4 GB RAM, faster SoCs, higher resolution displays. Full experience with richer layouts and larger assets. Fire Max 11 supports stylus input (Amazon-branded stylus).
+- **Low tier**: Slowest SoC, 2 GB RAM, lowest resolution. Treat this as a constrained device -- reduce image cache sizes, avoid heavy animations, limit background work. The 1024x600 resolution at 7" yields ~170 dpi, which maps to `mdpi` density bucket.
+- **Mid tier**: Modest improvement over low tier. Still 2 GB RAM but a faster processor and higher resolution. Standard experience with moderate asset quality.
+- **High tier**: 3-4 GB RAM, faster SoCs, higher resolution displays. Full experience with richer layouts and larger assets. Some high-tier devices support stylus input (Amazon-branded stylus).
 
 ### Density Bucket Mapping
 
@@ -287,10 +288,10 @@ Use this before submission to catch device-specific issues without owning every 
 
 ### Fire 7 Performance
 
-The Fire 7 is the weakest device in the lineup. Common issues:
+Low-tier Fire Tablets are the weakest devices in the lineup. Common issues:
 
 - **Out of memory**: 2 GB total RAM, ~1-1.2 GB available to apps after system overhead. Large image caches or multiple retained Bitmaps will trigger OOM. Use `Coil` or `Glide` with strict memory cache limits.
-- **Slow rendering**: The GPU is underpowered. Avoid stacked translucent layers, complex `Canvas` drawing, and blur effects. Simplify or skip animations on this tier.
+- **Slow rendering**: The GPU is underpowered. Avoid stacked translucent layers, complex `Canvas` drawing, and blur effects. Simplify or skip animations on low-tier devices.
 - **1024x600 resolution**: This is below the `sw600dp` breakpoint commonly used for tablet layouts. Some apps treat this as a large phone rather than a small tablet. Test your `WindowSizeClass`-based layout decisions at this resolution.
 
 ### Memory Constraints
@@ -303,11 +304,11 @@ adb shell dumpsys meminfo <package>
 
 Set per-tier memory budgets:
 
-| Tier | Device | App Heap Target |
-|---|---|---|
-| Low | Fire 7 | < 80 MB |
-| Mid | Fire HD 8 | < 120 MB |
-| High | Fire HD 10, Max 11 | < 200 MB |
+| Tier | App Heap Target |
+|---|---|
+| Low | < 80 MB |
+| Mid | < 120 MB |
+| High | < 200 MB |
 
 ### Missing Sensors
 

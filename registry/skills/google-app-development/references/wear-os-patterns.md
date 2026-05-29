@@ -2,12 +2,14 @@
 
 >[toc]
 
-Target: **Wear OS 4+** / latest **Compose for Wear OS** (Horologist + Wear Compose Foundation & Material3).
+Target: latest **Wear OS** / **Compose for Wear OS** with Material 3 (`androidx.wear.compose.material3`).
 
 
 ## Compose for Wear OS
 
 Wear OS uses a dedicated Compose toolkit (`androidx.wear.compose`) that accounts for round displays, limited screen real estate, and wrist-based interaction.
+
+> **Important:** Use `androidx.wear.compose.material3` for Wear OS UI. This library supersedes `androidx.wear.compose:compose-material` and implements Material 3 Expressive design for Wear OS. Do not mix objects from this library with objects from the mobile Compose Material 3 library (`androidx.compose.material3`).
 
 ### Core Navigation — `SwipeDismissableNavHost`
 ---
@@ -30,8 +32,35 @@ SwipeDismissableNavHost(
 - Each destination automatically supports swipe-to-dismiss to go back.
 - Avoid deeply nested navigation; prefer flat hierarchies (2-3 levels max).
 
-### `ScalingLazyColumn`
+### `TransformingLazyColumn` (Recommended)
 ---
+The preferred scrollable list component for Wear OS. It provides morphing and scaling animations with better performance than `ScalingLazyColumn`.
+
+```kotlin
+val listState = rememberTransformingLazyColumnState()
+
+TransformingLazyColumn(
+    state = listState,
+    modifier = Modifier.fillMaxSize(),
+) {
+    item { ListHeader { Text("Settings") } }
+    items(options) { option ->
+        Button(
+            onClick = { /* handle */ },
+            label = { Text(option.title) },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+```
+
+- Supports rotary input by default — no explicit `rotaryScrollable` setup needed.
+- Use `TransformingLazyColumn` for all new Wear OS screens.
+
+### `ScalingLazyColumn` (Legacy)
+---
+`TransformingLazyColumn` is the preferred replacement. Use `ScalingLazyColumn` only in existing codebases that have not migrated.
+
 The primary scrollable list component for Wear OS. It applies scaling and transparency effects to items near the edges of the round screen so content feels natural on a circular viewport.
 
 ```kotlin
@@ -294,7 +323,9 @@ measureClient.unregisterMeasureCallbackAsync(DataType.HEART_RATE_BPM, measureCal
 
 ### Watch Face Format (WFF)
 ---
-Wear OS 4+ uses the **Watch Face Format**, a declarative XML-based format that replaces the legacy `CanvasWatchFaceService`. Watch faces are bundled as APKs containing XML configuration rather than custom drawing code.
+Wear OS uses the **Watch Face Format**, a declarative XML-based format that replaces the legacy `CanvasWatchFaceService`. Watch faces are bundled as APKs containing XML configuration rather than custom drawing code.
+
+> **Legacy watch faces (AndroidX or WSL-based) are no longer accepted on Google Play.** WFF is the only supported format for watch face distribution. Use Watch Face Studio for visual design.
 
 ```xml
 <!-- res/raw/watchface.xml -->
@@ -344,6 +375,8 @@ Most Wear OS devices have a rotating side button (crown) or bezel. Compose for W
 
 ### `rotaryScrollable()`
 ---
+
+> **Note:** `TransformingLazyColumn` and recent versions of `ScalingLazyColumn` support rotary input by default. Explicit `rotaryScrollable` setup is only needed for custom scrollable components.
 
 ```kotlin
 val listState = rememberScalingLazyListState()

@@ -1,19 +1,16 @@
 # Android Automotive OS (AAOS) Patterns Reference
 
-Target: AAOS Android 14+
+Target: latest stable AAOS
 
 >[toc]
+
+Android Automotive OS (AAOS) is a **full embedded operating system** that runs directly on the vehicle's infotainment head unit. For the shared Car App Library API (CarAppService, Session, Screen, Templates, Constraints, Lifecycle, Testing), see `car-app-library.md`. For Android Auto phone projection patterns, see `android-auto-patterns.md`. This file covers AAOS-specific patterns only.
 
 
 ## AAOS vs Android Auto
 
 ### Architectural Distinction
 ---
-Android Automotive OS (AAOS) is a **full embedded operating system** that runs directly on the vehicle's infotainment head unit. It replaces the OEM's proprietary OS entirely — Android is the platform, not a guest.
-
-Android Auto is a **phone projection protocol**. The app runs on the user's phone and projects its UI onto the car's display via USB or wireless connection. The head unit acts as a remote display and input surface.
-
-#### When to Use Which
 
 | Factor | AAOS | Android Auto |
 |--------|------|--------------|
@@ -25,51 +22,26 @@ Android Auto is a **phone projection protocol**. The app runs on the user's phon
 | **OEM dependency** | High — app runs on OEM hardware | Low — runs on any compatible phone |
 | **Use case** | Deep vehicle integration, system apps, HVAC, native media | Portable companion apps, navigation, messaging |
 
-#### Shared API Surface
-The **Car App Library** (`androidx.car.app`) provides a common template-based API that works on both Android Auto and AAOS. Apps built with this library can target both platforms from a single codebase, with AAOS-specific capabilities available through runtime checks.
+#### AAOS for Software-Defined Vehicles (AAOS SDV)
 
-```kotlin
-// Check if running on AAOS (embedded) vs Android Auto (projection)
-val isAutomotive = context.packageManager
-    .hasSystemFeature("android.hardware.type.automotive")
-```
+AAOS is expanding beyond infotainment to cover broader vehicle systems — seat actuators, climate, lighting, cameras, mirrors, and telemetry. This is primarily relevant for OEM system apps with platform-level signing. Third-party app developers should be aware of this direction but do not need to target AAOS SDV APIs directly.
 
 
 ## Car App Library on AAOS
 
-### Same API, Additional Capabilities
+### AAOS-Specific Differences
 ---
-On AAOS, the Car App Library provides the same template-driven UI model as Android Auto — `Screen`, `Template`, `Session` — but with expanded capabilities.
 
-#### Key Differences on AAOS
+The Car App Library works identically on AAOS and Android Auto (see `car-app-library.md`). On AAOS, the following additional capabilities are available:
 
 - **Broader template support**: AAOS supports `MapTemplate`, `TabTemplate`, and longer lists without the strict item-count limits enforced on Android Auto.
 - **Background execution**: Apps can perform background work more freely since they run natively on the vehicle OS, not projected from a phone.
 - **Direct hardware access**: Apps can access vehicle hardware APIs alongside Car App Library UI, combining template UI with `CarHardwareManager` data.
 - **Multiple display support**: AAOS supports rendering to instrument cluster and rear-seat displays via `CarAppService` and `SurfaceContainer`.
 
-#### CarAppService on AAOS
-
-```kotlin
-class MyCarAppService : CarAppService() {
-    override fun createHostValidator(): HostValidator {
-        // On AAOS, the host is the system's car app host
-        return HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
-    }
-
-    override fun onCreateSession(): Session {
-        return MySession()
-    }
-}
-
-class MySession : Session() {
-    override fun onCreateScreen(intent: Intent): Screen {
-        return MainScreen(carContext)
-    }
-}
-```
-
 #### Manifest Declaration for AAOS
+
+AAOS apps require the `android.hardware.type.automotive` system feature:
 
 ```xml
 <manifest>
@@ -77,7 +49,6 @@ class MySession : Session() {
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
-    <!-- Declare supported template categories -->
     <application>
         <service
             android:name=".MyCarAppService"
@@ -89,15 +60,6 @@ class MySession : Session() {
         </service>
     </application>
 </manifest>
-```
-
-#### API Level Awareness
-
-```kotlin
-// Check Car App API level for feature availability
-if (carContext.carAppApiLevel >= CarAppApiLevels.LEVEL_5) {
-    // Use TabTemplate, MapTemplate with content refresh
-}
 ```
 
 
@@ -282,51 +244,14 @@ When using the Car App Library, distraction optimization is handled automaticall
 
 ## Media Apps on AAOS
 
-### Native Playback and Audio Focus
+### Media3 MediaLibraryService and AAOS Audio
 ---
 
-#### MediaBrowserService Pattern
+Media apps on AAOS expose a browsable media tree via Media3's `MediaLibraryService`. The vehicle's system media app (OEM media center) browses and controls playback through this service. For the full `MediaLibraryService` implementation pattern (browse tree, callbacks, voice search), see `android-auto-patterns.md` — the same Media3 API applies to both platforms.
 
-Media apps on AAOS follow the standard `MediaBrowserServiceCompat` pattern. The vehicle's system media app (OEM media center) browses and controls playback through this service.
+#### AAOS-Specific: Audio Focus
 
-```kotlin
-class MyMediaBrowserService : MediaBrowserServiceCompat() {
-
-    private lateinit var mediaSession: MediaSessionCompat
-
-    override fun onCreate() {
-        super.onCreate()
-        mediaSession = MediaSessionCompat(this, "MyMediaService").apply {
-            setCallback(mediaSessionCallback)
-            isActive = true
-        }
-        sessionToken = mediaSession.sessionToken
-    }
-
-    override fun onGetRoot(
-        clientPackageName: String,
-        clientUid: Int,
-        rootHints: Bundle?
-    ): BrowserRoot {
-        // Return browsable root; validate caller package
-        return BrowserRoot("root", null)
-    }
-
-    override fun onLoadChildren(
-        parentId: String,
-        result: Result<MutableList<MediaBrowserCompat.MediaItem>>
-    ) {
-        result.detach()
-        // Load and send media items asynchronously
-        val items = loadMediaItems(parentId)
-        result.sendResult(items)
-    }
-}
-```
-
-#### Audio Focus on AAOS
-
-AAOS uses the standard `AudioManager` API for audio focus, but vehicle-specific behavior applies:
+AAOS uses the standard `AudioManager` API for audio focus, but vehicle-specific behavior applies (e.g., navigation prompts may duck media differently per OEM):
 
 ```kotlin
 val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -351,7 +276,9 @@ val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).apply
 audioManager.requestAudioFocus(focusRequest)
 ```
 
-#### Multi-Zone Audio
+> **Note:** When using Media3 `ExoPlayer` with `setAudioAttributes(..., handleAudioFocus = true)`, audio focus is managed automatically. See `media-playback.md`.
+
+#### AAOS-Specific: Multi-Zone Audio
 
 AAOS supports multi-zone audio for vehicles with multiple audio zones (front, rear, etc.):
 
@@ -375,12 +302,16 @@ val rearZone = carAudioManager.getZoneIdForOccupant(
 
 ```xml
 <service
-    android:name=".MyMediaBrowserService"
-    android:exported="true">
+    android:name=".AutoMediaService"
+    android:exported="true"
+    android:foregroundServiceType="mediaPlayback">
     <intent-filter>
-        <action android:name="android.media.browse.MediaBrowserService" />
+        <action android:name="androidx.media3.session.MediaLibraryService" />
     </intent-filter>
 </service>
+
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
 <meta-data
     android:name="com.google.android.gms.car.application"
@@ -695,7 +626,7 @@ val userSpecificPrefs = context.getSharedPreferences(
 |------|---------|-------------|----------|
 | **System/Platform** | OEM platform key | Full VHAL access, system UI, privileged APIs | Settings, Climate, Instrument Cluster |
 | **Privileged** | Pre-installed, allowlisted | Select privileged permissions | OEM media, OEM navigation |
-| **Third-party** | Developer key | Car App Library, MediaBrowserService, standard Android APIs | Spotify, Waze, third-party apps |
+| **Third-party** | Developer key | Car App Library, MediaLibraryService, standard Android APIs | Spotify, Waze, third-party apps |
 
 #### Privileged API Access
 
@@ -719,7 +650,7 @@ val watchdogManager = car.getCarManager(Car.CAR_WATCHDOG_SERVICE) as CarWatchdog
 
 Third-party apps on AAOS:
 
-- Must use Car App Library templates or `MediaBrowserService` — no arbitrary `Activity`-based UI (unless the app targets specific categories like video or browser on Android 14+).
+- Must use Car App Library templates or `MediaLibraryService` — no arbitrary `Activity`-based UI (unless the app targets specific categories like video or browser on Android 14+).
 - Cannot access privileged car properties (HVAC, diagnostics, etc.).
 - Must comply with distraction optimization requirements.
 - Are subject to Play Store for Automotive policies.
@@ -857,7 +788,7 @@ AAOS apps are distributed through the **Google Play Store for Automotive**, a se
 android {
     defaultConfig {
         minSdk = 29  // AAOS minimum
-        targetSdk = 34
+        targetSdk = <latest-stable-api>
     }
 
     flavorDimensions += "platform"
@@ -920,7 +851,7 @@ Apps submitted to Play Store for Automotive must meet:
 
 - **Distraction optimization**: All interactive UI must comply with driver distraction guidelines.
 - **Template usage**: Car App Library apps must use approved templates — no custom `Activity` rendering for navigation/POI categories.
-- **Media apps**: Must implement `MediaBrowserService` correctly; no audio-only playback hacks.
+- **Media apps**: Must implement `MediaLibraryService` correctly; no audio-only playback hacks.
 - **Privacy**: Must comply with Automotive-specific data handling policies, especially for location and driving data.
 - **Quality guidelines**: Must handle multi-user, screen size variation, day/night mode, and landscape orientation.
 
@@ -931,7 +862,7 @@ Android 14 expanded the categories of apps allowed on AAOS:
 | Category | UI Model | Notes |
 |----------|----------|-------|
 | **Navigation** | Car App Library (map surface) | Full map rendering via `SurfaceContainer` |
-| **Media** | `MediaBrowserService` | System media app handles UI |
+| **Media** | `MediaLibraryService` | System media app handles UI |
 | **Messaging** | Car App Library | Template-based conversations |
 | **POI / Parking** | Car App Library | Points of interest, charging, fuel |
 | **Video** | Standard `Activity` | Only when parked; new in Android 13+ |

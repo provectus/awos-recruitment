@@ -1,6 +1,6 @@
 ---
 name: kotlin-development
-description: "This skill should be used when the user asks to \"write Kotlin code\", \"create a Kotlin class\", \"set up a Kotlin project\", \"review Kotlin code\", \"refactor Kotlin\", \"use coroutines\", \"fix Kotlin style\", or when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices covering null safety, coroutines, data modeling, error handling, and idiomatic patterns. Does not cover any specific library or framework."
+description: "This skill should be used when the user asks to \"write Kotlin code\", \"create a Kotlin class\", \"set up a Kotlin project\", \"review Kotlin code\", \"refactor Kotlin\", \"use coroutines\", \"fix Kotlin style\", \"set up Detekt\", \"configure ktlint\", \"add static analysis\", \"set up code linting\", or when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices covering null safety, coroutines, data modeling, error handling, idiomatic patterns, and static analysis (Detekt, ktlint). Does not cover any specific library or framework."
 version: 0.1.0
 ---
 
@@ -14,6 +14,7 @@ Modern Kotlin best practices for writing concise, safe, and idiomatic code. Targ
 - **`references/patterns.md`** — Scope functions, sealed hierarchies, delegation, extensions, DSL builders, domain modeling, error handling guide
 - **`references/coroutines.md`** — Flow, StateFlow/SharedFlow, Channels, exception handling, cancellation, testing
 - **`references/project-structure.md`** — `build.gradle.kts`, multi-module, compiler options, testing setup
+- **`references/static-analysis.md`** — Detekt (setup, `detekt.yml`, rule sets, custom rules, baseline, Compose rules), ktlint (setup, `.editorconfig`, standard rules, Spotless), Detekt vs ktlint comparison, multi-module convention plugin, pre-commit hooks
 
 ## Code Style
 

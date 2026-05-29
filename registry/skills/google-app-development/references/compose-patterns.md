@@ -252,15 +252,6 @@ fun MainScreen() {
 }
 ```
 
-### Deep Links
-
-```kotlin
-composable<Profile>(
-    deepLinks = listOf(navDeepLink<Profile>(basePath = "https://example.com/user")),
-) { ... }
-```
-
-
 ## Side Effects
 
 | Effect | When to Use |
@@ -340,22 +331,28 @@ LazyVerticalGrid(
 }
 ```
 
-### Pagination with Paging 3
+### Pagination
+
+Simple custom pagination — ViewModel tracks page/loading state, `LazyColumn` triggers load-more on scroll. For pagination with network sources, see `networking-api.md`.
 
 ```kotlin
 @Composable
 fun UserListScreen(viewModel: UserViewModel = viewModel()) {
-    val users = viewModel.userPager.collectAsLazyPagingItems()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LazyColumn {
-        items(count = users.itemCount, key = users.itemKey { it.id }) { index ->
-            users[index]?.let { UserCard(it) }
+        items(uiState.users, key = { it.id }) { user ->
+            UserCard(user)
         }
 
-        when (users.loadState.append) {
-            is LoadState.Loading -> item { LoadingIndicator() }
-            is LoadState.Error -> item { RetryButton(onClick = { users.retry() }) }
-            else -> {}
+        // Trigger load-more when approaching the end
+        item {
+            if (uiState.hasMore && !uiState.isLoadingMore) {
+                LaunchedEffect(Unit) { viewModel.loadMore() }
+            }
+            if (uiState.isLoadingMore) {
+                LoadingIndicator()
+            }
         }
     }
 }
@@ -444,7 +441,7 @@ AnimatedContent(targetState = screen, label = "screen") { target ->
     }
 }
 
-// Shared element transitions (Compose 1.7+)
+// Shared element transitions
 SharedTransitionLayout {
     AnimatedContent(targetState = showDetail) { isDetail ->
         if (isDetail) {
