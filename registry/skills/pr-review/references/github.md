@@ -1,6 +1,6 @@
 # GitHub operations — pr-review (public mode)
 
-> **Part of:** [pr-review](../SKILL.md). Platform-specific commands for **public mode** (reviewing a real GitHub PR), keyed by operation name. Local mode uses [local.md](local.md) instead and touches none of this. A GitLab or Azure DevOps port implements the same operations in a sibling reference and dispatches on the PR URL host.
+> **Part of:** [pr-review](../SKILL.md). The GitHub commands for **public mode** (reviewing a real GitHub PR), keyed by operation name. Local mode uses [local.md](local.md) instead and runs none of these — it never invokes `gh` or touches the network. Keying by operation name keeps the SKILL workflow platform-agnostic, so similar reference files could be added for other review platforms (GitLab, Azure DevOps, …) and selected by the PR URL host if that's ever needed.
 
 ## Contents
 

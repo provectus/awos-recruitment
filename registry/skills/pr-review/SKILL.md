@@ -9,7 +9,7 @@ Produce a code review that reads like a sharp human wrote it and opens a convers
 
 ## Modes
 
-Pick the mode first — the workflow branches on it.
+Decide the mode before starting the workflow, and state it in one line — the workflow branches on it.
 
 - **public** (default): review a PR **someone else authored** on GitHub. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses [references/github.md](references/github.md).
 - **local**: review **your own working branch** for yourself. No GitHub, no network — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
@@ -30,35 +30,30 @@ Review voice and formatting rules are in [references/house-style.md](references/
 ## Workflow
 
 ```
-- [ ] 1. Choose mode (public default; "locally" → local)
-- [ ] 2. Gather the change and context
-- [ ] 3. Find issues (code-review + applicable pr-review-toolkit agents)
-- [ ] 4. Reconcile (public: against existing comments; local: skip)
-- [ ] 5. Draft in house style: summary, architectural notes, inline findings
-- [ ] 6. Results gate: print the draft and ask — back with sources / proceed / change
-- [ ] 7. Deliver (public: draft review; local: review file)
-- [ ] 8. Summarize; loop on re-review (public)
+- [ ] 1. Gather the change and context
+- [ ] 2. Find issues (code-review + applicable pr-review-toolkit agents)
+- [ ] 3. Reconcile (public: against existing comments; local: skip)
+- [ ] 4. Draft in house style: summary, architectural notes, inline findings
+- [ ] 5. Results gate: print the draft and ask — back with sources / proceed / change
+- [ ] 6. Deliver (public: draft review; local: review file)
+- [ ] 7. Summarize; loop on re-review (public)
 ```
 
-### 1. Choose mode
-
-Apply the choosing rule above. State the chosen mode in one line before proceeding.
-
-### 2. Gather the change and context
+### 1. Gather the change and context
 
 - **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from [references/github.md](references/github.md), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you've reviewed it before. Comment only on lines the PR changed.
 - **local:** run `resolve-base` and `get-local-diff` from [references/local.md](references/local.md). There's no existing conversation to fetch.
 
-### 3. Find issues
+### 2. Find issues
 
 Follow [references/analysis.md](references/analysis.md) — the same engines work on a PR diff or a local diff. Run the `code-review` plugin's confidence-scored sweep and dispatch the `pr-review-toolkit` agents that match what the diff changed. Merge and dedupe into one findings list, carrying each finding's confidence and source forward. Apply the false-positive discipline there: a confident finding is not a correct finding.
 
-### 4. Reconcile
+### 3. Reconcile
 
 - **public:** cross-check each finding against the existing conversation. Drop points already raised and settled; for an open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; keep only what's new.
 - **local:** nothing to reconcile.
 
-### 5. Draft in house style
+### 4. Draft in house style
 
 Turn the survivors into a review per [references/house-style.md](references/house-style.md). Separate the two buckets explicitly:
 
@@ -67,7 +62,7 @@ Turn the survivors into a review per [references/house-style.md](references/hous
 
 No severity badges, no emojis, plain citations. Order by what matters, explained in words. Draft a one-line **verdict** intent for public mode (request changes / comment / approve), but don't act on it until delivery.
 
-### 6. Results gate
+### 5. Results gate
 
 Print the complete draft — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed:
 
@@ -77,18 +72,18 @@ Print the complete draft — summary, architectural notes, and the inline findin
 
 Respect the user's granularity choices — don't fold a distinct observation into the summary if they want it inline, and don't merge separate points. Post or write nothing before the user picks Proceed.
 
-### 7. Deliver
+### 6. Deliver
 
 - **public:** first run `find-pending-review`. If a draft already exists, apply the **never-destroy rule** (don't delete or recreate it — stop and ask; it may hold the user's own comments). Otherwise `create-draft-review` — a pending review the user submits in GitHub, the **default**. Only if the user explicitly chose to submit now, `submit-review` with the verdict. Send any approved `reply-to-thread` replies. Verify the draft's summary body actually posted.
 - **local:** `write-review-file` and print the path. Nothing is sent anywhere.
 
 Posting/saving is automated after approval; judgment is not. In public mode, if GitHub rejects a comment for an out-of-diff line, move it into the summary body and retry rather than dropping it silently.
 
-### 8. Summarize and loop
+### 7. Summarize and loop
 
 Print what was delivered (the draft review URL and inline count, or the file path and counts) with the PR URL on its own line in public mode.
 
-**Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 2–7, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, acknowledge fixes the author made, and converge toward approve. The user still approves each round; the loop automates the cadence, not the judgment.
+**Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 1–6, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, acknowledge fixes the author made, and converge toward approve. The user still approves each round; the loop automates the cadence, not the judgment.
 
 ## Boundaries
 

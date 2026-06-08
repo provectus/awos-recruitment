@@ -1,6 +1,6 @@
 # GitHub operations — pr-comments-address
 
-> **Part of:** [pr-comments-address](../SKILL.md). The platform-specific commands for the receiving workflow, keyed by operation name. A GitLab or Azure DevOps port implements the same operations in a sibling reference and dispatches on the PR URL host.
+> **Part of:** [pr-comments-address](../SKILL.md). The GitHub commands for the receiving workflow in **public mode**, keyed by operation name. Local mode never runs any of these — it stays on the working tree and never invokes `gh` or touches the network. Keying by operation name keeps the SKILL workflow platform-agnostic, so similar reference files could be added for other review platforms (GitLab, Azure DevOps, …) and selected by the PR URL host if that's ever needed.
 
 ## Contents
 
