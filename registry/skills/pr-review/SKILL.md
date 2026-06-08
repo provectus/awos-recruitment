@@ -1,104 +1,100 @@
 ---
 name: pr-review
-description: Use when authoring a code review OF SOMEONE ELSE'S GitHub pull request — "review this PR", "do a code review on PR #N", "leave review comments", "give feedback on their changes". Takes a PR URL (or owner/repo#N, or a bare number inside the repo). Reads existing comments first and reacts to them, finds issues with the code-review plugin and the pr-review-toolkit specialized agents, reformats findings into a human-toned review with no severity badges or emojis, shows you the full draft for per-finding approval and a verdict (approve / request changes / comment), then posts it as one PR review with inline comments. Supports pushback, discussion, and re-review loops. This is the GIVING side of code review; to respond to feedback on your OWN PR, use pr-comments-address. Works best with the code-review and pr-review-toolkit plugins installed.
+description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's GitHub PR and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, with no GitHub or network calls. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges or emojis, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
 ---
 
-# Author a PR Review
+# Author a Code Review
 
-Review a GitHub pull request **someone else authored**. The user is the reviewer of record: you draft, they steer, they approve every word before it posts. Aim for a review that reads like a sharp human wrote it and that opens a conversation — not an automated pass that another agent will rubber-stamp.
+Produce a code review that reads like a sharp human wrote it and opens a conversation. You draft, the user steers, the user approves before anything is posted or saved.
 
-This skill orchestrates existing review engines rather than reinventing analysis. It depends on two plugins (degrades gracefully if absent — see [references/analysis.md](references/analysis.md)):
+## Modes
+
+Pick the mode first — the workflow branches on it.
+
+- **public** (default): review a PR **someone else authored** on GitHub. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses [references/github.md](references/github.md).
+- **local**: review **your own working branch** for yourself. No GitHub, no network — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
+
+**Choosing:** if the request clearly signals local (the trigger words above, or a bare branch with no PR), use local. If it clearly targets a specific remote PR (a PR URL or `owner/repo#N`), use public. If it's ambiguous, ask with `AskUserQuestion`, offering Public as the default.
+
+This skill orchestrates existing review engines rather than reinventing analysis (both modes). It depends on two plugins and degrades gracefully if absent — see [references/analysis.md](references/analysis.md):
 
 - **code-review** — a confidence-scored multi-agent sweep for breadth.
-- **pr-review-toolkit** — specialized agents (`code-reviewer`, `comment-analyzer`, `pr-test-analyzer`, `silent-failure-hunter`, `type-design-analyzer`, `code-simplifier`) for depth on the dimensions a given diff actually touches.
+- **pr-review-toolkit** — specialized agents (`code-reviewer`, `comment-analyzer`, `pr-test-analyzer`, `silent-failure-hunter`, `type-design-analyzer`) for depth on the dimensions a diff actually touches.
 
-GitHub commands are named operations in [references/github.md](references/github.md): `preflight`, `fetch-pr-context`, `fetch-existing-comments`, `post-review`, `reply-to-thread`. Review voice and formatting rules are in [references/house-style.md](references/house-style.md).
+Review voice and formatting rules are in [references/house-style.md](references/house-style.md).
 
 ## Input
 
-`args` is a PR reference: a full URL, `owner/repo#N`, or a bare `N` inside the repo. Parse into `OWNER`, `REPO`, `NUM`. If parsing fails, ask for a PR URL and stop.
+`args` is a PR reference (public) or a branch/base hint (local): a PR URL, `owner/repo#N`, a bare `N` inside the repo, a branch name, or empty (use the current branch). Parse what you can; if public mode needs a PR you can't resolve, ask for a PR URL.
 
 ## Workflow
 
 ```
-- [ ] 1. Preflight
-- [ ] 2. Read the PR and its existing conversation (first)
-- [ ] 3. Find issues (code-review plugin + applicable pr-review-toolkit agents)
-- [ ] 4. Reconcile against the existing conversation
-- [ ] 5. Draft the review in house style
-- [ ] 6. Present for per-finding approval and a verdict
-- [ ] 7. Post one atomic review
-- [ ] 8. Summarize; loop on re-review
+- [ ] 1. Choose mode (public default; "locally" → local)
+- [ ] 2. Gather the change and context
+- [ ] 3. Find issues (code-review + applicable pr-review-toolkit agents)
+- [ ] 4. Reconcile (public: against existing comments; local: skip)
+- [ ] 5. Draft in house style: summary, architectural notes, inline findings
+- [ ] 6. Results gate: print the draft and ask — back with sources / proceed / change
+- [ ] 7. Deliver (public: draft review; local: review file)
+- [ ] 8. Summarize; loop on re-review (public)
 ```
 
-### 1. Preflight
+### 1. Choose mode
 
-Run `preflight`. You are reviewing, not authoring — don't check out the branch or modify files.
+Apply the choosing rule above. State the chosen mode in one line before proceeding.
 
-### 2. Read the PR and its conversation first
+### 2. Gather the change and context
 
-Run `fetch-pr-context` (metadata and diff) and `fetch-existing-comments` (reviews, threads, top-level comments) **before** any analysis, so you know what the PR is trying to do, every point already raised, which threads are still open, and whether you've reviewed this PR before. The review surface is **only the lines this PR changed** — never comment on unchanged code.
+- **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from [references/github.md](references/github.md), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you've reviewed it before. Comment only on lines the PR changed.
+- **local:** run `resolve-base` and `get-local-diff` from [references/local.md](references/local.md). There's no existing conversation to fetch.
 
 ### 3. Find issues
 
-Follow [references/analysis.md](references/analysis.md): run the `code-review` plugin's confidence-scored sweep and dispatch the `pr-review-toolkit` agents that match what the diff changed (e.g. `pr-test-analyzer` when tests changed, `silent-failure-hunter` when error handling changed, `type-design-analyzer` when types changed, `comment-analyzer` when comments/docs changed, `code-reviewer` always). Merge and dedupe into one findings list, carrying each finding's confidence and source forward. Apply the false-positive discipline in that reference — a confident finding is not a correct finding.
+Follow [references/analysis.md](references/analysis.md) — the same engines work on a PR diff or a local diff. Run the `code-review` plugin's confidence-scored sweep and dispatch the `pr-review-toolkit` agents that match what the diff changed. Merge and dedupe into one findings list, carrying each finding's confidence and source forward. Apply the false-positive discipline there: a confident finding is not a correct finding.
 
-### 4. Reconcile against the existing conversation
+### 4. Reconcile
 
-Before drafting, cross-check each finding against what's already been said:
-
-- Already raised and settled → drop it.
-- Already raised, thread still open → don't open a new inline comment; plan a `reply-to-thread` that agrees, builds on it, or pushes back.
-- New and unraised → candidate inline finding.
+- **public:** cross-check each finding against the existing conversation. Drop points already raised and settled; for an open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; keep only what's new.
+- **local:** nothing to reconcile.
 
 ### 5. Draft in house style
 
-Turn the survivors into a review per [references/house-style.md](references/house-style.md): a short summary body plus inline comments in plain human voice — no severity badges, no emojis, plain citations. Order by what actually matters, explained in words rather than labels. Draft a **verdict** with a one-line reason: request changes if there's a real blocker, comment if it's non-blocking or you're unsure, approve only when you'd genuinely sign off.
+Turn the survivors into a review per [references/house-style.md](references/house-style.md). Separate the two buckets explicitly:
 
-### 6. Present for approval
+- **Inline findings** — anchored to `path:line`, each a plain-voice comment.
+- **Architectural notes** — cross-cutting observations not tied to a single line. These go in the summary body (public) or the "Architectural notes" section of the file (local).
 
-Show the complete draft, scannable:
+No severity badges, no emojis, plain citations. Order by what matters, explained in words. Draft a one-line **verdict** intent for public mode (request changes / comment / approve), but don't act on it until delivery.
 
-```
-Review of owner/repo#N — <title>   (proposed verdict: request changes)
+### 6. Results gate
 
-Summary:
-<summary paragraph>
+Print the complete draft — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed:
 
-Inline (3):
-1. src/billing/webhook.ts:142 — retry loop has no ceiling → thundering herd. [new]
-   "<comment text in house voice>"
-2. src/api/jobs.ts:88 — status query param trusted without validation. [new]
-   "<comment text>"
-3. reply to @alice on config.ts:20 — agree and add the shadowing point. [reply]
-   "<reply text>"
+- **Proceed** — deliver as-is (post the draft review, or write the file).
+- **Back findings with external sources** — before delivering, run the evidence pass: for each contestable finding, verify against a trusted source (official docs, the language/library spec, a high-signal StackOverflow or GitHub issue), attach the link in the comment, and **drop findings you can't substantiate**. Re-present, then deliver. (Needs web access; if unavailable, say so and offer to proceed without it.)
+- **Change something** — take the user's edits (reword, drop, split a point into its own inline comment, re-anchor), restate, and confirm.
 
-Dropped (already covered): 1 (coderabbit nit, settled in thread).
-```
+Respect the user's granularity choices — don't fold a distinct observation into the summary if they want it inline, and don't merge separate points. Post or write nothing before the user picks Proceed.
 
-Ask which inline comments to keep, edit, or drop; whether to send each reply; and confirm or change the verdict (use `AskUserQuestion` for the verdict). Post nothing before approval. If the user rewrites a comment, restate it and confirm that one item.
+### 7. Deliver
 
-### 7. Post one atomic review
+- **public:** first run `find-pending-review`. If a draft already exists, apply the **never-destroy rule** (don't delete or recreate it — stop and ask; it may hold the user's own comments). Otherwise `create-draft-review` — a pending review the user submits in GitHub, the **default**. Only if the user explicitly chose to submit now, `submit-review` with the verdict. Send any approved `reply-to-thread` replies. Verify the draft's summary body actually posted.
+- **local:** `write-review-file` and print the path. Nothing is sent anywhere.
 
-Build the approved set and run `post-review` (a single PR review = summary + inline comments + verdict). Send any approved replies via `reply-to-thread`. Posting is automated after approval; judgment is not. If GitHub rejects a comment for an out-of-diff line, move it into the summary body and retry rather than dropping it silently.
+Posting/saving is automated after approval; judgment is not. In public mode, if GitHub rejects a comment for an out-of-diff line, move it into the summary body and retry rather than dropping it silently.
 
 ### 8. Summarize and loop
 
-```
-Posted review on owner/repo#N — verdict: request changes
-Inline comments: 3 (2 new, 1 reply)
-Dropped as already covered: 1
-https://github.com/owner/repo/pull/N
-```
+Print what was delivered (the draft review URL and inline count, or the file path and counts) with the PR URL on its own line in public mode.
 
-**Re-review loop.** This skill works under `/loop`. On a later round, repeat steps 2–7, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, and acknowledge fixes the author made. Converge toward approve; don't invent findings to look busy. The user still approves each round — the loop automates the cadence, not the judgment.
+**Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 2–7, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, acknowledge fixes the author made, and converge toward approve. The user still approves each round; the loop automates the cadence, not the judgment.
 
 ## Boundaries
 
-- Never post a comment, reply, or verdict the user hasn't approved.
-- Never comment on lines outside the PR diff.
-- Never resolve other people's threads — you're the reviewer, not the author.
-- Never auto-approve; the user must explicitly choose that verdict.
+- Never post, submit, or save anything the user hasn't approved at the results gate.
+- Never delete or recreate an existing pending review draft without explicit approval — it may hold the user's own comments.
+- In public mode: comment only on lines in the PR diff; never resolve other people's threads; never auto-approve — the user chooses that verdict; default to a draft, not a direct submit.
 - Never re-raise a settled point, or post a finding you couldn't verify — lower its confidence and drop it.
 - No severity badges, no emojis, no performative praise, no "generated by" footer.
 - Don't run builds, typecheck, or lint to find issues — CI covers those; flagging them is noise.
