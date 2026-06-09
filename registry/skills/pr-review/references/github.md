@@ -56,6 +56,16 @@ gh api graphql -F owner=<OWNER> -F repo=<REPO> -F n=<NUM> -f query='
 
 Use it to skip points already raised, decide which open threads to agree with or push back on, and detect a re-review (a recent submitted review by `$ME` means diff against what changed since `submittedAt`).
 
+**Your own prior comments are part of this conversation — surface them first.** A pass you (or the user) already submitted on this PR is the set most easily duplicated, and "existing comments" reads too easily as "other people's / the bot's". Before scanning what anyone else said, list `$ME`'s own inline review comments explicitly:
+
+```sh
+# Your prior inline review comments on this PR — path, line, which review, and a snippet.
+gh api repos/<OWNER>/<REPO>/pulls/<NUM>/comments --paginate \
+  -q '.[] | select(.user.login=="'"$ME"'") | "\(.path):\(.original_line // .line)  review=\(.pull_request_review_id)  \(.body[0:100])"'
+```
+
+Treat each as a thread to build on, not a line to re-open: if a finding lands on a `path:line` you already commented on, plan a `reply-to-thread` on that existing thread rather than a second top-level comment. A prior comment may sit in a **resolved** thread (the author already fixed it) — resolved still means "already raised", so don't re-flag it; at most acknowledge the fix or add a genuinely new angle as a reply. The GraphQL `reviews` nodes carry only each review's summary body; the inline comments live in `reviewThreads` and in the REST listing above — read both.
+
 ## find-pending-review
 
 A **pending review** is a draft visible only to its author until submitted. It may contain the **user's own hand-written comments**. Always look for one before delivering:
@@ -90,6 +100,7 @@ gh api -X POST repos/<OWNER>/<REPO>/pulls/<NUM>/reviews --input /tmp/pr-review-<
 
 - `line` is the line in the PR's head version (the `RIGHT` side). For a range, set `start_line` and `line`; `start_side` defaults to `side`.
 - After creating, confirm the draft exists and its `body` is non-empty (`find-pending-review` returns an id; GET that review and check `.body`). A silently empty summary is a known failure — verify, don't assume.
+- **A pending review's summary body is not shown anywhere in the GitHub UI until the review is submitted** — only the inline draft comments appear (in the Files-changed tab, marked pending). The summary is invisible to everyone, including the user, while the review stays a draft. This is expected GitHub behavior, not a bug; surface the body locally in the final summary (step 7) so it isn't lost before submit.
 
 ## submit-review
 

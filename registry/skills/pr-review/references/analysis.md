@@ -12,7 +12,7 @@
 
 ## Engine 1: the code-review plugin (breadth)
 
-The `code-review` plugin runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, five parallel agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting.
+The `code-review` plugin runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, five parallel agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting. Treat that score as a breadth filter, not a truth signal: a model's self-reported confidence is unreliable on its own, so this skill never leans on it alone — every finding is cross-checked by a second, independent engine (the `pr-review-toolkit` agents) and the human gate, which is the cross-review that actually raises quality.
 
 Locate its command spec and follow its **analysis steps** to produce the scored, filtered findings list:
 
@@ -24,7 +24,7 @@ find ~/.claude/plugins -path '*code-review*/commands/code-review.md' -not -path 
 
 ## Engine 2: pr-review-toolkit agents (depth)
 
-The `pr-review-toolkit` plugin provides specialized review agents that go deeper than a generic pass on the dimension they own. Dispatch them with the Agent tool (`subagent_type: "pr-review-toolkit:<agent>"`), giving each the PR diff and scope. Select by what the diff actually changed — running an agent whose dimension the PR doesn't touch wastes tokens and invites false positives:
+The `pr-review-toolkit` plugin provides specialized review agents that go deeper than a generic pass on the dimension they own. Dispatch them with the Agent tool (`subagent_type: "pr-review-toolkit:<agent>"`), giving each the PR diff and scope. For a large diff, chunk it by file or directory and dispatch per chunk rather than handing each agent the whole thing — a diff that overflows the context window gets reviewed shallowly; note in the summary if a chunk was too big to cover fully. Select by what the diff actually changed — running an agent whose dimension the PR doesn't touch wastes tokens and invites false positives:
 
 | Agent | Run when the diff… | Looks for |
 |---|---|---|
@@ -36,7 +36,7 @@ The `pr-review-toolkit` plugin provides specialized review agents that go deeper
 
 `code-simplifier` is for applying simplifications to a working tree, not for reviewing someone else's PR — skip it here.
 
-Run the applicable agents in parallel. Each returns its own findings; treat them as high-signal for their dimension but still subject to the discipline below.
+Give each agent the context its dimension needs, not just the diff: `pr-test-analyzer` can't judge coverage gaps without the existing tests, and `comment-analyzer` needs the surrounding code to tell an outdated comment from a correct one. (These agents carry their own descriptions and system prompts — this skill selects them and feeds them scope; it doesn't re-prompt them.) Run the applicable agents in parallel. Each returns its own findings; treat them as high-signal for their dimension but still subject to the discipline below.
 
 ## Merge and carry forward
 
@@ -46,8 +46,8 @@ Combine both engines into one findings list and dedupe by file, line, and substa
 
 Drop anything that doesn't clear this bar, regardless of which engine raised it:
 
-- Pre-existing issues on lines this PR didn't change.
-- Things a linter, typechecker, or compiler catches (imports, types, formatting) — CI runs those separately.
+- Pre-existing issues on lines this PR didn't change — keep inline comments scoped to changed lines. The exception: if the PR propagates a pre-existing bad pattern (copied from code that served as the example), don't inline-comment the untouched original, but do call out the root in the architectural-notes/summary with a pointer, so the pattern doesn't get a free pass.
+- Things a linter, typechecker, or compiler catches (imports, types, formatting) — when CI runs those separately. If the repo has no CI covering them, surface them briefly instead of staying silent, since nothing else will catch them.
 - Pedantic nitpicks a senior engineer wouldn't raise.
 - Generic "add more tests / better docs / more security" that the codebase's own conventions don't call for.
 - Issues silenced deliberately in code (lint-ignore, a documented constant).
