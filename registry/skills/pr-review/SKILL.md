@@ -1,8 +1,9 @@
 ---
 name: pr-review
-context: fork
-description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's GitHub PR and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges or emojis, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
+description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's PR on the hosting platform and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges or emojis, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
 ---
+
+<!-- No `context: fork`: forked skills run as subagents, which cannot dispatch the Agent tool (the review engines in step 2) or AskUserQuestion (the results gate in step 5). For isolation from other work, invoke this skill in a dedicated session instead. -->
 
 # Author a Code Review
 
@@ -12,7 +13,7 @@ Produce a code review that reads like a sharp human wrote it and opens a convers
 
 Decide the mode before starting the workflow, and state it in one line — the workflow branches on it.
 
-- **public** (default): review a PR **someone else authored** on GitHub. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses [references/github.md](references/github.md).
+- **public** (default): review a PR **someone else authored** on the hosting platform. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses the platform reference, selected by the PR URL's host — [references/github.md](references/github.md) for GitHub (the only one so far).
 - **local**: review **your own working branch** for yourself. Nothing is posted or published — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
 
 **Choosing:** if the request clearly signals local (the trigger words above, or a bare branch with no PR), use local. If it clearly targets a specific remote PR (a PR URL or `owner/repo#N`), use public. If it's ambiguous, ask with `AskUserQuestion`, offering Public as the default.
@@ -42,7 +43,7 @@ Review voice and formatting rules are in [references/house-style.md](references/
 
 ### 1. Gather the change and context
 
-- **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from [references/github.md](references/github.md), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you (or the user) have reviewed it before. `fetch-existing-comments` includes an explicit pass to list your own prior comments; do it — they're the easiest set to duplicate. When the existing conversation is large, compact it to a scratchpad before the analysis pass so nothing crucial gets lost in the context the review burns. Comment only on lines the PR changed.
+- **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from the platform reference (selected in Modes), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you (or the user) have reviewed it before. `fetch-existing-comments` includes an explicit pass to list your own prior comments; do it — they're the easiest set to duplicate. When the existing conversation is large, compact it to a scratchpad before the analysis pass so nothing crucial gets lost in the context the review burns. Comment only on lines the PR changed.
 - **local:** run `resolve-base` and `get-local-diff` from [references/local.md](references/local.md). There's no existing conversation to fetch.
 
 ### 2. Find issues
@@ -75,16 +76,16 @@ Respect the user's granularity choices — don't fold a distinct observation int
 
 ### 6. Deliver
 
-- **public:** first run `find-pending-review`. If a draft already exists, apply the **never-destroy rule** (don't delete or recreate it — stop and ask; it may hold the user's own comments). Otherwise `create-draft-review` — a pending review the user submits in GitHub, the **default**. Only if the user explicitly chose to submit now, `submit-review` with the verdict. Send any approved `reply-to-thread` replies. Verify the draft's summary body actually posted.
+- **public:** first run `find-pending-review`. If a draft already exists, apply the **never-destroy rule** (don't delete or recreate it — stop and ask; it may hold the user's own comments). Otherwise `create-draft-review` — a pending review the user submits in the platform UI, the **default**. Only if the user explicitly chose to submit now, `submit-review` with the verdict. Send any approved `reply-to-thread` replies. Verify the draft's summary body actually posted.
 - **local:** `write-review-file` and print the path. Nothing is sent anywhere.
 
-Posting/saving is automated after approval; judgment is not. In public mode, if GitHub rejects a comment for an out-of-diff line, move it into the summary body and retry rather than dropping it silently.
+Posting/saving is automated after approval; judgment is not. In public mode, if the platform rejects a comment for an out-of-diff line, move it into the summary body and retry rather than dropping it silently.
 
 ### 7. Summarize and loop
 
 Print what was delivered (the draft review URL and inline count, or the file path and counts) with the PR URL on its own line in public mode.
 
-**Public mode: always reprint the summary body and the verdict intent here.** A pending review's summary is hidden in the GitHub UI until the review is submitted (see `create-draft-review`), so the full draft summary text — plus the verdict intent and any thread replies sent — would otherwise be invisible to the user until they submit. Reprint it in this final message and make clear it's a draft awaiting their submit. Do this whether or not the user is looking at GitHub; it's the only reliable place they'll see the headline of the review.
+**Public mode: end the turn with the summary body verbatim, copy-paste ready.** Print the full summary text in a fenced markdown block, then the verdict intent and any thread replies sent, and make clear it's a draft awaiting their submit. A recap or description of the summary does not satisfy this — only the verbatim text does. It applies to **every** turn that ends with the draft created or partially delivered, including turns cut short by errors or permission walls. The platform may not show the draft's summary until submit — or may have silently dropped it at creation — so this final message can be the user's only copy of the text to paste when submitting.
 
 **Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 1–6, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, acknowledge fixes the author made, and converge toward approve. The user still approves each round; the loop automates the cadence, not the judgment.
 

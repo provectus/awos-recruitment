@@ -1,8 +1,9 @@
 ---
 name: pr-comments-address
-context: fork
 description: Use when working through code-review feedback to apply fixes and replies — "address the PR comments", "reply to CodeRabbit/Codex feedback", "resolve these review threads", "apply this review". Works in two modes. Public mode (default) responds to reviewer feedback on a GitHub pull request you authored — fix, reply, resolve, commit, and push. Local mode — triggered when the request says "locally", "for myself", "apply this review", or "don't post" — applies feedback from a local review file to your working tree, posting nothing to a review platform. Each item gets a proposed fix or reply for your approval first. This is the author's side; to review someone else's PR, use pr-review.
 ---
+
+<!-- No `context: fork`: forked skills run as subagents, which cannot use AskUserQuestion — the per-item approval gate this skill is built around. For isolation from other work, invoke this skill in a dedicated session instead. -->
 
 # Address Review Comments
 

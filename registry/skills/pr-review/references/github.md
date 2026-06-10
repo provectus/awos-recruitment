@@ -99,8 +99,10 @@ gh api -X POST repos/<OWNER>/<REPO>/pulls/<NUM>/reviews --input /tmp/pr-review-<
 ```
 
 - `line` is the line in the PR's head version (the `RIGHT` side). For a range, set `start_line` and `line`; `start_side` defaults to `side`.
+- **Use this `gh api` recipe, not an MCP github review tool, to create the draft.** The MCP create-pending-review tool has been observed silently dropping the `body` — the draft lands with all inline comments but no summary, and no error.
 - After creating, confirm the draft exists and its `body` is non-empty (`find-pending-review` returns an id; GET that review and check `.body`). A silently empty summary is a known failure — verify, don't assume.
-- **A pending review's summary body is not shown anywhere in the GitHub UI until the review is submitted** — only the inline draft comments appear (in the Files-changed tab, marked pending). The summary is invisible to everyone, including the user, while the review stays a draft. This is expected GitHub behavior, not a bug; surface the body locally in the final summary (step 7) so it isn't lost before submit.
+- **An empty body cannot be fixed in place.** Both REST and GraphQL refuse to edit a pending review with a missing body ("Could not edit a review with a missing body"). The summary can then only ride along at submit time — via `submit-review`'s `body` field, or pasted by the user into the UI's "Finish your review" box. Don't delete-and-recreate to fix it (never-destroy rule).
+- **A pending review's summary body is not shown anywhere in the GitHub UI until the review is submitted** — only the inline draft comments appear (in the Files-changed tab, marked pending). The summary is invisible to everyone, including the user, while the review stays a draft. This is expected GitHub behavior, not a bug; print the verbatim body in the final summary (step 7) so the user can paste it at submit if needed.
 
 ## submit-review
 
@@ -120,6 +122,14 @@ When your review engages an existing open thread (agree, build on, or push back)
 gh api -X POST repos/<OWNER>/<REPO>/pulls/<NUM>/comments/<FIRST_COMMENT_DB_ID>/replies -f body='<reply>'
 ```
 
+**While your pending review exists, this REST call fails** (422 "user_id can only have one pending review per pull request" — GitHub wraps each standalone reply in its own mini-review). Attach replies to the pending review via GraphQL instead, which also publishes them atomically with the review on submit:
+
+```sh
+gh api graphql -f query='mutation { addPullRequestReviewThreadReply(input:{ pullRequestReviewId:"<PENDING_REVIEW_NODE_ID>", pullRequestReviewThreadId:"<THREAD_NODE_ID>", body:"<reply>" }) { comment { url } } }'
+```
+
+(Thread node ids come from `fetch-existing-comments`; the pending review's node id from `gh api repos/<OWNER>/<REPO>/pulls/<NUM>/reviews -q '.[] | select(.state=="PENDING") | .node_id'`.)
+
 Don't resolve other people's threads — you're the reviewer, not the author.
 
 ## Failure modes
@@ -130,4 +140,5 @@ Don't resolve other people's threads — you're the reviewer, not the author.
 | `POST /reviews` 422 "A review is already pending" | Same — a draft exists; don't force it. Ask the user. |
 | `POST /reviews` 422 "line must be part of the diff" | A comment targets an out-of-range line; move it into the summary body and retry. |
 | `POST .../events` 422 "Can not approve your own pull request" | You're the author; switch the verdict to `COMMENT`. |
+| Pending review exists but its `.body` is empty | Can't be edited in place (REST and GraphQL both refuse). Deliver the summary at submit time instead — `submit-review` with `body`, or the user pastes it in the UI — and always print the verbatim summary in the final message (step 7). |
 | Re-review (a prior submitted review by `$ME` exists) | Comment only on what changed since `submittedAt`; don't re-flag addressed points. |
