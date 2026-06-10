@@ -44,6 +44,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.12-slim AS runtime
 
+# Upgrade OS packages to pull in security patches not yet present in the
+# base image (e.g. openssl CVE fixes flagged by the Trivy image scan).
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create a non-root user for running the server.
 RUN groupadd --gid 1000 appuser \
     && useradd --uid 1000 --gid 1000 --create-home appuser
