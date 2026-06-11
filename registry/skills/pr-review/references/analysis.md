@@ -2,6 +2,8 @@
 
 > **Part of:** [pr-review](../SKILL.md). How to find issues by orchestrating existing review plugins instead of hand-rolling analysis. Run both engines, merge, and carry confidence forward.
 
+The two engines are independent until the merge — don't run them back to back. Dispatch the `pr-review-toolkit` agents while the `code-review` sweep is still running; wall-clock is the slower engine, not the sum.
+
 ## Contents
 
 - [Engine 1: the code-review plugin (breadth)](#engine-1-the-code-review-plugin-breadth)

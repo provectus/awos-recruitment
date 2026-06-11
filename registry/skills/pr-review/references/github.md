@@ -20,7 +20,7 @@ gh auth status              # bail with "run gh auth login" if not authed
 ME=$(gh api user -q .login) # to detect your own prior review/comments/draft
 ```
 
-You're reviewing someone else's PR — don't check out the branch or modify files. Read the diff through the API.
+You're reviewing someone else's PR — don't check out the branch or modify project files. Read the diff through the API. (The one write allowed is the skill's own draft artifact in `review/` — that's your output, not the project's code.)
 
 ## fetch-pr-context
 

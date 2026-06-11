@@ -58,7 +58,7 @@ A clean conversation — or one whose only relation to the PR is this skill's ow
 
 ### 2. Read context and draft responses
 
-For each item, `Read` the file at the comment's `path` around `line` before drafting — never propose a fix without seeing the code. (Public: for outdated threads `line` may be null; fall back to `originalLine` and `diffHunk`.) Categorize each item:
+For each item, `Read` the file at the comment's `path` around `line` before drafting — never propose a fix without seeing the code. (Public: for outdated threads `line` may be null; fall back to `originalLine` and `diffHunk`.) When the item list is long, parallelize the reading, not the judgment: fan out subagents — one per item or small batch — each returning structured facts: the code around the anchor, what it currently does, whether the concern is already addressed. That's collection, not evaluation, so a small/fast model suffices if agent dispatch lets you pick one; with no agent dispatch, read inline. Categorizing and drafting stay with you — fix-vs-pushback is the judgment the bias gate protects, and replies should sound like one author. Categorize each item:
 
 | Category | When | Action |
 |---|---|---|
@@ -67,11 +67,13 @@ For each item, `Read` the file at the comment's `path` around `line` before draf
 | `dismiss-resolve` | A mechanical nit with nothing for a human to confirm | (public) Short reply, then resolve. (local) Note it and skip. |
 | `clarify` | Ambiguous | (public) Reply with a specific question. (local) Record the question. |
 
-Draft a concrete response for every item — the actual reply text and, for a `fix`, a one-line description of the code change. Not a placeholder.
+Draft a concrete response for every item — the actual reply text and, for a `fix`, a one-line description of the code change. Not a placeholder. **Materialize the plan with `Write`** to the repo's `review/` folder (create it if missing; it stays out of commits, gitignored or per the user's preference): `review/pr-<N>-comments-plan.md`. A plan composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat.
 
 ### 3. Results gate
 
-Present the plan, numbered and scannable (category, `path:line`, author, the proposed fix and reply text). Then ask the user with `AskUserQuestion` how to proceed:
+Present the plan **as message text**, numbered and scannable — every item with its category, `path:line`, author, and the actual proposed fix and reply text, not placeholders. The user can only approve what they can read: if the plan isn't in the message, the gate is void. Any session-wide brevity or compression mode governs your commentary, never the plan — a file path or a recap does not satisfy this step.
+
+**Pre-gate protocol — the plan is the step 2 file, not your memory.** Present it by printing the file's full content as message text, then call `AskUserQuestion` — and always include the file path in the question itself, so the user can reach the plan even if the print gets squeezed out. The documented failure here: composing the plan in thinking, then gating on "the plan is above" while the message contains nothing — your memory of having printed is not evidence; only the `Write` call and text visible in this turn are. If there is no plan file, you have no plan: go back and write it. Then ask the user how to proceed:
 
 - **Proceed** — apply the plan as-is.
 - **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue), cite it in the fix/reply, and drop or downgrade items that don't hold up. Then re-present the revised plan and return to this gate — don't apply until the user picks Proceed.
@@ -102,4 +104,5 @@ Report fixes (with commit hashes), replies and their state (public), recorded pu
 - In public mode: never push to a branch other than the PR's head branch; never `--amend`, `--force`, or `--no-verify` unless asked.
 - In local mode: stay on the working tree, never post to or contact a review platform, and never push — surfacing changes to a remote is the user's call.
 - No performative replies ("Great catch!", "You're absolutely right!"). State the technical fact or the next step.
+- Session-wide brevity or compression modes never shrink a deliverable: the step 3 plan and step 6 summary print in full as message text.
 - If the user asks to address one item and leave the rest, do exactly that.

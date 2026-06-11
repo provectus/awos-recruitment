@@ -62,7 +62,7 @@ A long session of unrelated work isn't bias, but it competes for attention; if c
 
 ### 1. Gather the change and context
 
-- **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from the platform reference (selected in Modes), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you (or the user) have reviewed it before. `fetch-existing-comments` includes an explicit pass to list your own prior comments; do it — they're the easiest set to duplicate. When the existing conversation is large, compact it to a scratchpad before the analysis pass so nothing crucial gets lost in the context the review burns. Comment only on lines the PR changed.
+- **public:** run `preflight`, `fetch-pr-context`, and `fetch-existing-comments` from the platform reference (selected in Modes), **before** any analysis — so you know what the PR does, what's already been said, which threads are open, and whether you (or the user) have reviewed it before. `fetch-existing-comments` includes an explicit pass to list your own prior comments; do it — they're the easiest set to duplicate. When the existing conversation is large, don't read the raw dump yourself: hand it to a subagent that returns a structured scratchpad — open threads, settled points, your own prior comments, each with `path:line` — and run that digest in parallel with fetching the diff. It's extraction, not judgment, so a small/fast model suffices if agent dispatch lets you pick one; with no agent dispatch, compact it inline. Either way the scratchpad, not the raw conversation, is what the analysis pass carries. Comment only on lines the PR changed.
 - **local:** run `resolve-base` and `get-local-diff` from [references/local.md](references/local.md). There's no existing conversation to fetch.
 
 ### 2. Find issues
@@ -71,7 +71,7 @@ Follow [references/analysis.md](references/analysis.md) — the same engines wor
 
 ### 3. Reconcile
 
-- **public:** cross-check each finding against the existing conversation — **including your own prior review passes**, which are the easiest to duplicate. Use `$ME`'s comment list from `fetch-existing-comments`: for any finding that lands on a `path:line` you already commented on, build on that thread with a `reply-to-thread` rather than opening a second one — even if that prior thread is resolved. Drop points already raised and settled; for any open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; keep only what's new.
+- **public:** cross-check each finding against the existing conversation — **including your own prior review passes**, which are the easiest to duplicate. Use `$ME`'s comment list from `fetch-existing-comments`: for any finding that lands on a `path:line` you already commented on, build on that thread with a `reply-to-thread` rather than opening a second one — even if that prior thread is resolved. Drop points already raised and settled; for any open thread, plan a `reply-to-thread` (agree, build on, or push back) instead of a duplicate inline comment; keep only what's new. When the findings list is long, fan the mechanical checks out to parallel subagents — per finding: is it a duplicate of an existing thread, does it land on a `$ME`-commented `path:line`, is its line in the diff — each checking against the scratchpad and returning a verdict (a small/fast model suffices; it's matching, not judgment). The judgment calls — agree, build on, or push back — stay with you.
 - **local:** nothing to reconcile.
 
 ### 4. Draft in house style
@@ -83,9 +83,13 @@ Turn the survivors into a review per [references/house-style.md](references/hous
 
 No severity badges, plain citations. Order by what matters, explained in words. Draft a one-line **verdict** intent for public mode (request changes / comment / approve), but don't act on it until delivery.
 
+**Materialize the draft with `Write`** to the repo's `review/` folder — the same one local mode delivers into (create it if missing; it stays out of commits, gitignored or per the user's preference): `review/pr-<N>-draft.md`. A draft composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat. Don't proceed to the gate without this file.
+
 ### 5. Results gate
 
-Print the complete draft — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed:
+Print the complete draft **as message text** — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed. The user can only approve what they can read: if the draft isn't in the message, the gate is void. Any session-wide brevity or compression mode (terse-output instructions, token-saving styles) governs your commentary, never the deliverable — a file path, a recap, or "the review is above" does not satisfy this step.
+
+**Pre-gate protocol — the draft is the step 4 file, not your memory.** Present it by printing the file's full content as message text, then call `AskUserQuestion` — and always include the file path in the question itself ("full draft in `review/pr-<N>-draft.md`"), so even if the print gets squeezed out, the user opens the draft in their editor from the path alone. The documented failure of this step (three sessions running): composing the draft in thinking, then gating on "the draft is above" while the message contains nothing — your memory of having printed is not evidence; only the `Write` call from step 4 and text visible in this turn are. If there is no step 4 file, you have no draft: go back and write it.
 
 - **Proceed** — deliver as-is (post the draft review, or write the file).
 - **Back findings with external sources** (optional) — before delivering, run the evidence pass: for each contestable finding, verify against a trusted source (official docs, the language/library spec, a high-signal StackOverflow answer, or an issue in the project's own hosted repo — GitHub/GitLab/Gerrit/…), attach the link in the comment, and **drop claims you can't substantiate**. "Substantiate" means verified against the code or the spec — a project-specific finding grounded in the diff stands on its own and needs no external citation. Then re-present the revised draft and return to this gate — don't deliver until the user picks Proceed.
@@ -104,7 +108,7 @@ Posting/saving is automated after approval; judgment is not. In public mode, if 
 
 Print what was delivered (the draft review URL and inline count, or the file path and counts) with the PR URL on its own line in public mode.
 
-**Public mode: end the turn with the summary body verbatim, copy-paste ready.** Print the full summary text in a fenced markdown block, then the verdict intent and any thread replies sent, and make clear it's a draft awaiting their submit. A recap or description of the summary does not satisfy this — only the verbatim text does. It applies to **every** turn that ends with the draft created or partially delivered, including turns cut short by errors or permission walls. The platform may not show the draft's summary until submit — or may have silently dropped it at creation — so this final message can be the user's only copy of the text to paste when submitting.
+**Public mode: end the turn with the summary body verbatim, copy-paste ready.** Print the full summary text in a fenced markdown block, then the verdict intent and any thread replies sent, and make clear it's a draft awaiting their submit. A recap or description of the summary does not satisfy this — only the verbatim text does, and no session-wide brevity or compression mode shrinks it. Run the same self-check as the results gate: if the turn's final message doesn't visibly contain the fenced summary block, it wasn't delivered — text composed in thinking renders nothing. It applies to **every** turn that ends with the draft created or partially delivered, including turns cut short by errors or permission walls. The platform may not show the draft's summary until submit — or may have silently dropped it at creation — so this final message can be the user's only copy of the text to paste when submitting.
 
 **Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 1–6, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed, acknowledge fixes the author made, and converge toward approve. The user still approves each round; the loop automates the cadence, not the judgment.
 
@@ -115,4 +119,5 @@ Print what was delivered (the draft review URL and inline count, or the file pat
 - In public mode: comment only on lines in the PR diff; never resolve other people's threads; never auto-approve — the user chooses that verdict; default to a draft, not a direct submit.
 - Don't re-raise a settled point unless the new changes make it live again; don't post a finding you couldn't verify — lower its confidence and drop it.
 - No severity badges, no performative praise, no "generated by" footer.
+- Session-wide brevity or compression modes never shrink a deliverable: the step 5 draft and step 7 summary print in full, verbatim, as message text.
 - Don't run builds, typecheck, or lint to find issues — CI covers those; flagging them is noise.
