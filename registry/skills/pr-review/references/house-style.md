@@ -2,14 +2,6 @@
 
 > **Part of:** [pr-review](../SKILL.md). The analysis engines find issues; this file governs how the review is written. A review should read like a thoughtful senior engineer left it — and open a conversation, not deliver a verdict.
 
-## Contents
-
-- [Formatting rules](#formatting-rules)
-- [Voice](#voice)
-- [Pushback and discussion](#pushback-and-discussion)
-- [The summary body](#the-summary-body)
-- [Examples](#examples)
-
 ## Formatting rules
 
 - **No severity badges.** No `CRITICAL`/`HIGH`/`MEDIUM`/`LOW`, no `major`/`minor`, no colored dots. If something blocks merge, say why in a sentence — that carries more than a label.
@@ -17,6 +9,7 @@
 - **No performative praise.** Skip "Great work!" and "Nice PR!". Reinforcing something genuinely well done is fine — state it plainly.
 - **Plain citations.** Reference `path/to/file.py:42` or a normal permalink; don't manufacture synthetic anchors.
 - **Number a list when it stops a point being skipped.** When several findings stack on one line, or one expression spawns multiple issues, number them — prose there runs longer and makes it easy to skip a point. For unrelated findings spread across the review, prose or `-` bullets are fine, so the user can drop one in the approval step without renumbering the rest.
+- **Structure is fine where it aids scanning.** A bold lead clause, a steady location → problem → fix shape, or an emoji where it genuinely helps a reader extract the point — all fine. The line is severity labels and machine footers, not visual structure itself.
 
 ## Voice
 

@@ -2,12 +2,6 @@
 
 > **Part of:** [pr-review](../SKILL.md). **Local mode** reviews your own working branch for yourself and writes the review to a file — it posts nothing to GitHub, GitLab, or any review platform. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets your own in-progress work rather than someone else's PR.
 
-## Contents
-
-- [resolve-base](#resolve-base)
-- [get-local-diff](#get-local-diff)
-- [write-review-file](#write-review-file)
-
 ## resolve-base
 
 Determine what to diff against. Prefer an explicit base from the user; otherwise default to the repo's default branch.

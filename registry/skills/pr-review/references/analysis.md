@@ -4,14 +4,6 @@
 
 The two engines are independent until the merge — don't run them back to back. Dispatch the `pr-review-toolkit` agents while the `code-review` sweep is still running; wall-clock is the slower engine, not the sum.
 
-## Contents
-
-- [Engine 1: the code-review plugin (breadth)](#engine-1-the-code-review-plugin-breadth)
-- [Engine 2: pr-review-toolkit agents (depth)](#engine-2-pr-review-toolkit-agents-depth)
-- [Merge and carry forward](#merge-and-carry-forward)
-- [False-positive discipline](#false-positive-discipline)
-- [When a plugin is missing](#when-a-plugin-is-missing)
-
 ## Engine 1: the code-review plugin (breadth)
 
 The `code-review` plugin runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, five parallel agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting. Treat that score as a breadth filter, not a truth signal: a model's self-reported confidence is unreliable on its own, so this skill never leans on it alone — every finding is cross-checked by a second, independent engine (the `pr-review-toolkit` agents) and the human gate, which is the cross-review that actually raises quality.

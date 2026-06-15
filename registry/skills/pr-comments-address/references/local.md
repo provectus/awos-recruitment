@@ -2,11 +2,6 @@
 
 > **Part of:** [pr-comments-address](../SKILL.md). **Local mode** applies review feedback to your own working tree for yourself — it posts nothing to GitHub, GitLab, or any review platform. Use this when the request says "locally", "for myself", "apply this review", "don't post", or points at a local review file rather than a PR. It pairs with pr-review's local mode: that skill writes `review/<timestamp>_<branch>.md`, this one applies it.
 
-## Contents
-
-- [read-feedback](#read-feedback)
-- [apply-locally](#apply-locally)
-
 ## read-feedback
 
 The feedback lives locally, not on a platform. In priority order:

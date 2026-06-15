@@ -67,7 +67,7 @@ For each item, `Read` the file at the comment's `path` around `line` before draf
 | `dismiss-resolve` | A mechanical nit with nothing for a human to confirm | (public) Short reply, then resolve. (local) Note it and skip. |
 | `clarify` | Ambiguous | (public) Reply with a specific question. (local) Record the question. |
 
-Draft a concrete response for every item — the actual reply text and, for a `fix`, a one-line description of the code change. Not a placeholder. **Materialize the plan with `Write`** to the repo's `review/` folder (create it if missing; it stays out of commits, gitignored or per the user's preference): `review/pr-<N>-comments-plan.md`. A plan composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat.
+Draft a concrete response for every item — the actual reply text and, for a `fix`, a one-line description of the code change. Not a placeholder. **Materialize the plan with `Write`** to the repo's `review/` folder (create it if missing — and when you create the folder, tell the user it's new so they decide what to do with it; don't gitignore it automatically, since a persisted review trail can be intentional): `review/pr-<N>-comments-plan.md`. A plan composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat.
 
 ### 3. Results gate
 
@@ -77,7 +77,7 @@ Present the plan **as message text**, numbered and scannable — every item with
 
 - **Proceed** — apply the plan as-is.
 - **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue), cite it in the fix/reply, and drop or downgrade items that don't hold up. Then re-present the revised plan and return to this gate — don't apply until the user picks Proceed.
-- **Change something** — take the user's edits (apply some, skip others, reword a reply), restate, and confirm.
+- **Change something** — take the user's edits (apply some plan items, skip others, reword a reply — whatever the user directs), restate, and confirm.
 
 Apply, reply, or resolve nothing before the user picks Proceed.
 
@@ -101,7 +101,7 @@ Report fixes (with commit hashes), replies and their state (public), recorded pu
 
 - Never edit code, post a reply, or resolve a thread the user hasn't approved at the results gate.
 - Never resolve a `fix`, `pushback`, or `clarify` thread — only `dismiss-resolve` (public).
-- In public mode: never push to a branch other than the PR's head branch; never `--amend`, `--force`, or `--no-verify` unless asked.
+- In public mode: never push to a branch other than the PR's head branch; never `--amend`, `--force`, or `--no-verify` unless the user explicitly asks.
 - In local mode: stay on the working tree, never post to or contact a review platform, and never push — surfacing changes to a remote is the user's call.
 - No performative replies ("Great catch!", "You're absolutely right!"). State the technical fact or the next step.
 - Session-wide brevity or compression modes never shrink a deliverable: the step 3 plan and step 6 summary print in full as message text.

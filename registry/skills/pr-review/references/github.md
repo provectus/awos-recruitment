@@ -2,17 +2,6 @@
 
 > **Part of:** [pr-review](../SKILL.md). The GitHub commands for **public mode** (reviewing a real GitHub PR), keyed by operation name. Local mode uses [local.md](local.md) instead and runs none of these — it never invokes `gh` or posts to the platform. Keying by operation name keeps the SKILL workflow platform-agnostic, so similar reference files could be added for other review platforms (GitLab, Azure DevOps, …) and selected by the PR URL host if that's ever needed.
 
-## Contents
-
-- [preflight](#preflight)
-- [fetch-pr-context](#fetch-pr-context)
-- [fetch-existing-comments](#fetch-existing-comments)
-- [find-pending-review](#find-pending-review) — and the never-destroy rule
-- [create-draft-review](#create-draft-review) — default delivery
-- [submit-review](#submit-review)
-- [reply-to-thread](#reply-to-thread)
-- [Failure modes](#failure-modes)
-
 ## preflight
 
 ```sh
