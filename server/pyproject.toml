@@ -28,6 +28,13 @@ build-backend = "hatchling.build"
 # 7 days of public scrutiny before we'll pick it up).
 exclude-newer = "7 days"
 
+# Per-package cooldown exemption. starlette 1.3.1 (published 2026-06-12) is the
+# only release that patches HIGH CVE-2026-54283 (form-limit DoS), but it landed
+# 1 day inside the 7-day window. The known, published CVE outweighs the marginal
+# supply-chain risk of a 6-day-old release from a reputable maintainer (Encode),
+# so we exempt starlette with a fixed cutoff that admits 1.3.1.
+exclude-newer-package = { starlette = "2026-06-13" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/awos_recruitment_mcp"]
 
