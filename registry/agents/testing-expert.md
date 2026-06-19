@@ -49,6 +49,8 @@ For every positive case, define at least one negative counterpart. Negative case
 
 ### Step 3: Write tests with RED validation
 
+Before writing, scan the existing test tree (the project's `tests/` directory and any co-located test files) for a test already covering the same acceptance criterion in the same layer for this spec. The test files' own `@spec` / `@layer` / `@regression` annotations are the source of truth for what is already covered — there is no separate registry. If an equivalent test already exists, UPDATE it in place instead of adding a duplicate; if a broader test should be split into focused cases, annotate the old one with `@deprecated` (using the language's comment syntax) and add the replacements.
+
 Write tests following this discipline (borrowed from TDD red-green-refactor):
 
 1. Write one test case.
