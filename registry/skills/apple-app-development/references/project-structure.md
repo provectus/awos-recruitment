@@ -1160,8 +1160,8 @@ platform :ios, '17.0'
 use_frameworks!
 
 target 'MyApp' do
-  pod 'FirebaseAnalytics', '~> 11.0'
-  pod 'GoogleMaps', '~> 9.0'
+  pod 'FirebaseAnalytics', '~> <latest-stable>'
+  pod 'GoogleMaps', '~> <latest-stable>'
 
   target 'MyAppTests' do
     inherit! :search_paths
