@@ -709,8 +709,8 @@ fun listDetailLayout_expandedWidth_showsBothPanes() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass.compute(
-                    dpWidthSize = 900f,  // Expanded (>= 840dp)
-                    dpHeightSize = 600f,
+                    widthDp = 900f,  // Expanded (>= 840dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture()
             )
@@ -730,8 +730,8 @@ fun listDetailLayout_compactWidth_showsOnlyList() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass.compute(
-                    dpWidthSize = 400f,  // Compact (< 600dp)
-                    dpHeightSize = 600f,
+                    widthDp = 400f,  // Compact (< 600dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture()
             )
@@ -761,8 +761,8 @@ fun layout_tabletopPosture_splitContent() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass.compute(
-                    dpWidthSize = 700f,  // Medium (>= 600dp, < 840dp)
-                    dpHeightSize = 600f,
+                    widthDp = 700f,  // Medium (>= 600dp, < 840dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture(
                     isTabletop = true,

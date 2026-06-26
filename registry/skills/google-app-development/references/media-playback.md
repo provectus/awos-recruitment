@@ -337,6 +337,8 @@ class PlaybackService : MediaSessionService() {
     android:exported="true">
     <intent-filter>
         <action android:name="androidx.media3.session.MediaSessionService" />
+        <!-- Backward compat: lets legacy MediaBrowserCompat clients discover the service -->
+        <action android:name="android.media.browse.MediaBrowserService" />
     </intent-filter>
 </service>
 ```

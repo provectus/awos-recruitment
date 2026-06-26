@@ -199,6 +199,8 @@ override fun onAddMediaItems(
     android:foregroundServiceType="mediaPlayback">
     <intent-filter>
         <action android:name="androidx.media3.session.MediaLibraryService" />
+        <!-- Backward compat: legacy MediaBrowserCompat clients (older Auto hosts, third-party controllers) -->
+        <action android:name="android.media.browse.MediaBrowserService" />
     </intent-filter>
 </service>
 

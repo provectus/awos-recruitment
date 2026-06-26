@@ -297,7 +297,7 @@ class DefaultItemRepository(
     private val dao: ItemDao,
 ) : ItemRepository {
 
-    override suspend fun getItems(): Result<Item> = safeApiCall {
+    override suspend fun getItems(): Result<List<Item>> = safeApiCall {
         api.getItems().map { it.toDomain() }
     }
 
@@ -338,18 +338,18 @@ suspend fun <T> safeApiCall(block: suspend () -> T): Result<T> = try {
         try { Json.decodeFromString<ApiError>(it) } catch (_: Exception) { null }
     }
     Result.failure(
-        ApiException(
+        AppException.ApiException(
             httpCode = e.code(),
             apiError = apiError,
             cause = e,
         )
     )
 } catch (e: IOException) {
-    Result.failure(NetworkException(cause = e))
+    Result.failure(AppException.NetworkException(cause = e))
 } catch (e: CancellationException) {
     throw e // never swallow cancellation
 } catch (e: Exception) {
-    Result.failure(UnexpectedException(cause = e))
+    Result.failure(AppException.UnexpectedException(cause = e))
 }
 ```
 
