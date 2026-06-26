@@ -807,9 +807,9 @@ android {
 }
 
 dependencies {
-    implementation("androidx.car.app:app:1.4.0")
+    implementation("androidx.car.app:app:<latest>")
     // Automotive-only dependency
-    "automotiveImplementation"("androidx.car.app:app-automotive:1.4.0")
+    "automotiveImplementation"("androidx.car.app:app-automotive:<latest>")
 }
 ```
 

@@ -257,8 +257,8 @@ Jetpack `WindowManager` provides fold-aware APIs to detect hinge position and fo
 #### Dependency
 
 ```kotlin
-implementation("androidx.window:window:1.4.0")
-implementation("androidx.window:window-core:1.4.0")
+implementation("androidx.window:window:<latest>")
+implementation("androidx.window:window-core:<latest>")
 ```
 
 #### Observing Fold State in Compose

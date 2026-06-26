@@ -567,6 +567,6 @@ dependencies {
     implementation("com.google.android.engage:engage-core:<latest>")
 
     // TV Provider (channels / Watch Next)
-    implementation("androidx.tvprovider:tvprovider:1.0.0")
+    implementation("androidx.tvprovider:tvprovider:<latest>")
 }
 ```
