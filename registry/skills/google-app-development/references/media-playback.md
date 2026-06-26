@@ -13,7 +13,7 @@ Comprehensive guide to media playback on Android. Covers ExoPlayer (via `android
 | **Common** | `media3-common` | `MediaItem`, `Player` interface, `Timeline`, `Tracks` — shared data types |
 | **Data Sources** | `media3-datasource` | `DataSource`, `HttpDataSource`, `CacheDataSource` — network and cache I/O |
 | **Extractors** | `media3-extractor` | Container parsers for MP4, MKV, FLV, Ogg, WAV, etc. |
-| **DASH / HLS / RTSP** | `media3-dash`, `media3-hls`, `media3-exoplayer-rtsp` | Adaptive streaming protocol support |
+| **DASH / HLS / RTSP** | `media3-exoplayer-dash`, `media3-exoplayer-hls`, `media3-exoplayer-rtsp` | Adaptive streaming protocol support |
 | **Transformer** | `media3-transformer` | Media editing — trim, transcode, mux, apply effects |
 
 **Rule:** Use `media3-ui` `PlayerView` for standard playback. Build custom Compose UI on top of the `Player` interface only when `PlayerView` doesn't fit your design.
@@ -31,8 +31,8 @@ media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = 
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
-media3-hls = { module = "androidx.media3:media3-hls", version.ref = "media3" }
-media3-dash = { module = "androidx.media3:media3-dash", version.ref = "media3" }
+media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "media3" }
+media3-exoplayer-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "media3" }
 media3-datasource = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 ```
 
@@ -895,10 +895,10 @@ val item = MediaItem.Builder()
 
 | Format | Module | Use Case |
 |---|---|---|
-| **HLS** | `media3-hls` | Default for most streaming (Apple-origin, wide CDN support) |
-| **DASH** | `media3-dash` | Google/YouTube-origin, better multi-period ad insertion |
+| **HLS** | `media3-exoplayer-hls` | Default for most streaming (Apple-origin, wide CDN support) |
+| **DASH** | `media3-exoplayer-dash` | Google/YouTube-origin, better multi-period ad insertion |
 | **RTSP** | `media3-exoplayer-rtsp` | IP cameras, live surveillance |
-| **SmoothStreaming** | `media3-exoplayer` (built-in) | Legacy Microsoft streaming |
+| **SmoothStreaming** | `media3-exoplayer-smoothstreaming` | Legacy Microsoft streaming |
 | **Progressive** | `media3-exoplayer` (built-in) | MP4, MP3, WebM, Ogg direct files |
 
 ExoPlayer auto-detects the format from the URI or content type. Override when needed:

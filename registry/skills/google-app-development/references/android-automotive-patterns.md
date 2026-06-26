@@ -6,6 +6,8 @@ Target: latest stable AAOS
 
 Android Automotive OS (AAOS) is a **full embedded operating system** that runs directly on the vehicle's infotainment head unit. For the shared Car App Library API (CarAppService, Session, Screen, Templates, Constraints, Lifecycle, Testing), see `car-app-library.md`. For Android Auto phone projection patterns, see `android-auto-patterns.md`. This file covers AAOS-specific patterns only.
 
+> **Placeholder convention:** `<latest>` / `<latest-stable-api>` are fill-in markers — replace with the current stable version / API level. The bare `<latest-stable-api>` is not valid Kotlin, so never emit it literally.
+
 
 ## AAOS vs Android Auto
 

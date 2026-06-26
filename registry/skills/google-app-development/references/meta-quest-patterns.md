@@ -4,6 +4,8 @@ Adapting Android APK apps to run on Meta Quest headsets.
 
 >[toc]
 
+> **Placeholder convention:** `<latest>` / `<latest-stable-api>` are fill-in markers — replace with the current stable version / API level. The bare `<latest-stable-api>` is not valid Kotlin, so never emit it literally.
+
 
 ## Overview
 

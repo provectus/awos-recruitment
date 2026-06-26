@@ -493,6 +493,8 @@ fun shows_data_after_loading() {
 
 Run Android framework tests on JVM without a device. Faster than instrumented tests.
 
+> **JUnit 4 lifecycle here.** `RobolectricTestRunner` is a JUnit 4 runner, so these integration examples use JUnit 4 annotations (`org.junit.Test`, `@Before`/`@After`) — Jupiter's `@BeforeEach` would never fire under a JUnit 4 runner. They run alongside the JUnit 5 unit tests above via the Vintage engine. (Alternatively, use Robolectric's JUnit 5 `@ExtendWith(RobolectricExtension::class)`.)
+
 ```kotlin
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -570,7 +572,7 @@ class OrderServiceTest {
     @BindValue
     val fakeApi: OrderApi = FakeOrderApi()
 
-    @BeforeEach
+    @Before // JUnit 4 — RobolectricTestRunner is a JUnit 4 runner
     fun setUp() {
         hiltRule.inject()
     }

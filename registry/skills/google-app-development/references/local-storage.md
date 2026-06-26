@@ -415,10 +415,15 @@ class ItemDaoTest {
 
     @Test
     fun observeEmitsOnChange() = runTest {
-        val items = dao.observeAll().take(2).toList()
-        dao.upsert(ItemEntity(id = "1", title = "Test", description = null, category = "A", createdAt = 0L))
-        assertEquals(0, items[0].size)
-        assertEquals(1, items[1].size)
+        // Collect with Turbine: the upsert must run *between* emissions, so collecting
+        // eagerly with take(2).toList() before the upsert would deadlock (the second
+        // emission never arrives while toList() is still suspended collecting).
+        dao.observeAll().test {
+            assertEquals(0, awaitItem().size) // initial empty emission
+            dao.upsert(ItemEntity(id = "1", title = "Test", description = null, category = "A", createdAt = 0L))
+            assertEquals(1, awaitItem().size) // emission after insert
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }
 ```
@@ -698,7 +703,7 @@ fun provideDatabase(
 ```
 
 **Rules:**
-- For most apps, device encryption + EncryptedSharedPreferences for tokens is sufficient.
+- For most apps, device encryption + Keystore-backed DataStore for tokens is sufficient (`EncryptedSharedPreferences` is deprecated — see above).
 - Use `net.zetetic:sqlcipher-android` when compliance requires app-level DB encryption (HIPAA, PCI-DSS) or data must stay encrypted even while the device is unlocked.
 - Store the passphrase in Android Keystore — never hardcode.
 - Adds ~2-3 MB to APK size (native libraries for armeabi-v7a, arm64-v8a, x86, x86_64).

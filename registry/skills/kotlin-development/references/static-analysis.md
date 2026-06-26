@@ -45,7 +45,8 @@ detekt {
     autoCorrect = true // requires formatting plugin for auto-fix
 }
 
-// Type resolution (recommended — enables deeper checks)
+// Formatting rules (ktlint-backed ruleset — enables autoCorrect).
+// Type resolution is separate: it comes from the detektMain/detektTest tasks shown below.
 dependencies {
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:<latest>")
 }

@@ -62,7 +62,10 @@ class BillingManager(
 
     val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(purchasesUpdatedListener)
-        .enablePendingPurchases()              // required since PBL 5
+        // PBL 8 removed the no-arg overload; declare the pending purchase types you support
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
+        )
         .enableAutoServiceReconnection()       // PBL 8+ — handles reconnection automatically
         .build()
 }
@@ -86,7 +89,7 @@ billingClient.startConnection(object : BillingClientStateListener {
 ```
 
 **Rules:**
-- Call `enablePendingPurchases()` — required for all apps.
+- Call `enablePendingPurchases(PendingPurchasesParams...)` — required for all apps (PBL 8 removed the no-arg overload).
 - Call `enableAutoServiceReconnection()` (PBL 8+) to avoid manual reconnection logic.
 - Create one `BillingClient` per app process. Do not create multiple instances.
 - End the connection with `billingClient.endConnection()` when the billing manager is no longer needed.
@@ -422,7 +425,7 @@ fun launchUpgrade(
     newProductDetails: ProductDetails,
     newOfferToken: String,
     oldPurchaseToken: String,
-    replacementMode: Int = BillingFlowParams.ReplacementMode.CHARGE_PRORATED_PRICE,
+    replacementMode: Int = BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE,
 ) {
     val params = BillingFlowParams.newBuilder()
         .setProductDetailsParamsList(
@@ -465,14 +468,9 @@ fun launchUpgrade(
 ```kotlin
 // In PurchasesUpdatedListener — replacement creates a new Purchase
 fun handleSubscriptionPurchase(purchase: Purchase) {
-    // Invalidate old token if this is a replacement
-    val linkedToken = purchase.linkedPurchaseToken
-    if (linkedToken != null) {
-        // Revoke entitlement for old token on your backend
-        backendApi.invalidateToken(linkedToken)
-    }
-
-    // Process new purchase normally
+    // The old→new token linkage is NOT exposed on the client `Purchase`. Send the new
+    // purchase token to your backend, which reads `linkedPurchaseToken` from the Play
+    // Developer API (SubscriptionPurchase) and revokes the old entitlement there.
     verifyAndAcknowledge(purchase)
 }
 ```
@@ -695,5 +693,5 @@ Install [Play Billing Lab](https://play.google.com/store/apps/details?id=com.goo
 | Testing only with license testers | Also test with real accounts on a closed test track before release. License tester behavior differs (accelerated renewals, no real charges). |
 | Not handling `onBillingServiceDisconnected` | Use `enableAutoServiceReconnection()` (PBL 8+) or implement retry with exponential backoff. |
 | Verifying purchases only on client | Always verify purchase tokens on your secure backend via Google Play Developer API. |
-| Forgetting `enablePendingPurchases()` | Required since PBL 5 — `BillingClient.newBuilder` will throw if omitted. |
+| Forgetting `enablePendingPurchases(...)` | Required — `BillingClient.newBuilder` throws if omitted. PBL 8 removed the no-arg overload; pass `PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()`. |
 | Not enabling RTDN | Without Real-Time Developer Notifications, your backend misses out-of-band state changes (refunds, renewals, holds). |

@@ -1,6 +1,8 @@
 # Android Project Structure Reference
 
-Covers Android-specific project organization, Gradle configuration, build variants, and CI/CD. For generic Kotlin/Gradle project structure (single-module layout, version catalog basics, compiler options, testing setup), see the `kotlin-development` skill's `references/project-structure.md`.
+Covers Android-specific project organization, Gradle configuration, and build variants. For generic Kotlin/Gradle project structure (single-module layout, version catalog basics, compiler options, testing setup), see the `kotlin-development` skill's `references/project-structure.md`.
+
+> **Placeholder convention:** `<latest>` (inside quoted version strings) and `<latest-stable-api>` (bare, e.g. `compileSdk = <latest-stable-api>`) are fill-in markers, not literal values — replace them with the current stable version / API level. The bare form is not valid Kotlin, so never emit it verbatim.
 
 Targets latest stable **AGP** and **Kotlin 2.x**.
 
@@ -272,7 +274,7 @@ android.nonTransitiveRClass=true
 [versions]
 agp = "<latest>"
 kotlin = "<latest>"
-ksp = "<latest>"
+ksp = "<latest>"  # KSP version must match the Kotlin version — format is <kotlin>-<ksp> (e.g. 2.0.21-1.0.28)
 
 # AndroidX
 core-ktx = "<latest>"

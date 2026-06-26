@@ -45,7 +45,7 @@ fun MyApp() {
 | Medium | 600dp | `WIDTH_DP_MEDIUM_LOWER_BOUND` | Foldables unfolded, small tablets |
 | Expanded | 840dp | `WIDTH_DP_EXPANDED_LOWER_BOUND` | Tablets, desktops, landscape foldables |
 | Large | 1200dp | `WIDTH_DP_LARGE_LOWER_BOUND` | Large tablets, desktop windows |
-| Extra-large | 1600dp | `WIDTH_DP_XLARGE_LOWER_BOUND` | Ultra-wide desktop, multi-monitor |
+| Extra-large | 1600dp | `WIDTH_DP_EXTRA_LARGE_LOWER_BOUND` | Ultra-wide desktop, multi-monitor |
 
 #### Height Breakpoints
 
@@ -54,8 +54,8 @@ fun MyApp() {
 | Compact | < 480dp | (else branch) | Phones in landscape |
 | Medium | 480dp | `HEIGHT_DP_MEDIUM_LOWER_BOUND` | Tablets in landscape |
 | Expanded | 900dp | `HEIGHT_DP_EXPANDED_LOWER_BOUND` | Tablets in portrait, desktops |
-| Large | 1200dp | `HEIGHT_DP_LARGE_LOWER_BOUND` | Large desktop windows |
-| Extra-large | 1600dp | `HEIGHT_DP_XLARGE_LOWER_BOUND` | Ultra-wide desktop, multi-monitor |
+
+The height axis stops at Expanded — there are no `HEIGHT_DP_LARGE`/`HEIGHT_DP_EXTRA_LARGE` constants. Large/Extra-large are width-only breakpoints.
 
 **Key point**: Always branch on width breakpoints for primary layout decisions. Use height breakpoints as a secondary signal (e.g., to hide a bottom bar in landscape). Large and Extra-large (`BREAKPOINTS_V2`, WindowManager 1.5+) are useful for desktop windowing and ChromeOS — for most mobile and tablet apps, branching on Compact, Medium, and Expanded is sufficient.
 
@@ -708,7 +708,7 @@ fun listDetailLayout_expandedWidth_showsBothPanes() {
         // Override the adaptive info for testing
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
-                windowSizeClass = WindowSizeClass.compute(
+                windowSizeClass = WindowSizeClass(
                     widthDp = 900f,  // Expanded (>= 840dp)
                     heightDp = 600f,
                 ),
@@ -729,7 +729,7 @@ fun listDetailLayout_compactWidth_showsOnlyList() {
     composeTestRule.setContent {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
-                windowSizeClass = WindowSizeClass.compute(
+                windowSizeClass = WindowSizeClass(
                     widthDp = 400f,  // Compact (< 600dp)
                     heightDp = 600f,
                 ),
@@ -760,7 +760,7 @@ fun layout_tabletopPosture_splitContent() {
     composeTestRule.setContent {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
-                windowSizeClass = WindowSizeClass.compute(
+                windowSizeClass = WindowSizeClass(
                     widthDp = 700f,  // Medium (>= 600dp, < 840dp)
                     heightDp = 600f,
                 ),

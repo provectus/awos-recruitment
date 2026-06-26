@@ -273,11 +273,13 @@ Not lint per se, but essential for identifying recomposition issues:
 
 ```kotlin
 // build.gradle.kts
-android {
-    composeCompiler {
-        reportsDestination = layout.buildDirectory.dir("compose_compiler")
-        metricsDestination = layout.buildDirectory.dir("compose_compiler")
-    }
+android { /* ... */ }
+
+// Compose Compiler Gradle plugin (Kotlin 2.0+) registers composeCompiler {} as a
+// top-level project extension — it goes after android { }, not nested inside it.
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    metricsDestination = layout.buildDirectory.dir("compose_compiler")
 }
 ```
 
