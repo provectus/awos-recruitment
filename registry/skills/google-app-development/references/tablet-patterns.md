@@ -8,48 +8,56 @@
 ### Breakpoints and Classification
 ---
 
-`WindowSizeClass` is the foundation for building adaptive UIs in Compose. It classifies the current window into discrete size buckets so layouts can respond to meaningful thresholds rather than raw pixel values.
+`WindowSizeClass` (from `androidx.window`) is the foundation for building adaptive UIs in Compose. Use `isWidthAtLeastBreakpoint()` to check against lower-bound constants — Compact is the implicit `else` (no constant needed).
 
 #### Setup
 
-Add the dependency:
-
 ```kotlin
-implementation("androidx.compose.material3.adaptive:adaptive:1.1.0")
+implementation("androidx.compose.material3.adaptive:adaptive:<latest>")
+// Pulls in androidx.window transitively
 ```
 
-#### Calculating the Size Class
+#### Checking Breakpoints
+
+Check from **widest to narrowest** in `when` blocks. Compact is the `else` branch — there is no lower-bound constant for it.
 
 ```kotlin
 @Composable
 fun MyApp() {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
-    when (windowSizeClass.windowWidthSizeClass) {
-        WindowWidthSizeClass.COMPACT  -> CompactLayout()
-        WindowWidthSizeClass.MEDIUM   -> MediumLayout()
-        WindowWidthSizeClass.EXPANDED -> ExpandedLayout()
+    when {
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) ->
+            ExpandedLayout()
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) ->
+            MediumLayout()
+        else ->
+            CompactLayout()
     }
 }
 ```
 
 #### Width Breakpoints
 
-| Class | Breakpoint | Typical Devices |
-|-------|-----------|-----------------|
-| `COMPACT` | < 600dp | Phones in portrait |
-| `MEDIUM` | 600dp - 839dp | Foldables unfolded, small tablets |
-| `EXPANDED` | >= 840dp | Tablets, desktops, landscape foldables |
+| Class | Lower Bound | Constant | Typical Devices |
+|-------|------------|----------|-----------------|
+| Compact | < 600dp | (else branch) | Phones in portrait |
+| Medium | 600dp | `WIDTH_DP_MEDIUM_LOWER_BOUND` | Foldables unfolded, small tablets |
+| Expanded | 840dp | `WIDTH_DP_EXPANDED_LOWER_BOUND` | Tablets, desktops, landscape foldables |
+| Large | 1200dp | `WIDTH_DP_LARGE_LOWER_BOUND` | Large tablets, desktop windows |
+| Extra-large | 1600dp | `WIDTH_DP_EXTRA_LARGE_LOWER_BOUND` | Ultra-wide desktop, multi-monitor |
 
 #### Height Breakpoints
 
-| Class | Breakpoint | Typical Devices |
-|-------|-----------|-----------------|
-| `COMPACT` | < 480dp | Phones in landscape |
-| `MEDIUM` | 480dp - 899dp | Tablets in landscape |
-| `EXPANDED` | >= 900dp | Tablets in portrait, desktops |
+| Class | Lower Bound | Constant | Typical Devices |
+|-------|------------|----------|-----------------|
+| Compact | < 480dp | (else branch) | Phones in landscape |
+| Medium | 480dp | `HEIGHT_DP_MEDIUM_LOWER_BOUND` | Tablets in landscape |
+| Expanded | 900dp | `HEIGHT_DP_EXPANDED_LOWER_BOUND` | Tablets in portrait, desktops |
 
-**Key point**: Always branch on `windowWidthSizeClass` for primary layout decisions. Use `windowHeightSizeClass` as a secondary signal (e.g., to hide a bottom bar in landscape).
+The height axis stops at Expanded — there are no `HEIGHT_DP_LARGE`/`HEIGHT_DP_EXTRA_LARGE` constants. Large/Extra-large are width-only breakpoints.
+
+**Key point**: Always branch on width breakpoints for primary layout decisions. Use height breakpoints as a secondary signal (e.g., to hide a bottom bar in landscape). Large and Extra-large (`BREAKPOINTS_V2`, WindowManager 1.5+) are useful for desktop windowing and ChromeOS — for most mobile and tablet apps, branching on Compact, Medium, and Expanded is sufficient.
 
 
 ## Adaptive Layouts
@@ -62,14 +70,13 @@ fun MyApp() {
 #### Dependency
 
 ```kotlin
-implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0")
-implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0")
+implementation("androidx.compose.material3.adaptive:adaptive-layout:<latest>")
+implementation("androidx.compose.material3.adaptive:adaptive-navigation:<latest>")
 ```
 
 #### Basic Usage
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun ListDetailScreen() {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -132,7 +139,7 @@ ListDetailPaneScaffold(
 #### Dependency
 
 ```kotlin
-implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.4.0")
+implementation("androidx.compose.material3:material3-adaptive-navigation-suite:<latest>")
 ```
 
 #### Usage
@@ -250,8 +257,8 @@ Jetpack `WindowManager` provides fold-aware APIs to detect hinge position and fo
 #### Dependency
 
 ```kotlin
-implementation("androidx.window:window:1.4.0")
-implementation("androidx.window:window-core:1.4.0")
+implementation("androidx.window:window:<latest>")
+implementation("androidx.window:window-core:<latest>")
 ```
 
 #### Observing Fold State in Compose
@@ -366,7 +373,6 @@ Google recommends three canonical layouts for large screens:
 #### SupportingPaneScaffold
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun SupportingPaneScreen() {
     val navigator = rememberSupportingPaneScaffoldNavigator()
@@ -398,10 +404,9 @@ fun SupportingPaneScreen() {
 @Composable
 fun AdaptiveFeed(items: List<FeedItem>) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val columns = when (windowSizeClass.windowWidthSizeClass) {
-        WindowWidthSizeClass.COMPACT  -> 1
-        WindowWidthSizeClass.MEDIUM   -> 2
-        WindowWidthSizeClass.EXPANDED -> 3
+    val columns = when {
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) -> 3
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) -> 2
         else -> 1
     }
 
@@ -697,7 +702,6 @@ Android Studio provides foldable emulator profiles with virtual hinge controls:
 #### Compose UI Testing with Overridden Window Size
 
 ```kotlin
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Test
 fun listDetailLayout_expandedWidth_showsBothPanes() {
     composeTestRule.setContent {
@@ -705,8 +709,8 @@ fun listDetailLayout_expandedWidth_showsBothPanes() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass(
-                    windowWidthSizeClass = WindowWidthSizeClass.EXPANDED,
-                    windowHeightSizeClass = WindowHeightSizeClass.MEDIUM
+                    widthDp = 900f,  // Expanded (>= 840dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture()
             )
@@ -726,8 +730,8 @@ fun listDetailLayout_compactWidth_showsOnlyList() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass(
-                    windowWidthSizeClass = WindowWidthSizeClass.COMPACT,
-                    windowHeightSizeClass = WindowHeightSizeClass.MEDIUM
+                    widthDp = 400f,  // Compact (< 600dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture()
             )
@@ -757,8 +761,8 @@ fun layout_tabletopPosture_splitContent() {
         CompositionLocalProvider(
             LocalWindowAdaptiveInfo provides WindowAdaptiveInfo(
                 windowSizeClass = WindowSizeClass(
-                    windowWidthSizeClass = WindowWidthSizeClass.MEDIUM,
-                    windowHeightSizeClass = WindowHeightSizeClass.MEDIUM
+                    widthDp = 700f,  // Medium (>= 600dp, < 840dp)
+                    heightDp = 600f,
                 ),
                 windowPosture = Posture(
                     isTabletop = true,
