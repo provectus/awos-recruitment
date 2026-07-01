@@ -53,12 +53,12 @@ A clean conversation — or one whose only relation to the PR is this skill's ow
 
 ### 1. Gather feedback items
 
-- **public:** run `preflight`, `checkout-pr`, and `fetch-working-set` from [references/github.md](references/github.md). If the working set is empty, say "Nothing new to address" and stop.
+- **public:** run `preflight`, `checkout-pr`, and `fetch-working-set` from [references/github.md](references/github.md). `checkout-pr` puts the PR into an **isolated git worktree by default**, so the user's current branch and working tree stay untouched — only check the branch out in place if the user asked for that (e.g. they want to review or run it in their main working tree). If the working set is empty, say "Nothing new to address" and stop.
 - **local:** run `read-feedback` from [references/local.md](references/local.md) to load the review file or pasted text into discrete items.
 
 ### 2. Read context and draft responses
 
-For each item, `Read` the file at the comment's `path` around `line` before drafting — never propose a fix without seeing the code. (Public: for outdated threads `line` may be null; fall back to `originalLine` and `diffHunk`.) When the item list is long, parallelize the reading, not the judgment: fan out subagents — one per item or small batch — each returning structured facts: the code around the anchor, what it currently does, whether the concern is already addressed. That's collection, not evaluation, so a small/fast model suffices if agent dispatch lets you pick one; with no agent dispatch, read inline. Categorizing and drafting stay with you — fix-vs-pushback is the judgment the bias gate protects, and replies should sound like one author. Categorize each item:
+If the request links or references an off-platform discussion — a Slack thread, meeting notes, a roadmap or ticket, a design doc — read it before triaging; it may show that a point a reviewer raised was already settled elsewhere (making it `pushback` or `dismiss-resolve`) or explain the intent behind a change under question. For each item, `Read` the file at the comment's `path` around `line` before drafting — never propose a fix without seeing the code. (Public: for outdated threads `line` may be null; fall back to `originalLine` and `diffHunk`.) When the item list is long, parallelize the reading, not the judgment: fan out subagents — one per item or small batch — each returning structured facts: the code around the anchor, what it currently does, whether the concern is already addressed. That's collection, not evaluation, so a small/fast model suffices if agent dispatch lets you pick one; with no agent dispatch, read inline. Categorizing and drafting stay with you — fix-vs-pushback is the judgment the bias gate protects, and replies should sound like one author. Categorize each item:
 
 | Category | When | Action |
 |---|---|---|
@@ -76,7 +76,7 @@ Present the plan **as message text**, numbered and scannable — every item with
 **Pre-gate protocol — the plan is the step 2 file, not your memory.** Present it by printing the file's full content as message text, then call `AskUserQuestion` — and always include the file path in the question itself, so the user can reach the plan even if the print gets squeezed out. The documented failure here: composing the plan in thinking, then gating on "the plan is above" while the message contains nothing — your memory of having printed is not evidence; only the `Write` call and text visible in this turn are. If there is no plan file, you have no plan: go back and write it. Then ask the user how to proceed:
 
 - **Proceed** — apply the plan as-is.
-- **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue), cite it in the fix/reply, and drop or downgrade items that don't hold up. Then re-present the revised plan and return to this gate — don't apply until the user picks Proceed.
+- **Back findings with external sources** — before applying, verify the contestable items against a trusted source (official docs, the spec, a high-signal StackOverflow or GitHub issue, or — for an architectural claim about how the system fits together — the project's own sibling repos and artifacts, not just external docs), cite it in the fix/reply, and drop or downgrade items that don't hold up. Then re-present the revised plan and return to this gate — don't apply until the user picks Proceed.
 - **Change something** — take the user's edits (apply some plan items, skip others, reword a reply — whatever the user directs), restate, and confirm.
 
 Apply, reply, or resolve nothing before the user picks Proceed.
