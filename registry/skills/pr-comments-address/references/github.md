@@ -15,12 +15,25 @@ If the repo identity doesn't match `OWNER/REPO`, warn and ask whether to `cd` in
 
 ## checkout-pr
 
+**Default: an isolated worktree.** Don't switch the current branch in place — the user may have work in progress there. Add a detached worktree, then let `gh pr checkout` set up the PR's head branch inside it (this handles fork remotes and keeps push tracking intact, so step 5's `git push` still targets the PR head branch):
+
+```sh
+git worktree add --detach ../<repo>-pr-<NUM>   # sibling dir, current tree untouched
+cd ../<repo>-pr-<NUM>
+gh pr checkout <NUM>                            # PR head branch, fork-aware
+git pull --ff-only                              # move to the tip
+```
+
+Tell the user the worktree path. Remove it when done (`git worktree remove <path>`) unless they want to keep it.
+
+**In place — only if the user asked** (e.g. they want to review or run it in their main working tree):
+
 ```sh
 gh pr checkout <NUM>     # creates/switches to the PR's head branch
 git pull --ff-only       # move to the tip
 ```
 
-If checkout reports uncommitted changes, stop and tell the user. Don't stash automatically — their work-in-progress outranks this workflow.
+If an in-place checkout reports uncommitted changes, stop and tell the user. Don't stash automatically — their work-in-progress outranks this workflow.
 
 ## fetch-working-set
 

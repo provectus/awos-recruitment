@@ -45,6 +45,7 @@ Drop anything that doesn't clear this bar, regardless of which engine raised it:
 - Pedantic nitpicks a senior engineer wouldn't raise.
 - Generic "add more tests / better docs / more security" that the codebase's own conventions don't call for.
 - Issues silenced deliberately in code (lint-ignore, a documented constant).
+- Claims of duplication or misplacement — "this already exists in X", "this belongs in Y", "the other command already does this" — verified against the actual other artifact, not asserted from memory or the diff alone. `Read` the file, `Grep` the sibling repo, open the command you're claiming it duplicates. If you can't confirm the other side exists and says what you think it does, drop the finding or soften it to a question ("is this already covered by …?"). Asserting a duplication that isn't there wastes the author's time and burns the review's credibility.
 
 Apply the same skepticism to automated findings that a careful human reviewer applies to any bot: a confident finding is not a correct finding. When you can't verify a finding, lower its confidence and drop it rather than posting a guess.
 

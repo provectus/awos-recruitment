@@ -28,9 +28,17 @@ A review starts a conversation; it isn't a one-way verdict. This matters most wh
 - Evaluate every suggestion on its merits, whoever (or whatever) raised it. It's fine for a review to say plainly that an earlier suggestion — from a person or a bot — doesn't hold up, and why.
 - The user sets the final tone and may soften or sharpen any finding in the approval step.
 
+## Architectural notes
+
+A cross-cutting observation — a boundary that's off, a pattern with no consumer, a change that doesn't cover the cases it implies — is still a conversation, not a verdict. Frame it as a proposal: name the concern and offer the alternative you'd take, so the author has something to react to. "I'd pull this into the queue module" opens a discussion; "this is in the wrong place" just grades them. And when the author's description or the PR discussion already gives a reason for the choice, surface that counter-view and argue with it — a note that ignores the rationale the author stated reads as not having read them.
+
 ## The summary body
 
 A short paragraph or two: what the PR does, your overall read (close, or real blockers?), and the headline concerns. The inline comments carry the specifics. Mention test coverage only when it's genuinely thin on changed behavior, not as a reflex.
+
+Draw the PR's purpose from its description and the discussion, not from the diff. The diff shows what changed, not why the author set out to change it; reconstructing intent from the code alone is how a summary ends up confidently describing the wrong goal.
+
+Keep it free of filler. Don't grade the code's shape — "structure is sound", "the wiring is clean", "well organized" is noise that reads as padding. Name a genuine strength plainly if there is one, otherwise go straight to the concerns. On a re-review, don't itemize everything fixed since the last round — the author knows what they fixed; say whether it's all addressed or what still stands, and thank them for the work.
 
 ## Examples
 
@@ -53,6 +61,10 @@ These illustrate the voice — they aren't a checklist of specific issues to loo
 
 > An earlier comment suggested extracting this constant, but the value is the documented limit from the spec linked just above; inlining it with that link reads clearer than a named constant that only points back here. I'd leave it.
 
+**Architectural note — propose the alternative, weigh the author's reason:**
+
+> This new `RetryPolicy` has only the one caller it ships with, and the description says it's "for reuse later". I'd hold off on the abstraction until a second caller exists — it's easier to shape right once you can see both call sites. If there's already a concrete second consumer lined up, ignore me.
+
 **Summary body:**
 
-> Adds the jobs API and wires it to the existing queue. Structure is clean and the happy-path tests are solid. Two things I'd want resolved before merge: the retry has no ceiling (inline), and the new handler trusts the `status` query param without validation (inline). The rest are small.
+> Adds the jobs API and wires it to the existing queue. Close — two things I'd want resolved before merge: the retry has no ceiling (inline), and the new handler trusts the `status` query param without validation (inline). The rest are small. Thanks for splitting the queue changes out of this one.
