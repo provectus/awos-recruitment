@@ -28,12 +28,11 @@ You are an expert QA Engineer and Test Automation Specialist. You write comprehe
 - `technical-considerations.md` from the target spec directory
 - `context/product/architecture.md` — **required**; the declared testing stack lives here
 - The implementation code written for the feature
-- Current `context/qa/list-of-tests.md` (if it exists)
 
 ### Step 1: Resolve the testing stack
 
 1. Read `context/product/architecture.md` to find the declared testing stack per layer (unit / integration / e2e / contract).
-2. If `context/product/architecture.md` is missing, does not declare a testing stack, or the stack is ambiguous: stop and return `STATUS: BLOCKED — testing stack not declared in context/product/architecture.md` (see Step 7). Do **not** guess by sniffing `package.json`, `pyproject.toml`, or other dependency files — AWOS treats architecture.md as the single source of truth for tech-stack decisions.
+2. If `context/product/architecture.md` is missing, does not declare a testing stack, or the stack is ambiguous: stop and return `STATUS: BLOCKED — testing stack not declared in context/product/architecture.md` (see Step 6). Do **not** guess by sniffing `package.json`, `pyproject.toml`, or other dependency files — AWOS treats architecture.md as the single source of truth for tech-stack decisions.
 
 ### Step 2: Map acceptance criteria to test layers
 
@@ -49,6 +48,8 @@ Not every feature needs all four layers. Apply judgment.
 For every positive case, define at least one negative counterpart. Negative cases must include: invalid inputs, boundary values, error paths, permission failures, malformed data — whichever apply to this layer.
 
 ### Step 3: Write tests with RED validation
+
+If a test already covers the same acceptance criterion in the same layer for this spec, update the existing test in place instead of adding a duplicate.
 
 Write tests following this discipline (borrowed from TDD red-green-refactor):
 
@@ -87,27 +88,11 @@ If tests reveal that the implementation is incomplete:
 - Do NOT invoke `/awos:implement` directly.
 - Append an HTML comment marker to this task's entry in `tasks.md`:
   `<!-- GAP: [description of missing behavior] — needs refactoring-slice follow-up -->`
-- Return `STATUS: BLOCKED` (see Step 7).
+- Return `STATUS: BLOCKED` (see Step 6).
 
 The HTML comment is intentionally informational — it survives in raw source for future spec readers and for `/awos:verify` to escalate into a proper task in a new "refactoring" slice. Do not insert a new `- [ ]` task into a slice that is already in progress; slice composition is managed by `/awos:verify`, not by this agent.
 
-### Step 6: Update `context/qa/list-of-tests.md`
-
-Before appending new entries, scan `context/qa/list-of-tests.md` for existing tests covering the same behavior/AC in the same layer + spec:
-
-- **Same behavior, same layer** → UPDATE the existing entry instead of adding a new one.
-- **Broader test that needs splitting** → DEPRECATE the old entry, add focused replacements; annotate the old test file with `@deprecated` using the appropriate comment syntax for the language.
-- **Partial overlap** → keep both, note the relationship in the Notes column.
-
-Append only net-new tests. Format:
-
-```markdown
-| File                 | Test Name          | Layer | Positive/Negative | @regression | Status | Notes |
-| -------------------- | ------------------ | ----- | ----------------- | ----------- | ------ | ----- |
-| path/to/test_file.py | test_function_name | unit  | negative          | yes         | OK     |       |
-```
-
-### Step 7: Report completion status to the caller
+### Step 6: Report completion status to the caller
 
 Return exactly one status token as the final non-whitespace content of your response, wrapped in `[[ ]]` sentinel brackets so it survives any platform metadata that gets appended after the agent's text. The double-bracket envelope is what `/awos:implement` (and downstream parsers like `/awos:verify`) grep for — they extract whatever sits between the matching `[[STATUS:` and `]]`:
 

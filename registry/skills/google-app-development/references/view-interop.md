@@ -181,7 +181,7 @@ Use `composable()` for new screens and `fragment<MyFragment>(route)` for legacy 
 
 ```kotlin
 // build.gradle.kts
-implementation("androidx.navigation:navigation-fragment-compose:2.9.0")
+implementation("androidx.navigation:navigation-fragment-compose:<latest>")
 
 // In Compose
 NavHost(navController, startDestination = "home") {

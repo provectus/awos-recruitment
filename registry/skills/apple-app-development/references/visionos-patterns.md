@@ -799,15 +799,38 @@ struct LODComponent: Component {
     let switchDistance: Float
 }
 
+// WorldTrackingProvider must be started once via ARKitSession.run(_:) before any
+// System can query it. RealityKit instantiates Systems for you, so expose the
+// already-running provider through a shared @MainActor holder rather than init injection.
+@MainActor
+enum WorldTracking {
+    static let provider = WorldTrackingProvider()
+    private static let session = ARKitSession()
+
+    // Call once during ImmersiveSpace setup, e.g.:
+    //   RealityView { ... }.task { await WorldTracking.start() }
+    static func start() async {
+        guard WorldTrackingProvider.isSupported else { return }
+        do {
+            try await session.run([provider])
+        } catch {
+            print("World tracking failed to start: \(error)")
+        }
+    }
+}
+
 struct LODSystem: System {
     static let query = EntityQuery(where: .has(LODComponent.self))
 
     init(scene: RealityKit.Scene) {}
 
     func update(context: SceneUpdateContext) {
-        guard let cameraTransform = context.scene.performQuery(
-            EntityQuery(where: .has(PerspectiveCameraComponent.self))
-        ).first?.transform else { return }
+        // On visionOS, read the user's head position from the device anchor.
+        // (PerspectiveCameraComponent is for non-visionOS RealityKit on iOS/macOS.)
+        guard let deviceAnchor = WorldTracking.provider.queryDeviceAnchor(
+            atTimestamp: CACurrentMediaTime()
+        ) else { return }
+        let headPosition = deviceAnchor.originFromAnchorTransform.columns.3
 
         for entity in context.entities(matching: Self.query, updatingSystemWhen: .rendering) {
             guard let lod = entity.components[LODComponent.self],
@@ -815,7 +838,7 @@ struct LODSystem: System {
 
             let distance = simd_distance(
                 entity.position(relativeTo: nil),
-                cameraTransform.translation
+                SIMD3(headPosition.x, headPosition.y, headPosition.z)
             )
             let targetMesh = distance > lod.switchDistance ? lod.lowDetail : lod.highDetail
             if model.mesh !== targetMesh {
@@ -851,3 +874,43 @@ struct LODSystem: System {
 - Disable components (physics, collision) on entities that do not need them.
 - Use `async` loading for models to avoid blocking the main actor during scene setup.
 - Prefer static meshes over animated ones when motion is not required.
+
+
+## visionOS 2+ Features
+
+### Object Tracking (visionOS 2)
+
+Track real-world objects using `ObjectTrackingProvider`:
+
+```swift
+let session = ARKitSession()
+let objectTracking = ObjectTrackingProvider(
+    referenceObjects: ReferenceObject.loadReferenceObjects(inGroupNamed: "TrackedObjects")
+)
+
+try await session.run([objectTracking])
+
+for await update in objectTracking.anchorUpdates {
+    switch update.event {
+    case .added, .updated:
+        let anchor = update.anchor
+        // Position virtual content relative to tracked object
+        entity.transform = Transform(matrix: anchor.originFromAnchorTransform)
+    case .removed:
+        break
+    }
+}
+```
+
+### TabletopKit (visionOS 2)
+
+Framework for building tabletop experiences (board games, collaborative tools). Manages player seating, game pieces, and table surface interactions.
+
+### visionOS 26 Features
+
+- **ManipulationComponent** — Built-in component for object manipulation, replacing much custom gesture code. Add to entities for drag, rotate, and scale behaviors.
+- **Persistence APIs** — Content can be locked to physical surfaces and persist across app sessions using spatial anchors.
+- **ImagePresentationComponent** — New component for displaying 2D, spatial photos, and spatial scenes in RealityKit.
+- **Unified Coordinate Conversion** — Simplifies moving between SwiftUI, RealityKit, and ARKit coordinate spaces.
+- **WidgetKit on visionOS** — Widgets are now available on visionOS 26.
+- **Spatial accessories** — Support for PlayStation VR2 Sense controllers and Logitech Muse.

@@ -10,7 +10,7 @@ Comprehensive guide to data persistence on Apple platforms. Covers Core Data (ma
 | **Boilerplate** | Minimal (`@Model` macro) | Significant (`.xcdatamodeld`, codegen) |
 | **SwiftUI integration** | Native (`@Query`, `.modelContainer`) | Workable (`@FetchRequest`) |
 | **UIKit support** | Possible but awkward | First-class (`NSFetchedResultsController`) |
-| **Undo/Redo** | Not built-in | Built-in (`NSUndoManager`) |
+| **Undo/Redo** | Supported via `ModelContext.undoManager` (set `isUndoEnabled: true` on `ModelContainer`) | Built-in (`NSUndoManager`) |
 | **Complex predicates** | `#Predicate` (limited composition) | `NSCompoundPredicate` (flexible) |
 | **Batch operations** | Limited | `NSBatchInsertRequest`, etc. |
 | **CloudKit** | Supported (with constraints) | `NSPersistentCloudKitContainer` (mature) |
@@ -19,7 +19,7 @@ Comprehensive guide to data persistence on Apple platforms. Covers Core Data (ma
 | **Custom data stores** | iOS 18+ `DataStore` protocol | N/A |
 
 **Guidance:**
-- **New SwiftUI-only projects (iOS 17+):** Start with SwiftData unless you need batch operations, undo/redo, or complex predicate composition.
+- **New SwiftUI-only projects (iOS 17+):** Start with SwiftData unless you need batch operations or complex predicate composition.
 - **Existing Core Data apps:** Migrate strategically. SwiftData and Core Data can coexist — they share the same SQLite backing store.
 - **Apps requiring UIKit + advanced features:** Core Data remains the stronger choice.
 - **Widgets/extensions for Core Data apps:** Consider using SwiftData in the extension while the main app stays on Core Data, sharing the same store via App Groups.
@@ -142,8 +142,8 @@ await MainActor.run {
 
 #### Swift 6 Strict Concurrency
 
-Swift 6 flags `NSManagedObject` and `NSManagedObjectContext` as non-`Sendable`. Strategies:
-- Use `@preconcurrency import CoreData` as a transitional measure.
+Swift 6 flags `NSManagedObject` as non-`Sendable`. In Xcode 26 (Swift 6.2), `NSManagedObjectContext` is now annotated `NS_SWIFT_SENDABLE` — but this does **not** make it thread-safe without `perform {}`. You must still use `perform {}` / `performAndWait {}` for all context operations. Strategies:
+- Use `@preconcurrency import CoreData` as a transitional measure for `NSManagedObject`.
 - Pass only `NSManagedObjectID` (which is `Sendable`) across isolation boundaries.
 - Wrap Core Data access behind an actor that owns a private-queue context.
 

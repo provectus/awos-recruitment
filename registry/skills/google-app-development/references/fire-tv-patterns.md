@@ -8,8 +8,10 @@ Fire TV runs on AOSP (Android Open Source Project) — not the Google-certified 
 
 - **No Google Play Services** — no GMS core, no Google Play Store, no Google APIs that depend on Play Services.
 - **Amazon ecosystem** — apps are distributed through the Amazon Appstore, purchases go through Amazon IAP, and the voice assistant is Alexa (not Google Assistant).
-- **AOSP base** — Fire OS is a fork of Android. Fire OS 5 is based on Android 5.1 (API 22), Fire OS 6 on Android 7.1 (API 25), Fire OS 7 on Android 9 (API 28), and Fire OS 8 on Android 11 (API 30). Always check the Fire OS version mapping when setting `minSdkVersion` / `targetSdkVersion`.
+- **AOSP base** — Fire OS is a fork of Android. Fire OS 5 is based on Android 5.1 (API 22), Fire OS 6 on Android 7.1 (API 25), Fire OS 7 on Android 9 (API 28), Fire OS 8 on Android 11 (API 30), and Fire OS 14 on Android 14 (API 34). Always check the Fire OS version mapping when setting `minSdkVersion` / `targetSdkVersion`.
 - **Leanback library** — Fire TV supports `androidx.leanback` but with caveats (see Common Pitfalls).
+
+> **Note:** Some newer Fire TV devices (e.g., Fire TV 4K Select) run **Vega OS**, Amazon's Linux-based operating system that does not run Android APKs natively. Verify that your target Fire TV device runs Fire OS (Android-based) before development.
 
 A single codebase can target both Google TV / Android TV and Fire TV with proper feature detection and build flavors.
 

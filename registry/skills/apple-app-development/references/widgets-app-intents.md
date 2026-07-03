@@ -71,26 +71,30 @@ struct MyTimelineProvider: TimelineProvider {
 }
 ```
 
-### Async TimelineProvider (preferred for iOS 17+)
+### AppIntentTimelineProvider (preferred for iOS 17+)
+
+For configurable widgets (iOS 17+), use `AppIntentTimelineProvider` which has native async methods (`snapshot`/`timeline`):
 
 ```swift
-struct MyAsyncProvider: TimelineProvider {
+struct MyAsyncProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> MyEntry {
         MyEntry(date: .now, title: "Placeholder", value: 0)
     }
 
-    func getSnapshot(in context: Context) async -> MyEntry {
+    func snapshot(for configuration: MyWidgetIntent, in context: Context) async -> MyEntry {
         let data = await fetchLatestData()
         return MyEntry(date: .now, title: data.title, value: data.value)
     }
 
-    func getTimeline(in context: Context) async -> Timeline<MyEntry> {
+    func timeline(for configuration: MyWidgetIntent, in context: Context) async -> Timeline<MyEntry> {
         let data = await fetchLatestData()
         let entry = MyEntry(date: .now, title: data.title, value: data.value)
         return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(3600)))
     }
 }
 ```
+
+Note: `TimelineProvider` (for `StaticConfiguration`) uses completion-handler methods. Swift provides an implicit async bridge, but `AppIntentTimelineProvider` is the canonical async-first API.
 
 ### WidgetFamily Sizes
 
@@ -994,6 +998,142 @@ struct MediumWidgetView: View {
     }
 }
 ```
+
+### ControlWidget (iOS 18+)
+
+Controls are a new WidgetKit mechanism that places app actions in Control Center, the Lock Screen controls gallery, and the Action button. They use `ControlWidget` instead of `Widget` and are powered by App Intents.
+
+```swift
+import WidgetKit
+import AppIntents
+
+struct CaffeinateToggle: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        // A value provider supplies the current state; without it, isOn would be a
+        // snapshot captured at view-build time and wouldn't reflect external changes.
+        StaticControlConfiguration(
+            kind: "CaffeinateToggle",
+            provider: CaffeinateValueProvider()
+        ) { isActive in
+            ControlWidgetToggle(
+                "Caffeinate",
+                isOn: isActive,
+                action: ToggleCaffeinateIntent()
+            ) { isOn in
+                Label(isOn ? "Active" : "Off", systemImage: isOn ? "cup.and.saucer.fill" : "cup.and.saucer")
+            }
+            .tint(.brown)
+        }
+        .displayName("Caffeinate Toggle")
+        .description("Toggle caffeinate mode from Control Center.")
+    }
+}
+
+struct CaffeinateValueProvider: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        await CaffeinateManager.shared.isActive
+    }
+}
+
+struct ToggleCaffeinateIntent: SetValueIntent {
+    static var title: LocalizedStringResource = "Toggle Caffeinate"
+    typealias Value = Bool
+
+    @Parameter(title: "Enabled")
+    var value: Bool
+
+    func perform() async throws -> some IntentResult {
+        await CaffeinateManager.shared.setActive(value)
+        return .result()
+    }
+}
+```
+
+Use `ControlWidgetButton` for one-shot actions instead of toggles. Both `StaticControlConfiguration` and `AppIntentControlConfiguration` (for user-configurable controls) are available.
+
+### Apple Intelligence / AssistantSchemas (iOS 18+)
+
+App Intents can integrate directly with Siri and Apple Intelligence by conforming to an `AssistantSchema`. This allows the system to understand app actions semantically and surface them in intelligent suggestions, Siri conversations, and on-screen awareness.
+
+Apple defines **12 App Intent Domains**: Books, Browser, Camera, Documents, File Management, Journal, Mail, Photos, Presentations, Spreadsheets, WhiteBoard, and Word Processor. Each domain provides a set of schemas that describe common actions.
+
+```swift
+import AppIntents
+
+// Tag an existing or new app intent with @AssistantIntent(schema:) so Siri and
+// Apple Intelligence can invoke it for a known domain action. The macro enforces
+// the schema's required conformance and parameters at compile time.
+@AssistantIntent(schema: .books.openBook)
+struct OpenBookIntent: OpenIntent {
+    var target: BookEntity
+
+    func perform() async throws -> some IntentResult {
+        await NavigationManager.shared.openBook(target.id)
+        return .result()
+    }
+}
+```
+
+The philosophy shift with Apple Intelligence is: **anything your app does should be an app intent**. Conforming to `AssistantSchema` protocols tells the system what the intent does in a domain-specific way, enabling Siri and Apple Intelligence to orchestrate actions across apps without requiring explicit Siri phrases.
+
+### Live Activities on Apple Watch (watchOS 11+)
+
+Starting with watchOS 11, Live Activities from a paired iPhone appear automatically in the Smart Stack on Apple Watch. By default, the system uses the Dynamic Island compact views to render the activity.
+
+To provide a custom watch layout, add the `supplementalActivityFamilies` modifier to your `ActivityConfiguration`:
+
+```swift
+struct DeliveryLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: DeliveryAttributes.self) { context in
+            // Lock Screen presentation (iOS)
+            DeliveryLockScreenView(context: context)
+        } dynamicIsland: { context in
+            // Dynamic Island presentation (iOS)
+            DeliveryDynamicIsland(context: context)
+        }
+        .supplementalActivityFamilies([.small])
+    }
+}
+```
+
+When `.small` is specified, provide a dedicated watchOS layout using `WidgetFamily.accessoryRectangular`-like sizing. Without the modifier, the system falls back to the Dynamic Island compact leading/trailing views to compose the Smart Stack card automatically.
+
+### Broadcast Push Notifications for Live Activities (iOS 18+)
+
+Prior to iOS 18, updating a Live Activity via push required sending individual notifications to each device's unique push token. Broadcast push notifications solve this scalability problem by allowing a single push to a **channel ID** that reaches all subscribers.
+
+```swift
+// Start a Live Activity subscribed to a broadcast channel (iOS 18+).
+// The channel ID is a base64-encoded string your server obtains from APNs
+// (see "Sending channel management requests to APNs").
+let activity = try Activity.request(
+    attributes: attributes,
+    content: content,
+    pushType: .channel(channelID)   // e.g. "c29tZUNoYW5uZWw="
+)
+```
+
+Configure your APNs payload with the channel ID rather than individual device tokens. The server sends one push, and Apple's infrastructure fans it out to all devices subscribed to that channel. This is especially useful for events with many simultaneous viewers (sports scores, ride-sharing, etc.) where per-device token management is impractical.
+
+### WidgetKit Push Notifications
+
+Widgets can be updated via APNs push notifications — useful for server-driven or cross-device data changes without frequent polling.
+
+To configure push-based widget updates:
+1. Enable push for your widget extension and register the widget's push token with your server.
+2. From your server, send a push with header `apns-push-type: widgets` (topic `<bundleID>.push-type.widgets`) and an `aps` payload containing `"content-changed": true`.
+3. On receipt, WidgetKit reloads your timelines (similar to `WidgetCenter.reloadAllTimelines()`), driving `getTimeline(in:)` for the affected widget kinds.
+
+WidgetKit push updates are budgeted and delivered opportunistically — they supplement the system's refresh budget rather than bypassing it, so they aren't guaranteed to be immediate.
+
+### Platform Availability Update
+
+> **visionOS 26**: WidgetKit is now supported on visionOS, allowing widgets to appear in the Home View alongside app icons. Existing iOS widgets can run with minimal adaptation — ensure your widget supports appropriate families and test with the visionOS simulator.
+>
+> **CarPlay (iOS 26)**: CarPlay widgets are being introduced, enabling glanceable information on the CarPlay dashboard. CarPlay widgets use a constrained set of families and emphasize large, readable text with minimal interactivity for driver safety. Adopt `.systemSmall` as the primary family for CarPlay and follow the CarPlay Human Interface Guidelines for layout.
 
 ### Common Pitfalls
 
