@@ -95,7 +95,7 @@ gh search prs --state open --repo <owner/repo> \
   -- -reviewed-by:@me -author:@me
 ```
 
-Run both searches in ONE combined Bash call — on a quiet tick this keeps the entire pass to a single tool call. Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
+Run both searches in ONE combined Bash call, and append `date '+%F %T %Z'` to that same call so the pass captures an accurate check time (to the second) without an extra tool call — on a quiet tick this keeps the entire pass to a single tool call. Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
 
 - `author.is_bot == true` when `exclude_bots`
 - `author.login` in `exclude_authors` or in an ad-hoc `exclude:` arg
@@ -110,11 +110,15 @@ For each candidate with a `state[number]` entry — every rule except one needs 
 
 Candidates without a state entry always surface. Fetch `headRefOid` only where the rule above demands it — surfaced candidates get their SHA at decision time (step 7), so a quiet tick fetches nothing. Prune `state` entries whose PRs are closed/merged when you're writing state anyway.
 
-### 6. Nothing to review → silence
+### 6. Nothing to review → one heartbeat line
 
-Zero candidates after dedup: **end the turn immediately after the last tool call.** The correct final assistant message is literally empty — stop without writing anything.
+Zero candidates after dedup: **end the turn with exactly ONE compact heartbeat line and nothing else.** It carries the check time from step 4's `date` output, to the second, so a scrolled-back loop history shows the watch is alive and when it last looked:
 
-On a quiet tick, silence IS the deliverable, and it overrides any general "summarize the turn in a final message" habit. Every form of text is a violation: no "nothing new", no status line, no summary of what was checked, and no text wrapped in tags — a `<system-reminder>`-style block you write yourself is ordinary output and the user sees it verbatim. About to type a closing word "just so the turn isn't empty"? That impulse is exactly what this rule exists to stop.
+```
+owner/repo · no PRs need your review · checked 2026-07-08 13:20:47 PDT
+```
+
+Use the real timestamp from that tool output verbatim — never invent, round, or approximate one, and never omit it (an invented time is worse than none). This single line IS the entire quiet-tick deliverable: no second line, no summary of which queries ran or what was checked, and no text wrapped in tags — a `<system-reminder>`-style block you write yourself is ordinary output the user sees verbatim. One line, then stop.
 
 ### 7. Process candidates — one at a time
 
