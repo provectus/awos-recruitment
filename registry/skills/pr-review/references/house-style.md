@@ -38,7 +38,7 @@ A short paragraph or two: what the PR does, your overall read (close, or real bl
 
 Draw the PR's purpose from its description and the discussion, not from the diff. The diff shows what changed, not why the author set out to change it; reconstructing intent from the code alone is how a summary ends up confidently describing the wrong goal.
 
-Keep it free of filler. Don't grade the code's shape — "structure is sound", "the wiring is clean", "well organized" is noise that reads as padding. Name a genuine strength plainly if there is one, otherwise go straight to the concerns. On a re-review, don't itemize everything fixed since the last round — the author knows what they fixed; say whether it's all addressed or what still stands, and thank them for the work.
+Keep it free of filler. Don't grade the code's shape — "structure is sound", "the wiring is clean", "well organized" is noise that reads as padding. Name a genuine strength plainly if there is one, otherwise go straight to the concerns.
 
 ## Examples
 
@@ -68,3 +68,9 @@ These illustrate the voice — they aren't a checklist of specific issues to loo
 **Summary body:**
 
 > Adds the jobs API and wires it to the existing queue. Close — two things I'd want resolved before merge: the retry has no ceiling (inline), and the new handler trusts the `status` query param without validation (inline). The rest are small. Thanks for splitting the queue changes out of this one.
+
+**Summary body — re-review (don't itemize the fixes):**
+
+> Everything from the last round is addressed — thanks for the quick turnaround. One new thing from the latest commits: the batch path swallows a partial failure (inline). Otherwise this is good to go.
+
+Note what this *doesn't* do: it doesn't say "the retry cap looks right and the `status` validation is fixed" — naming each resolved item is the itemization to avoid. "Everything from the last round is addressed" covers it; then go straight to what's new or still open.
