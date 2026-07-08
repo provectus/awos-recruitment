@@ -110,11 +110,11 @@ Throttled requests return HTTP 429 (TooManyRequestsException). The caller is res
 
 ### Asynchronous invocations (S3, SNS, EventBridge)
 
-Lambda automatically retries throttled async invocations:
+Lambda automatically retries async invocations, with different behavior per error type:
 
-- Retries up to 2 times (configurable)
-- Backs off automatically between retries
-- After retries are exhausted, sends to Dead Letter Queue (DLQ) or failure destination
+- Function errors: retried up to 2 more times (configurable), with backoff between retries
+- Throttles and system errors: the event returns to the internal queue and Lambda retries for up to 6 hours (configurable via maximum event age)
+- After retries are exhausted, the event is sent to a Dead Letter Queue (DLQ) or failure destination
 
 ### Event source mappings (SQS, Kinesis, DynamoDB Streams)
 

@@ -124,7 +124,7 @@ In distributed systems, trace a request across services:
 1. Extract or generate a correlation ID at the entry point (API Gateway, first Lambda)
 2. Pass it through all downstream calls (HTTP headers, SQS message attributes, event metadata)
 3. Include it in every log entry
-4. Use CloudWatch Logs Insights or X-Ray to search across functions by correlation ID
+4. Use CloudWatch Logs Insights to query across functions by the logged `correlationId`; X-Ray can also filter by it, but only if you add the value as a trace annotation
 
 ## AWS X-Ray
 
