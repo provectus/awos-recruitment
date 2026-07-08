@@ -10,7 +10,7 @@ argument-hint: "[reconfigure | exclude: <login>, ... | include-drafts]"
 
 ## Goal
 
-Surface open PRs in the current repo that need the **user's** review, then hand each one — sequentially, one at a time, with the user's explicit approval — to the `pr-review` skill. This skill never reviews code itself and never posts anything to GitHub; `pr-review`'s own gates control publishing.
+Surface open PRs in the current repo that need the **user's** review and hand each to the `pr-review` skill, one at a time. The **first pass in a repo** triages the pre-existing backlog with the user's approval per PR; **every later pass auto-starts the review** of a newly-appeared PR without asking — that is the whole point of watching. This skill never reviews code itself and never posts anything to GitHub; `pr-review`'s own gates control publishing.
 
 **Dependency:** the `pr-review` skill from this registry. If it isn't available when the user picks "Review now", offer to install it first: `npx @provectusinc/awos-recruitment skill pr-review`.
 
@@ -122,17 +122,22 @@ Use the real timestamp from that tool output verbatim — never invent, round, o
 
 ### 7. Process candidates — one at a time
 
-Sort oldest-first by `createdAt`. For each candidate show one line — `#N — title — @author — <why: review requested / never reviewed / new commits since your last decision>` — then `AskUserQuestion` with options:
+Sort oldest-first by `createdAt`. Every state write below records `via` (`"requested"` if the candidate matched the review-requested query, else `"unrequested"`) and `sha` — fetch it now if not already known: `gh pr view <n> --repo <owner/repo> --json headRefOid`.
 
-Every state write below records `via` (`"requested"` if the candidate matched the review-requested query, else `"unrequested"`) and `sha` — fetch it now if not already known: `gh pr view <n> --repo <owner/repo> --json headRefOid`.
+**Whether to ask before reviewing depends on the pass — this is decided per pass, not per PR:**
+
+- **First run in the repo** (the step-1 interview just ran this pass, so every candidate is pre-existing backlog the user never opted into): triage it so you don't auto-review history. For each candidate show one line — `#N — title — @author — <why: review requested / never reviewed>` — then `AskUserQuestion` (Review now / Skip / Stop watching) and act per the actions below. **This is the only pass that asks.**
+- **Every later pass** (the config file already existed when the pass started — any session, any `/loop` tick): a surfaced candidate is exactly what the watch exists to catch. **Start its review immediately — no `AskUserQuestion`.** Show the one-line `#N — …` for visibility, then run the **Review now** action directly. Auto-starting can't publish anything unattended: `pr-review`'s own gates still control drafting and delivery.
+
+Actions:
 
 - **Review now** →
   1. Write `state[number] = {sha, decision: "in_progress", via, at: now}` to the file BEFORE anything else — this is what makes a mid-review loop tick no-op (step 2).
   2. `Skill(skill="pr-review", args="<PR URL>")`. Its gates handle drafting and approval; post nothing outside it.
   3. When the review is submitted, flip the entry to `decision: "reviewed"` (same sha). If the user aborted the review, remove the entry (so it resurfaces) or mark `skipped` if they say so.
   4. **Immediately re-run discovery** (steps 4–5): PRs that appeared while reviewing are handled now, same flow. Only an empty re-scan ends the pass.
-- **Skip** → write `{sha, decision: "skipped", via, at: now}`; next candidate. (Sticky: see step 5 — the PR returns only on an explicit review request, or on new commits if this skip declined an explicit request.)
-- **Stop watching** → stop processing; remind the user the `/loop` is still running and how to stop it.
+- **Skip** (first-run triage only) → write `{sha, decision: "skipped", via, at: now}`; next candidate. (Sticky: see step 5 — the PR returns only on an explicit review request, or on new commits if this skip declined an explicit request.)
+- **Stop watching** (first-run triage only) → stop processing; remind the user the `/loop` is still running and how to stop it.
 
 ## Notes
 
