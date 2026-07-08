@@ -1,10 +1,10 @@
-# Function Code Best Practices
+# Function Design Best Practices
 
 ## Handler Design Principles
 
 The handler is Lambda's entry point. A well-designed handler is thin, testable, and separates concerns:
 
-```
+```text
 Module level:  initialize DB client, validator (reused across invocations)
 
 Handler:
@@ -21,7 +21,7 @@ Handler:
 
 ### Anti-pattern: fat handler
 
-```
+```text
 Handler:
   Create new DB connection           <-- re-created every invocation
   If event type is "order":          <-- routing logic in handler
@@ -42,7 +42,7 @@ Lambda may reuse the execution environment (the container running your function)
 ### What persists between invocations
 
 | Resource | Persists? | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Global/module-level variables | Yes | Use for SDK clients, DB connections, config |
 | `/tmp` directory contents | Yes | Up to configured size (512 MB - 10 GB) |
 | Background processes | Yes, but risky | Lambda may freeze/thaw the environment |
@@ -58,18 +58,20 @@ Lambda may reuse the execution environment (the container running your function)
 ### Cold start impact
 
 | Factor | Impact on cold start |
-|---|---|
+| --- | --- |
 | Package size | Larger package = longer initialization |
 | Number of imports/dependencies | More imports = longer module-level execution |
-| VPC attachment | Adds ENI setup time on first invocation; significantly reduced since Hyperplane ENI improvements (seconds, not minutes) |
+| VPC attachment | Minimal impact since Hyperplane ENIs -- interfaces are created when the function is created or its VPC config changes, not at invocation; cold starts only set up a network tunnel to the pre-created ENI |
 | Runtime | Interpreted languages (Python, Node.js) generally start faster than compiled (Java, .NET) |
+| SnapStart | Resumes from a pre-initialized snapshot instead of running init -- often sub-second cold starts. Java 11+, Python 3.12+, .NET 8+ only; published versions/aliases only; no extra cost for Java, cache + restore charges for Python/.NET; incompatible with provisioned concurrency |
 | Provisioned concurrency | Eliminates cold starts entirely (at additional cost) |
 
 ## Idempotency
 
 Lambda provides **at-least-once** invocation semantics. Your function will receive duplicate events in the following scenarios:
 
-- Async invocation retries (up to 2 retries by default)
+- Async invocation retries -- function errors are retried up to 2 more times by default; throttles (429) and system errors (5xx) are requeued for up to 6 hours
+- Async event queue is eventually consistent -- the same event can be delivered more than once even without errors
 - Stream event source mapping reprocessing on failure
 - SQS visibility timeout expiry causing redelivery
 - Network issues between Lambda and your function
@@ -84,7 +86,7 @@ Lambda provides **at-least-once** invocation semantics. Your function will recei
 ### Idempotency key selection
 
 | Event source | Good idempotency key |
-|---|---|
+| --- | --- |
 | API Gateway | `requestContext.requestId` or a client-supplied header |
 | SQS | `messageId` |
 | SNS | `Sns.MessageId` |
@@ -121,7 +123,7 @@ Lambda reuses execution environments, but idle connections get purged. Without k
 ### Database connections
 
 | Pattern | Verdict | When to use |
-|---|---|---|
+| --- | --- | --- |
 | Module-level connection + RDS Proxy | Best | Any function connecting to RDS with non-trivial concurrency |
 | Module-level connection (no proxy) | Good | Low-concurrency functions with simple connection needs |
 | Connection per invocation | Avoid for concurrent workloads | Acceptable only for very-low-concurrency functions that run infrequently |
@@ -154,12 +156,12 @@ A recursive invocation occurs when a Lambda function directly or indirectly trig
 - **Use prefixes or suffixes** -- trigger on `input/` prefix, write to `output/` prefix
 - **Add a recursion guard** -- check for a recursion marker in the event and bail out
 - **Emergency stop** -- if detected, set reserved concurrency to 0 immediately to halt all invocations while you fix the code
-- **Lambda recursive loop detection** -- Lambda automatically detects and stops recursive loops between Lambda, SQS, and SNS (limited scope -- do not rely on this as sole protection)
+- **Lambda recursive loop detection** -- Lambda automatically stops loops involving Lambda, SQS, S3, and SNS after ~16 invocations in the same request chain (on by default, requires a supported AWS SDK version). Loops through other services -- including DynamoDB Streams -- are NOT detected, so do not rely on this as the only protection. If recursion is intentional, set the function's recursion config to `Allow` (`PutFunctionRecursionConfig`)
 
 ## Environment Variables
 
 | Guideline | Why |
-|---|---|
+| --- | --- |
 | Use env vars for operational parameters | Bucket names, table names, API endpoints, feature flags |
 | Never hardcode resource identifiers | Enables multi-environment deployment (dev/staging/prod) |
 | Don't store secrets in plain-text env vars | Use Secrets Manager or Parameter Store with env var references |

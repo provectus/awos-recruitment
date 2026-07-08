@@ -9,7 +9,7 @@ Every Lambda function has an **execution role** -- the IAM role it assumes when 
 ### Principles
 
 | Principle | Implementation |
-|---|---|
+| --- | --- |
 | Specific actions | `dynamodb:GetItem`, `dynamodb:PutItem` -- not `dynamodb:*` |
 | Specific resources | `arn:aws:dynamodb:us-east-1:123456789:table/MyTable` -- not `*` |
 | One role per function | Functions with different responsibilities get different roles |
@@ -27,7 +27,7 @@ Control who can **invoke** your function (separate from what the function can do
 ### Common anti-patterns
 
 | Anti-pattern | Risk | Fix |
-|---|---|---|
+| --- | --- | --- |
 | `"Action": "*"` on execution role | Full AWS access if function is compromised | List specific actions |
 | `"Resource": "*"` | Access to all resources of that type | Specify resource ARNs |
 | Shared execution role across many functions | Blast radius of compromised function expands | Separate roles per function |
@@ -48,7 +48,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 ### When to use
 
 | Scenario | Code signing? |
-|---|---|
+| --- | --- |
 | Production functions handling sensitive data | Yes |
 | Functions in regulated industries (finance, healthcare) | Yes |
 | Internal dev/test functions | Optional |
@@ -57,7 +57,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 ### Configuration options
 
 | Setting | Options |
-|---|---|
+| --- | --- |
 | `UntrustedArtifactOnDeployment` | `Warn` (log but deploy) or `Enforce` (reject) |
 | Signing profile platform | `AWSLambda-SHA384-ECDSA` |
 | Signature validity | Configurable expiry period |
@@ -67,7 +67,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 ### When to place Lambda in a VPC
 
 | Need | VPC required? |
-|---|---|
+| --- | --- |
 | Access private RDS/ElastiCache/Redshift | Yes |
 | Access resources in a private subnet | Yes |
 | Call public AWS APIs (DynamoDB, S3, SQS) | No -- use VPC endpoints or stay outside VPC |
@@ -77,7 +77,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 ### VPC trade-offs
 
 | Benefit | Cost |
-|---|---|
+| --- | --- |
 | Network isolation for private resources | Minor additional cold start latency (Hyperplane ENI attachment -- significantly improved since 2019) |
 | Security group and NACL controls | Requires VPC endpoint or NAT for public services |
 | Private connectivity to on-premises | ENI quota consumption |
@@ -85,18 +85,19 @@ Code signing ensures that only trusted code runs in your Lambda function.
 
 ### VPC best practices
 
-- Place Lambda in **private subnets** -- never public subnets (Lambda doesn't use public IPs even in public subnets)
+- Always use **private subnets** -- Lambda never gets a public IP, so a public subnet gives no internet access and only wastes its IP space; internet egress requires a NAT gateway
 - Use **VPC endpoints** for AWS services (S3, DynamoDB, SQS, etc.) to avoid NAT Gateway costs and latency
 - Use **at least 2 subnets** across different AZs for availability
-- Size subnets for ENI consumption: each concurrent execution may use an ENI (Lambda optimizes sharing)
-- Monitor ENI quota -- shared with other services in the same VPC
+- Reuse the same **subnet + security-group combination** across functions: Lambda creates one shared Hyperplane ENI per unique combination (not per concurrent execution) and functions sharing a combination share ENIs
+- Don't over-size subnets for Lambda's own ENI usage -- typically only a handful of ENIs per function; Lambda adds ENIs only when connection demand requires it (~65,000 connections per ENI)
+- Monitor the ENI quota -- default 250 network interfaces per VPC, shared with other services in the same VPC (raise via Service Quotas)
 
 ## Secrets Management
 
 ### Where to store secrets
 
 | Method | Security | Rotation | Cost |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Hardcoded in code | Terrible -- exposed in source control | Manual | Free |
 | Environment variables (plaintext) | Low -- visible in Lambda console | Manual redeploy | Free |
 | Environment variables (encrypted with CMK) | Medium -- encrypted at rest | Manual redeploy | KMS charges |
@@ -124,7 +125,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 Security Hub evaluates Lambda configurations against security controls:
 
 | Control | What it checks |
-|---|---|
+| --- | --- |
 | Lambda functions should use supported runtimes | Flags end-of-life runtimes |
 | Lambda functions should have a dead-letter queue configured | Ensures failed events aren't silently lost |
 | Lambda functions should restrict public access | Flags functions with overly permissive resource policies |
@@ -154,7 +155,7 @@ Enable CloudTrail data events for Lambda to audit who invoked which functions.
 ### Encryption
 
 | Data state | Protection |
-|---|---|
+| --- | --- |
 | In transit | All Lambda APIs require TLS 1.2+ |
 | At rest (code) | Encrypted in S3 with service-managed keys |
 | At rest (environment variables) | Encrypted with KMS (AWS-managed or customer-managed key) |
@@ -164,7 +165,7 @@ Enable CloudTrail data events for Lambda to audit who invoked which functions.
 ### Network security
 
 | Control | Purpose |
-|---|---|
+| --- | --- |
 | Security groups | Control inbound/outbound traffic for VPC-attached functions |
 | NACLs | Subnet-level network filtering |
 | VPC endpoints | Private connectivity to AWS services without internet |
@@ -175,7 +176,7 @@ Enable CloudTrail data events for Lambda to audit who invoked which functions.
 ### Governance strategies for Lambda
 
 | Strategy | Implementation |
-|---|---|
+| --- | --- |
 | Approved runtimes | Use AWS Config rules to flag functions with unsupported runtimes |
 | Maximum timeout limits | Organization SCPs or Config rules to enforce timeout caps |
 | Required tags | SCPs requiring cost-center, team, environment tags |

@@ -6,12 +6,12 @@
 
 Lambda creates one execution environment per concurrent request. Concurrency is determined by:
 
-```
+```text
 Concurrency = (requests per second) x (average duration in seconds)
 ```
 
 | Scenario | RPS | Avg duration | Concurrency needed |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Fast API handler | 1,000 | 50ms | 50 |
 | Moderate processing | 500 | 200ms | 100 |
 | Heavy computation | 100 | 2s | 200 |
@@ -19,13 +19,11 @@ Concurrency = (requests per second) x (average duration in seconds)
 
 ### Scaling rate
 
-Lambda scales at **1,000 new execution environments every 10 seconds** per function. This means:
-
-- At t=0: up to 1,000 environments
-- At t=10s: up to 2,000 environments
-- At t=20s: up to 3,000 environments
-
-This scaling rate applies per function, regardless of account-level concurrency limits.
+- Maximum scaling rate: **1,000 new execution environments per 10 seconds**, per function, per Region
+- This is an upper bound, not a step schedule -- capacity refills continuously (best effort)
+- Unused capacity does not accrue
+- The rate is per function; total scale-out is still capped by account concurrency (or reserved concurrency)
+- Requests beyond the scaling rate or available concurrency are throttled (429)
 
 ### Account concurrency pool
 
@@ -35,10 +33,10 @@ All functions in a region share the account's concurrency pool (1,000 default). 
 
 Reserved concurrency sets both a **minimum guarantee** and a **maximum cap** for a function.
 
-### When to use
+### When to use reserved concurrency
 
 | Scenario | Reserved concurrency value |
-|---|---|
+| --- | --- |
 | Critical function that must always have capacity | Set to peak expected concurrency |
 | Function that overwhelms downstream (DB, API) | Set to downstream's safe throughput |
 | Emergency stop for a runaway function | Set to 0 |
@@ -47,7 +45,7 @@ Reserved concurrency sets both a **minimum guarantee** and a **maximum cap** for
 ### Trade-offs
 
 | Benefit | Cost |
-|---|---|
+| --- | --- |
 | Guarantees capacity for your function | Reduces available capacity for other functions |
 | Caps scaling to protect downstream | Can cause throttling if traffic exceeds reserved amount |
 | Free (no additional charges) | Must leave 100 units unreserved for other functions |
@@ -62,7 +60,7 @@ Use CloudWatch `ConcurrentExecutions` metric:
 
 ### Formula verification
 
-```
+```text
 Reserved = peak_concurrent_executions x 1.3  (30% buffer)
 ```
 
@@ -72,10 +70,10 @@ Ensure: `sum(all reserved) <= account_limit - 100`
 
 Provisioned concurrency **pre-initializes** execution environments so they're ready to serve requests immediately (no cold start).
 
-### When to use
+### When to use provisioned concurrency
 
 | Use case | Provisioned concurrency? |
-|---|---|
+| --- | --- |
 | User-facing API with latency SLA | Yes |
 | Interactive web/mobile backend | Yes |
 | Async data pipeline | No (latency-insensitive) |
@@ -130,7 +128,7 @@ Lambda manages retries internally:
 ### Downstream bottleneck patterns
 
 | Downstream | Problem | Solution |
-|---|---|---|
+| --- | --- | --- |
 | RDS database | Connection exhaustion | Use RDS Proxy; set reserved concurrency to match connection pool |
 | DynamoDB (provisioned) | Write throttling | Switch to on-demand; or match WCU to expected concurrency |
 | Third-party API | Rate limit exceeded | Set reserved concurrency to stay within rate limit |
@@ -140,14 +138,14 @@ Lambda manages retries internally:
 ### Upstream mismatch patterns
 
 | Upstream | Problem | Solution |
-|---|---|---|
+| --- | --- | --- |
 | API Gateway | 10,000 RPS default > Lambda 1,000 concurrency | Increase Lambda concurrency or add API Gateway throttling |
 | ALB | No default request limit | Set Lambda reserved concurrency to protect downstream |
 | CloudFront + Lambda@Edge | Global traffic concentration | Use regional edge caches; set appropriate concurrency |
 
 ### The cascade failure pattern
 
-```
+```text
 Traffic spike
   -> Lambda scales to 1,000 concurrent
     -> 1,000 simultaneous DB connections

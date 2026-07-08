@@ -7,7 +7,7 @@ Lambda uses **event source mappings** to poll streams and queues and invoke your
 ### Supported stream sources
 
 | Source | Polling model | Ordering guarantee | Retry behavior |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Kinesis Data Streams | Shard-based | Per-shard ordering | Retries until record expires or succeeds |
 | DynamoDB Streams | Shard-based | Per-shard ordering | Retries until record expires or succeeds |
 | SQS Standard | Automatic scaling | No ordering | Returns to queue after visibility timeout |
@@ -21,10 +21,11 @@ Lambda uses **event source mappings** to poll streams and queues and invoke your
 The maximum number of records Lambda sends to your function per invocation.
 
 | Source | Default | Max | Guidance |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Kinesis | 100 | 10,000 | Larger batches amortize invocation overhead |
 | DynamoDB Streams | 100 | 10,000 | Match to processing capacity |
-| SQS | 10 | 10,000 | Balance throughput vs processing time |
+| SQS (standard) | 10 | 10,000 | Balance throughput vs processing time; BatchSize > 10 requires a batching window of at least 1 second |
+| SQS (FIFO) | 10 | 10 | Batching window is not supported |
 | Kafka / MSK | 100 | 10,000 | Match to consumer group throughput |
 
 **All sources:** batch payload is capped at **6 MB** regardless of BatchSize setting.
@@ -34,9 +35,11 @@ The maximum number of records Lambda sends to your function per invocation.
 How long Lambda waits to accumulate records before invoking your function.
 
 | Setting | Effect |
-|---|---|
+| --- | --- |
 | 0 (default) | Invoke as soon as records are available |
 | 1-300 seconds | Buffer records; invoke when batch is full OR window expires |
+
+**Not supported for SQS FIFO queues** -- FIFO event source mappings invoke the function as soon as messages are available, up to a BatchSize of 10.
 
 **When to increase batching window:**
 
@@ -72,7 +75,7 @@ Enable `ReportBatchItemFailures` in the event source mapping. Your function retu
 ### How identifiers map per source
 
 | Source | Identifier field |
-|---|---|
+| --- | --- |
 | Kinesis | `kinesis.sequenceNumber` |
 | DynamoDB Streams | `dynamodb.SequenceNumber` |
 | SQS | `messageId` |
@@ -95,7 +98,7 @@ By default: **1 concurrent Lambda invocation per shard.** Each shard supports up
 Set `ParallelizationFactor` (1-10) to process each shard with multiple concurrent Lambda invocations:
 
 | Factor | Concurrent invocations per shard | Use case |
-|---|---|---|
+| --- | --- | --- |
 | 1 (default) | 1 | Simple, ordered processing |
 | 2-5 | 2-5 | Higher throughput needed, can handle out-of-order within shard |
 | 10 | 10 | Maximum throughput, processing is order-independent |
@@ -123,7 +126,7 @@ Lambda tracks the position in each shard automatically. If your function fails:
 `IteratorAge` measures how far behind your function is from the stream's latest record.
 
 | IteratorAge | Status | Action |
-|---|---|---|
+| --- | --- | --- |
 | < 1,000 ms | Healthy | None |
 | 1,000 - 30,000 ms | Behind | Monitor; may catch up |
 | 30,000 - 60,000 ms | Significantly behind | Add shards, increase parallelization, optimize function |
@@ -131,7 +134,7 @@ Lambda tracks the position in each shard automatically. If your function fails:
 
 ### Alarm configuration
 
-```
+```text
 Metric: IteratorAge
 Statistic: Maximum
 Period: 1 minute
@@ -148,7 +151,7 @@ Default retention: **24 hours** (extendable to 365 days at additional cost). If 
 ### Key differences from Kinesis
 
 | Aspect | Kinesis | DynamoDB Streams |
-|---|---|---|
+| --- | --- | --- |
 | Shard count | You control | Managed by DynamoDB (tied to table partitions) |
 | Retention | 24h - 365 days | 24 hours (not configurable) |
 | Record content | Your data | Change records (old/new image of DynamoDB items) |
@@ -157,7 +160,7 @@ Default retention: **24 hours** (extendable to 365 days at additional cost). If 
 ### Common DynamoDB Streams patterns
 
 | Pattern | Description |
-|---|---|
+| --- | --- |
 | Change data capture (CDC) | Replicate changes to another data store |
 | Materialized views | Build read-optimized projections |
 | Event sourcing | Publish domain events from table changes |
@@ -169,15 +172,15 @@ Default retention: **24 hours** (extendable to 365 days at additional cost). If 
 ### SQS Standard vs FIFO with Lambda
 
 | Feature | SQS Standard | SQS FIFO |
-|---|---|---|
+| --- | --- | --- |
 | Ordering | Best-effort | Strict per message group |
-| Lambda scaling | Up to 1,000 concurrent (or reserved limit) | 1 concurrent per message group |
+| Lambda scaling | Up to 1,250 concurrent per event source mapping (cap via maximum concurrency or reserved concurrency) | 1 concurrent per message group |
 | Throughput | Nearly unlimited | 300 messages/s (3,000 with batching); up to 70,000 messages/s with high-throughput FIFO mode |
-| Duplicates | Possible | Exactly-once delivery |
+| Duplicates | Possible | Queue-level deduplication (5-minute window) prevents duplicate enqueues; delivery to Lambda is still at-least-once -- handlers must be idempotent |
 
 ### Visibility Timeout alignment
 
-```
+```text
 SQS Visibility Timeout >= 6 x Lambda function timeout
 ```
 
@@ -196,7 +199,7 @@ Configure a DLQ on the SQS queue (not on the Lambda function) for SQS sources:
 **Every stream-processing function must be idempotent.** Duplicate delivery is guaranteed to happen:
 
 - Kinesis/DynamoDB Streams: batch retries on failure deliver duplicates
-- SQS: visibility timeout expiry causes redelivery
+- SQS: visibility timeout expiry causes redelivery (FIFO included -- queue-level deduplication does not make Lambda delivery exactly-once)
 - Partial batch response: successfully processed records in a failed batch may be re-delivered depending on checkpoint behavior
 
-See `function-code.md` for idempotency implementation patterns and key selection by event source.
+See `function-design.md` for idempotency implementation patterns and key selection by event source.

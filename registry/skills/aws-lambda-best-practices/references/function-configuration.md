@@ -7,7 +7,7 @@
 Lambda allocates CPU power proportional to configured memory:
 
 | Memory | Approximate CPU | vCPU equivalent |
-|---|---|---|
+| --- | --- | --- |
 | 128 MB | ~7% of a vCPU | 0.07 |
 | 256 MB | ~14% of a vCPU | 0.14 |
 | 512 MB | ~28% of a vCPU | 0.28 |
@@ -31,7 +31,7 @@ More memory doesn't always mean more cost. A function at 256 MB running for 1,00
 ### When to go higher
 
 | Signal | Action |
-|---|---|
+| --- | --- |
 | `Max Memory Used` close to configured memory | Increase memory (risk of OOM) |
 | Duration decreases linearly with more memory | Function is CPU-bound; more memory = more CPU |
 | Duration doesn't change with more memory | Function is I/O-bound (waiting on network); more memory won't help |
@@ -41,29 +41,37 @@ More memory doesn't always mean more cost. A function at 256 MB running for 1,00
 
 Every invocation logs a `REPORT` line:
 
-```
+```text
 REPORT RequestId: abc123  Duration: 45.00 ms  Billed Duration: 46 ms  Memory Size: 256 MB  Max Memory Used: 82 MB
 ```
 
 Track `Max Memory Used` over time. If it consistently stays far below configured memory, you're over-provisioned.
+
+## Architecture Selection (x86_64 vs arm64)
+
+- **Default to arm64 (AWS Graviton) for new functions** -- duration charges are 20% lower than x86_64, with up to 19% better performance (AWS cites up to 34% better price/performance)
+- The 20% duration discount also applies to provisioned concurrency
+- Switching is a one-line config change (`Architectures: [arm64]`) for functions without architecture-specific binaries -- typical for Python, Node.js, and Java bytecode
+- Before switching, verify arm64 support in: native dependencies (compiled wheels, shared libraries), layers, extensions, and container base images
+- Benchmark both architectures with Lambda Power Tuning -- gains are workload-dependent
 
 ## Timeout Strategy
 
 ### Setting the right timeout
 
 | Principle | Details |
-|---|---|
+| --- | --- |
 | Measure actual duration under load | Not just happy-path; include downstream latency |
 | Add a buffer (20-50%) above measured p99 | Accounts for variance without excessive waste |
 | Never use the max (900s) as a default | A stuck function at 15 min timeout accumulates cost and concurrency |
-| Align with upstream expectations | API Gateway has a 29-second integration timeout |
+| Align with upstream expectations | API Gateway's integration timeout is 29 seconds by default (see below) |
 | Align with downstream expectations | SQS Visibility Timeout must exceed function timeout |
 
 ### SQS Visibility Timeout alignment
 
 When Lambda processes SQS messages:
 
-```
+```text
 Function timeout < SQS Visibility Timeout
 ```
 
@@ -73,17 +81,19 @@ If the function times out before the visibility timeout expires, the message rem
 
 ### API Gateway integration timeout
 
-API Gateway enforces a **29-second** maximum integration timeout. If your Lambda function needs more than 29 seconds:
+API Gateway's integration timeout is **29 seconds by default**. For **Regional and private REST APIs**, it can be raised above 29 seconds via a Service Quotas increase (may require reducing the account-level throttle quota). Edge-optimized REST APIs, HTTP APIs (30-second cap), and WebSocket APIs cannot be increased.
+
+If your Lambda function needs to run longer, prefer restructuring over a timeout increase:
 
 - Refactor to async pattern: API Gateway -> Lambda (start job) -> Step Functions or SQS -> Lambda (process)
-- Use Lambda response streaming for long-running responses
+- Use Lambda response streaming (via Function URLs) for long-running responses
 
 ## Quotas Reference
 
 ### Hard limits (cannot be increased)
 
 | Resource | Limit |
-|---|---|
+| --- | --- |
 | Maximum execution time | 900 seconds (15 minutes) |
 | Synchronous payload (request) | 6 MB |
 | Synchronous payload (response) | 6 MB (200 MB streamed) |
@@ -99,10 +109,10 @@ API Gateway enforces a **29-second** maximum integration timeout. If your Lambda
 ### Soft limits (can be increased via Service Quotas)
 
 | Resource | Default | Typical increase |
-|---|---|---|
+| --- | --- | --- |
 | Concurrent executions | 1,000 | Tens of thousands |
 | Function code storage | 75 GB | Terabytes |
-| ENIs per VPC | 500 | Thousands |
+| ENIs per VPC | 250 | Thousands |
 
 ### New accounts
 
@@ -121,7 +131,7 @@ New AWS accounts start with **reduced** concurrency and memory quotas. AWS raise
 ### Common execution role permissions
 
 | Function type | Typical permissions |
-|---|---|
+| --- | --- |
 | API handler | DynamoDB CRUD on specific table, CloudWatch Logs |
 | S3 processor | S3 GetObject on source bucket, PutObject on destination bucket |
 | SQS consumer | SQS ReceiveMessage, DeleteMessage, GetQueueAttributes |

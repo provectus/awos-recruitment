@@ -5,7 +5,7 @@
 Lambda publishes these metrics to CloudWatch automatically (no instrumentation required):
 
 | Metric | Unit | What it tells you |
-|---|---|---|
+| --- | --- | --- |
 | `Invocations` | Count | Number of times your function was invoked |
 | `Duration` | Milliseconds | Execution time (use p50, p90, p99 percentiles) |
 | `Errors` | Count | Invocations that resulted in a function error |
@@ -18,13 +18,14 @@ Lambda publishes these metrics to CloudWatch automatically (no instrumentation r
 | `IteratorAge` | Milliseconds | Age of the last record processed (stream sources only) |
 | `DeadLetterErrors` | Count | Failed attempts to send to DLQ |
 | `AsyncEventsDropped` | Count | Async events dropped after all retries exhausted (no DLQ configured) |
+| `RecursiveInvocationsDropped` | Count | Invocations stopped by recursive loop detection (emitted immediately -- fastest signal of a loop) |
 
 ## Recommended Alarms
 
 ### Critical alarms (set up for every production function)
 
 | Metric | Statistic | Period | Threshold | Action |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `Errors` | Sum | 1 min | > 0 for 3 consecutive periods | Page oncall; investigate function failures |
 | `Throttles` | Sum | 1 min | > 0 for 3 consecutive periods | Request concurrency increase or review traffic |
 | `Duration` | p99 | 5 min | > 80% of timeout | Investigate latency; risk of timeouts |
@@ -32,16 +33,17 @@ Lambda publishes these metrics to CloudWatch automatically (no instrumentation r
 ### Important alarms (set up for business-critical functions)
 
 | Metric | Statistic | Period | Threshold | Action |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `ConcurrentExecutions` | Maximum | 1 min | > 80% of reserved concurrency | Scale concurrency or investigate traffic |
 | `IteratorAge` | Maximum | 1 min | > 30,000 ms | Falling behind on stream processing; add shards or optimize |
 | `DeadLetterErrors` | Sum | 5 min | > 0 | DLQ delivery failures; check DLQ permissions and capacity |
 | `AsyncEventsDropped` | Sum | 5 min | > 0 | Events being lost; configure a DLQ |
+| `RecursiveInvocationsDropped` | Sum | 1 min | > 0 | Recursive loop detected and stopped; fix trigger/output separation |
 
 ### Provisioned concurrency alarms
 
 | Metric | Statistic | Period | Threshold | Action |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `ProvisionedConcurrencyUtilization` | Average | 5 min | > 85% | Scale up provisioned concurrency |
 | `ProvisionedConcurrencySpilloverInvocations` | Sum | 5 min | > 0 sustained | Cold starts occurring; increase provisioned concurrency |
 | `ProvisionedConcurrencyUtilization` | Average | 5 min | < 20% sustained | Over-provisioned; reduce to save cost |
@@ -51,7 +53,7 @@ Lambda publishes these metrics to CloudWatch automatically (no instrumentation r
 ### Why prefer EMF over PutMetricData
 
 | Approach | Latency impact | Cost | Complexity |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `PutMetricData` API call in handler | Adds network round-trip to each invocation | API call charges + higher function duration | Error handling for API failures |
 | EMF (metrics in structured logs) | Zero -- metrics emitted as log lines | Standard CloudWatch Logs ingestion | Minimal -- structured log lines |
 
@@ -99,15 +101,15 @@ Instead of manually formatting EMF, use the Metrics utility from Powertools for 
 ### Why structured JSON logging
 
 | Plain text | Structured JSON |
-|---|---|
+| --- | --- |
 | `Error processing order 123` | `{"level": "ERROR", "message": "Error processing order", "orderId": "123", "error": "timeout"}` |
-| Hard to search and filter | CloudWatch Logs Insights queries: `fields @timestamp, orderId | filter level = "ERROR"` |
+| Hard to search and filter | CloudWatch Logs Insights queries: `fields @timestamp, orderId \| filter level = "ERROR"` |
 | No consistent format across functions | Consistent schema enables dashboards and automated analysis |
 
 ### What to include in every log entry
 
 | Field | Purpose |
-|---|---|
+| --- | --- |
 | `level` | Severity (DEBUG, INFO, WARN, ERROR) |
 | `message` | Human-readable description |
 | `timestamp` | ISO 8601 format |
@@ -136,7 +138,7 @@ Enable active tracing to visualize request flow across Lambda and downstream ser
 ### When to use X-Ray vs CloudWatch
 
 | Need | Use |
-|---|---|
+| --- | --- |
 | Per-function health and alerting | CloudWatch Metrics + Alarms |
 | Cross-service latency analysis | X-Ray |
 | Debugging a specific slow request | X-Ray traces |

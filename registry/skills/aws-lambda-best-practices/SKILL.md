@@ -20,7 +20,7 @@ Opinionated, language-agnostic conventions for designing and operating Lambda fu
 Lambda excels at event-driven, short-lived, stateless workloads. Evaluate fit before committing.
 
 | Requirement | Lambda fit | Better alternative |
-|---|---|---|
+| --- | --- | --- |
 | Event-driven, bursty traffic | Excellent | -- |
 | Execution < 15 minutes | Good | ECS/Fargate for longer tasks |
 | Stateless request/response | Excellent | -- |
@@ -28,7 +28,7 @@ Lambda excels at event-driven, short-lived, stateless workloads. Evaluate fit be
 | Predictable, steady-state high throughput | Evaluate cost | ECS/Fargate or EC2 |
 | GPU or specialized hardware | Not supported | EC2 or SageMaker |
 | Large deployment artifact (> 10 GB) | Container image limit | ECS/Fargate |
-| Sub-millisecond latency | Cold starts add latency | EC2 or containers |
+| Sub-millisecond latency | Not achievable -- invocation overhead is milliseconds even on warm starts | EC2 or containers |
 
 ## Function Design
 
@@ -42,7 +42,7 @@ Lambda excels at event-driven, short-lived, stateless workloads. Evaluate fit be
 
 **Don't:** write to the same resource that triggered the function -- this causes recursive invocation loops with exponential cost. If detected, set reserved concurrency to **0** immediately.
 
-See `references/function-code.md` for execution environment reuse details, cold start factors, idempotency implementation, connection management, and environment variables. See `references/anti-patterns.md` for why each anti-pattern feels right but isn't, impact analysis, and migration strategies.
+See `references/function-design.md` for execution environment reuse details, cold start factors, idempotency implementation, connection management, and environment variables. See `references/anti-patterns.md` for why each anti-pattern feels right but isn't, impact analysis, and migration strategies.
 
 ## Function Configuration
 
@@ -51,7 +51,7 @@ See `references/function-code.md` for execution environment reuse details, cold 
 Lambda allocates CPU proportional to memory. At **1,769 MB**, a function gets one full vCPU.
 
 | Memory | CPU | Best for |
-|---|---|---|
+| --- | --- | --- |
 | 128-512 MB | Fractional vCPU | Simple transforms, routing |
 | 512-1,769 MB | Up to 1 vCPU | API handlers, moderate processing |
 | 1,769-3,008 MB | 1-2 vCPU | Data processing, image manipulation |
@@ -59,14 +59,18 @@ Lambda allocates CPU proportional to memory. At **1,769 MB**, a function gets on
 
 Use [AWS Lambda Power Tuning](https://github.com/alexcasalboni/aws-lambda-power-tuning) to find the optimal price/performance balance.
 
+### Architecture -- default to arm64
+
+arm64 (Graviton) costs 20% less per GB-second than x86_64 with equal or better performance. Use it unless a native dependency, layer, or container base image requires x86_64.
+
 ### Timeout -- set deliberately, not defensively
 
-Set to p99 duration + 20-50% buffer. For SQS triggers, set SQS Visibility Timeout >= 6x function timeout. API Gateway enforces a 29-second integration timeout.
+Set to p99 duration + 20-50% buffer. For SQS triggers, set SQS Visibility Timeout >= 6x function timeout. API Gateway's integration timeout is 29 seconds by default (raisable above that only for Regional/private REST APIs via quota increase).
 
 ### Key quotas
 
 | Resource | Limit | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Max execution time | 15 minutes | Hard limit |
 | Payload (sync) | 6 MB request / 6 MB response | 200 MB for streamed responses |
 | Payload (async) | 1 MB | -- |
@@ -77,13 +81,13 @@ Set to p99 duration + 20-50% buffer. For SQS triggers, set SQS Visibility Timeou
 | Concurrent executions | 1,000 default | Soft limit, increase via Service Quotas |
 | Layers | 5 per function | -- |
 
-See `references/function-configuration.md` for memory/CPU tuning strategies, IAM policy guidance, SQS integration, and quota management.
+See `references/function-configuration.md` for memory/CPU tuning strategies, architecture selection, IAM policy guidance, SQS integration, and quota management.
 
 ## Function Scalability
 
 ### Concurrency model
 
-```
+```text
 Concurrency = (requests per second) x (average duration in seconds)
 ```
 
@@ -92,7 +96,7 @@ Concurrency = (requests per second) x (average duration in seconds)
 ### Choosing a concurrency control
 
 | Scenario | Control | How to size |
-|---|---|---|
+| --- | --- | --- |
 | Most functions, no special needs | **Unreserved** (default) | Shares account pool (1,000 default) |
 | Critical function that must always have capacity | **Reserved concurrency** | Peak concurrent executions x 1.3 |
 | Protect downstream from overload (DB, API) | **Reserved concurrency** | Match downstream's safe throughput |
@@ -112,7 +116,7 @@ Prefer **Embedded Metric Format (EMF)** over `PutMetricData` API calls for custo
 ### Key metrics to alarm on
 
 | Metric | Alarm condition | What it catches |
-|---|---|---|
+| --- | --- | --- |
 | `Errors` | > 0 for N minutes | Function failures |
 | `Throttles` | > 0 | Hitting concurrency limits |
 | `Duration` | p99 > threshold | Latency degradation |
@@ -129,7 +133,7 @@ See `references/metrics-and-alarms.md` for EMF details, structured logging guida
 **Batch tuning** is the critical lever -- larger batches amortize overhead, batching windows buffer small batches. **Always enable `ReportBatchItemFailures`** in production to retry only failed records instead of the entire batch. **Every stream-processing function must be idempotent** -- at-least-once delivery is guaranteed.
 
 | Stream type | Scaling lever | Concurrency model |
-|---|---|---|
+| --- | --- | --- |
 | Kinesis | Add shards | 1 invocation per shard (default); up to 10 with parallelization factor |
 | DynamoDB Streams | Add partitions (indirect) | 1 invocation per shard |
 | SQS | Automatic | Lambda scales pollers up to concurrency limit |
@@ -141,7 +145,7 @@ See `references/stream-events.md` for batch tuning parameters, partial batch res
 **IAM -- least privilege, always.** One narrowly scoped execution role per function. No wildcards in production. Use resource-based policies to control who can invoke your function.
 
 | Practice | Why |
-|---|---|
+| --- | --- |
 | Code signing | Verify deployment artifact integrity |
 | VPC placement | Required for private resources; minor cold start impact (Hyperplane ENIs) |
 | Security Hub controls | Automated CSPM checks against Lambda configurations |
@@ -153,10 +157,10 @@ See `references/security.md` for VPC configuration trade-offs, code signing setu
 ## Common Mistakes
 
 | Mistake | Fix |
-|---|---|
+| --- | --- |
 | Initializing SDK clients inside the handler | Move to module/global scope for execution environment reuse |
 | Setting timeout to 15 minutes "just in case" | Set to p99 duration + reasonable buffer; load test |
-| Ignoring cold starts for user-facing APIs | Use provisioned concurrency or optimize package size |
+| Ignoring cold starts for user-facing APIs | Use provisioned concurrency, SnapStart (Java/Python/.NET), or optimize package size |
 | Not designing for idempotency | Use idempotency keys with DynamoDB or Powertools |
 | Recursive invocations (function triggers itself) | Set reserved concurrency to 0 immediately; fix the trigger/output separation |
 | Hardcoding resource names | Use environment variables for bucket names, table names, endpoints |
@@ -168,8 +172,8 @@ See `references/security.md` for VPC configuration trade-offs, code signing setu
 ## Reference Files
 
 - **`references/anti-patterns.md`** -- Lambda monolith, Lambda as orchestrator, synchronous chains, recursive loops, synchronous waiting -- why each feels right, impact analysis, migration strategies
-- **`references/function-code.md`** -- Execution environment reuse, cold start factors, idempotency implementation, connection management, RDS Proxy, environment variables
-- **`references/function-configuration.md`** -- Memory/CPU tuning strategies, timeout alignment, quotas, IAM policies, SQS integration, cleanup
+- **`references/function-design.md`** -- Execution environment reuse, cold start factors, idempotency implementation, connection management, RDS Proxy, environment variables
+- **`references/function-configuration.md`** -- Memory/CPU tuning strategies, arm64/Graviton selection, timeout alignment, quotas, IAM policies, SQS integration, cleanup
 - **`references/function-scalability.md`** -- Concurrency estimation, reserved vs provisioned concurrency, scaling rate, upstream/downstream protection, cascade failure prevention
 - **`references/metrics-and-alarms.md`** -- CloudWatch metrics, EMF implementation, structured logging, alarm configuration, Cost Anomaly Detection, X-Ray tracing
 - **`references/stream-events.md`** -- Batch tuning, partial batch response, Kinesis/DynamoDB Streams/SQS scaling, IteratorAge monitoring, SQS FIFO high-throughput mode
