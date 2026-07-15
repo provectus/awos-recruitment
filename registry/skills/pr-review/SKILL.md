@@ -3,7 +3,7 @@ name: pr-review
 description: Use when authoring a code review of a pull request — "review this PR", "do a code review on PR #N", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's PR on the hosting platform and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
 ---
 
-<!-- No `context: fork`: forked skills run as subagents, which cannot dispatch the Agent tool (the review engines in step 2) or AskUserQuestion (the results gate in step 5). For isolation from other work, invoke this skill in a dedicated session instead. -->
+<!-- No `context: fork`: a forked skill runs as a subagent, and subagents cannot use AskUserQuestion — the results gate in step 5 depends on it. (The Agent tool is not the constraint: subagents can dispatch nested subagents, so the step 2 engines would run fine.) For isolation from other work, invoke this skill in a dedicated session instead. -->
 
 # Author a Code Review
 
