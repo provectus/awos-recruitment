@@ -99,7 +99,11 @@ gh search prs --state open --repo <owner/repo> \
   -- -reviewed-by:@me -author:@me
 ```
 
-Run both searches in ONE combined Bash call, and append `date '+%F %T %Z'` to that same call so the pass captures an accurate check time (to the second) without an extra tool call — on a quiet tick this keeps the entire pass to a single tool call. Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
+Run both searches in ONE combined Bash call, and append `date '+%F %T %Z'` to that same call so the pass captures an accurate check time (to the second) without an extra tool call — on a quiet tick this keeps the entire pass to a single tool call.
+
+Guard the result before trusting it: if the combined call exits nonzero, or either search returns anything that isn't a JSON array (an auth/network failure, a rate-limit banner, an empty string), treat it as an error — emit one line `gh-watch-reviews: search failed — <reason>` and stop the tick. Never continue to dedup or the heartbeat on a failed or malformed search: a silent "nothing needs review" is the one outcome a watch must never produce from a failure.
+
+Union by PR number (remember which query matched — it becomes the "why"). Then filter out:
 
 - `author.is_bot == true` when `exclude_bots`
 - `author.login` in `exclude_authors` or in an ad-hoc `exclude:` arg
@@ -116,7 +120,7 @@ Candidates without a state entry always surface. Fetch `headRefOid` only where t
 
 ### 6. Nothing to review → one heartbeat line
 
-Zero candidates after dedup: **end the turn with exactly ONE compact heartbeat line and nothing else.** It carries the check time from step 4's `date` output, to the second, so a scrolled-back loop history shows the watch is alive and when it last looked:
+Zero candidates after a successful search + dedup (step 4 already stopped the tick on any search failure, so reaching here means a real empty scan): **end the turn with exactly ONE compact heartbeat line and nothing else.** It carries the check time from step 4's `date` output, to the second, so a scrolled-back loop history shows the watch is alive and when it last looked:
 
 ```
 gh-watch-reviews: owner/repo · no PRs need your review · checked 2026-07-08 13:20:47 PDT
