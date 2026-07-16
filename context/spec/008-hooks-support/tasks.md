@@ -20,10 +20,10 @@ After this slice, `registry/hooks/protect-env-files/` exists, the server loads i
 
 After this slice, CI blocks invalid hook definitions: bad frontmatter, name mismatch, empty body, missing/non-executable entrypoint, unexpected files, bad `scripts/` extensions.
 
-- [ ] **Sub-task 2.1:** Add hook layout constants to `validate/__init__.py` (`_ALLOWED_HOOK_DIRS = {"scripts"}`; allowed root files: `HOOK.md`, `README.md`, `<name>.sh`) and implement `validate_hooks(registry_path)` mirroring `validate_skills`: frontmatter → `HookMetadata`, dir-name match, non-empty body, entrypoint exists **and carries the executable bit** (`mode & 0o111`), layout allowlist reusing `_ALLOWED_SCRIPT_EXTENSIONS` for `scripts/`. Wire into `validate_registry()`. **[Agent: python-expert]**
-- [ ] **Sub-task 2.2:** Add `validate_hooks` tests in `test_validate.py` (`_make_hook_dir` helper; valid passes, dir-name mismatch, empty body, missing entrypoint, non-executable entrypoint, unexpected root file, bad `scripts/` extension) and update count assertions (`validate_registry` 3→4 validators, JSON summary totals). **[Agent: python-expert]**
-- [ ] **Sub-task 2.3:** Run `just test -v` and `just validate-registry` (human + `--format json`). Verify the real seed hook passes and a deliberately broken temp hook fails. **[Agent: qa-tester]**
-- [ ] **Sub-task 2.4:** Git commit. **[Agent: general-purpose]**
+- [x] **Sub-task 2.1:** Add hook layout constants to `validate/__init__.py` (`_ALLOWED_HOOK_DIRS = {"scripts"}`; allowed root files: `HOOK.md`, `README.md`, `<name>.sh`) and implement `validate_hooks(registry_path)` mirroring `validate_skills`: frontmatter → `HookMetadata`, dir-name match, non-empty body, entrypoint exists **and carries the executable bit** (`mode & 0o111`), layout allowlist reusing `_ALLOWED_SCRIPT_EXTENSIONS` for `scripts/`. Wire into `validate_registry()`. **[Agent: python-expert]**
+- [x] **Sub-task 2.2:** Add `validate_hooks` tests in `test_validate.py` (`_make_hook_dir` helper; valid passes, dir-name mismatch, empty body, missing entrypoint, non-executable entrypoint, unexpected root file, bad `scripts/` extension) and update count assertions (`validate_registry` 3→4 validators, JSON summary totals). **[Agent: python-expert]**
+- [x] **Sub-task 2.3:** Run `just test -v` and `just validate-registry` (human + `--format json`). Verify the real seed hook passes and a deliberately broken temp hook fails. **[Agent: qa-tester]**
+- [x] **Sub-task 2.4:** Git commit. **[Agent: general-purpose]**
 
 ---
 

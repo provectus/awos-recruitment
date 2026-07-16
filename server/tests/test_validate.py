@@ -20,6 +20,7 @@ from awos_recruitment_mcp.models import (
 )
 from awos_recruitment_mcp.validate import (
     validate_agents,
+    validate_hooks,
     validate_mcp_definitions,
     validate_registry,
     validate_skills,
@@ -565,6 +566,216 @@ def test_validate_skill_allows_readme_and_flat_references(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
+# validate_hooks function tests
+# ---------------------------------------------------------------------------
+
+
+def _make_hook_dir(
+    tmp_path: Path,
+    name: str,
+    description: str,
+    *,
+    body: str = "# Body\n\nManual injection instructions here.\n",
+    metadata_name: str | None = None,
+    entrypoint_mode: int | None = 0o755,
+) -> Path:
+    """Create a hook directory under ``tmp_path/hooks`` and return its path.
+
+    Args:
+        tmp_path: Registry root; ``hooks/<name>/`` is created beneath it.
+        name: Hook directory name (also the metadata name unless overridden).
+        description: Value for the ``description`` front-matter field.
+        body: Markdown body written after the front matter.
+        metadata_name: Override the front-matter ``name`` field to force a
+            directory-vs-name mismatch; defaults to ``name``.
+        entrypoint_mode: If not ``None``, an ``<name>.sh`` entrypoint is created
+            with this file mode; pass ``None`` to omit the entrypoint entirely.
+    """
+    hook_dir = tmp_path / "hooks" / name
+    hook_dir.mkdir(parents=True)
+    front_name = metadata_name if metadata_name is not None else name
+    (hook_dir / "HOOK.md").write_text(
+        f"---\nname: {front_name}\ndescription: {description}\n"
+        "hooks:\n"
+        "  - event: PreToolUse\n"
+        "    matcher: Edit|Write\n"
+        "    timeout: 10\n"
+        f"---\n\n{body}"
+    )
+    if entrypoint_mode is not None:
+        entrypoint = hook_dir / f"{name}.sh"
+        entrypoint.write_text("#!/bin/sh\nexit 0\n")
+        entrypoint.chmod(entrypoint_mode)
+    return hook_dir
+
+
+def test_validate_hook_valid(tmp_path: Path):
+    """A well-formed hook with an executable entrypoint should pass."""
+    _make_hook_dir(tmp_path, "good-hook", "A perfectly valid hook.")
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1, (
+        f"Expected exactly 1 result, got {len(results)}"
+    )
+    assert results[0].valid, (
+        f"Expected the result to be valid, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+    assert results[0].errors == [], (
+        f"Expected no errors, got: {results[0].errors}"
+    )
+
+
+def test_validate_hook_missing_hook_md(tmp_path: Path):
+    """A subdirectory without HOOK.md should produce a 'not found' error."""
+    (tmp_path / "hooks" / "no-file").mkdir(parents=True)
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result (missing HOOK.md)"
+    error_messages = [e.message for e in results[0].errors]
+    assert any("not found" in m.lower() for m in error_messages), (
+        f"Expected a 'not found' error, got: {error_messages}"
+    )
+
+
+def test_validate_hook_directory_name_mismatch(tmp_path: Path):
+    """A hook whose directory name differs from its metadata name should fail."""
+    _make_hook_dir(
+        tmp_path,
+        "wrong-dir",
+        "Directory mismatch test.",
+        metadata_name="correct-name",
+    )
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result for directory mismatch"
+    error_fields = [e.field for e in results[0].errors]
+    assert "name" in error_fields, (
+        f"Expected a 'name' field error, got: {error_fields}"
+    )
+    error_messages = [e.message for e in results[0].errors]
+    assert any("does not match" in m for m in error_messages), (
+        f"Expected a 'does not match' error, got: {error_messages}"
+    )
+
+
+def test_validate_hook_empty_body(tmp_path: Path):
+    """A HOOK.md with valid front matter but an empty body should fail."""
+    _make_hook_dir(tmp_path, "empty-body", "A hook with no body.", body="")
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result (empty body)"
+    error_messages = [e.message for e in results[0].errors]
+    assert any("empty" in m.lower() for m in error_messages), (
+        f"Expected an 'empty' body error, got: {error_messages}"
+    )
+
+
+def test_validate_hook_missing_entrypoint(tmp_path: Path):
+    """A hook without its <name>.sh entrypoint should fail."""
+    _make_hook_dir(
+        tmp_path,
+        "no-entry",
+        "Missing entrypoint.",
+        entrypoint_mode=None,
+    )
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result (missing entrypoint)"
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "no-entry.sh" in m and "not found" in m.lower() for m in error_messages
+    ), f"Expected a missing-entrypoint error, got: {error_messages}"
+
+
+def test_validate_hook_non_executable_entrypoint(tmp_path: Path):
+    """An entrypoint present but not marked executable (chmod 644) should fail."""
+    _make_hook_dir(
+        tmp_path,
+        "not-exec",
+        "Non-executable entrypoint.",
+        entrypoint_mode=0o644,
+    )
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected invalid result (non-executable entrypoint)"
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "not-exec.sh" in m and "not executable" in m.lower()
+        for m in error_messages
+    ), f"Expected a non-executable-entrypoint error, got: {error_messages}"
+
+
+def test_validate_hook_rejects_unexpected_root_file(tmp_path: Path):
+    """An unknown top-level file should be flagged as unexpected."""
+    hook_dir = _make_hook_dir(tmp_path, "has-extra", "stray file")
+    (hook_dir / "extra.txt").write_text("scratch\n")
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "extra.txt" in m and "Unexpected file" in m for m in error_messages
+    ), f"Expected an 'Unexpected file extra.txt' error, got: {error_messages}"
+
+
+def test_validate_hook_rejects_bad_scripts_extension(tmp_path: Path):
+    """A scripts/ file with a disallowed extension should be flagged."""
+    hook_dir = _make_hook_dir(tmp_path, "bad-script", "scripts has a bad file")
+    scripts = hook_dir / "scripts"
+    scripts.mkdir()
+    (scripts / "helper.rb").write_text("puts 'hi'\n")
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid
+    error_messages = [e.message for e in results[0].errors]
+    assert any(
+        "scripts/helper.rb" in m and "disallowed extension" in m
+        for m in error_messages
+    ), f"Expected a disallowed-extension error, got: {error_messages}"
+
+
+def test_validate_hook_allows_scripts_with_allowed_extension(tmp_path: Path):
+    """A scripts/ file with an allowed extension (.py) should pass."""
+    hook_dir = _make_hook_dir(tmp_path, "good-script", "scripts has a good file")
+    scripts = hook_dir / "scripts"
+    scripts.mkdir()
+    (scripts / "helper.py").write_text("print('hi')\n")
+
+    results = validate_hooks(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected the result to be valid, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+
+
+def test_validate_hooks_missing_dir_returns_no_results(tmp_path: Path):
+    """A registry with no hooks/ directory yields no results and no error."""
+    results = validate_hooks(tmp_path)
+
+    assert results == [], (
+        f"Expected no results when hooks/ is absent, got: {results}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # McpDefinition / McpServerConfig model tests
 # ---------------------------------------------------------------------------
 
@@ -688,7 +899,7 @@ def test_validate_mcp_valid(tmp_path: Path):
 
 
 def test_validate_registry_finds_all(tmp_path: Path):
-    """validate_registry should discover and validate skills/, mcp/, and agents/ entries."""
+    """validate_registry should discover skills/, mcp/, agents/, and hooks/ entries."""
     # Create a valid skill.
     skill_dir = tmp_path / "skills" / "demo-skill"
     skill_dir.mkdir(parents=True)
@@ -726,10 +937,19 @@ def test_validate_registry_finds_all(tmp_path: Path):
         ),
     )
 
+    # Create a valid hook definition.
+    _make_hook_dir(
+        tmp_path,
+        "demo-hook",
+        "A demo hook.",
+        entrypoint_mode=0o755,
+    )
+
     results = validate_registry(tmp_path)
 
-    assert len(results) == 3, (
-        f"Expected 3 results (1 skill + 1 MCP + 1 agent), got {len(results)}"
+    assert len(results) == 4, (
+        f"Expected 4 results (1 skill + 1 MCP + 1 agent + 1 hook), "
+        f"got {len(results)}"
     )
     assert all(r.valid for r in results), (
         f"Expected all results to be valid, got errors: "
@@ -781,6 +1001,14 @@ def test_json_output_format(tmp_path: Path):
         ),
     )
 
+    # Create a valid hook definition.
+    _make_hook_dir(
+        tmp_path,
+        "json-test",
+        "Hook for JSON output test.",
+        entrypoint_mode=0o755,
+    )
+
     result = subprocess.run(
         [
             sys.executable,
@@ -822,11 +1050,11 @@ def test_json_output_format(tmp_path: Path):
     assert isinstance(summary, dict), (
         f"'summary' should be a dict, got {type(summary).__name__}"
     )
-    assert summary["total"] == 3, (
-        f"Expected total=3, got {summary['total']}"
+    assert summary["total"] == 4, (
+        f"Expected total=4, got {summary['total']}"
     )
-    assert summary["passed"] == 3, (
-        f"Expected passed=3, got {summary['passed']}"
+    assert summary["passed"] == 4, (
+        f"Expected passed=4, got {summary['passed']}"
     )
     assert summary["failed"] == 0, (
         f"Expected failed=0, got {summary['failed']}"

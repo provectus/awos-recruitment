@@ -9,7 +9,12 @@ import frontmatter
 import yaml
 from pydantic import ValidationError as PydanticValidationError
 
-from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetadata
+from awos_recruitment_mcp.models import (
+    AgentMetadata,
+    HookMetadata,
+    McpDefinition,
+    SkillMetadata,
+)
 
 # Top-level entries permitted inside a skill directory. Kept in lockstep with
 # what the /bundle/skills endpoint actually ships: SKILL.md (file) and the flat
@@ -21,6 +26,16 @@ from awos_recruitment_mcp.models import AgentMetadata, McpDefinition, SkillMetad
 _ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
 _ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references", "scripts"})
 _ALLOWED_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".js", ".ts", ".py"})
+
+# Layout rules for a hook directory. Kept in lockstep with what the
+# /bundle/hooks endpoint ships: HOOK.md (metadata + injection docs), the
+# required per-hook entrypoint ``<name>.sh``, and flat helper files under
+# scripts/. README.md is allowed as local docs. The entrypoint's basename is
+# derived from the hook directory name (``<dirname>.sh``), so only the static
+# ".sh" suffix lives in a module constant; the full name is computed per hook.
+_ALLOWED_HOOK_FILES: frozenset[str] = frozenset({"HOOK.md", "README.md"})
+_ALLOWED_HOOK_DIRS: frozenset[str] = frozenset({"scripts"})
+_HOOK_ENTRYPOINT_SUFFIX: str = ".sh"
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +65,7 @@ class ValidationResult:
 
     file: str
     valid: bool
-    errors: list[ValidationError] = field(default_factory=list)
+    errors: list[ValidationError] = field(default_factory=list[ValidationError])
 
 
 def validate_skills(registry_path: Path) -> list[ValidationResult]:
@@ -457,10 +472,237 @@ def validate_agents(registry_path: Path) -> list[ValidationResult]:
     return results
 
 
+def validate_hooks(registry_path: Path) -> list[ValidationResult]:
+    """Validate every hook definition under *registry_path*/hooks.
+
+    Each immediate subdirectory of ``hooks/`` is expected to contain a
+    ``HOOK.md`` file whose YAML front matter conforms to
+    :class:`~awos_recruitment_mcp.models.HookMetadata`, a non-empty markdown
+    body (the injection docs), and a required executable entrypoint script
+    named ``<dirname>.sh``. Optional helper files live under ``scripts/``.
+
+    Returns:
+        A list of :class:`ValidationResult` objects, one per subdirectory.
+    """
+
+    hooks_dir = registry_path / "hooks"
+    results: list[ValidationResult] = []
+
+    if not hooks_dir.is_dir():
+        return results
+
+    for entry in sorted(hooks_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+
+        hook_md = entry / "HOOK.md"
+        relative_path = str(hook_md.relative_to(registry_path))
+
+        if not hook_md.exists():
+            results.append(
+                ValidationResult(
+                    file=relative_path,
+                    valid=False,
+                    errors=[
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message="HOOK.md not found",
+                        )
+                    ],
+                )
+            )
+            continue
+
+        errors: list[ValidationError] = []
+
+        try:
+            post = frontmatter.load(str(hook_md))
+        except Exception as exc:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message=f"Failed to parse front matter: {exc}",
+                )
+            )
+            results.append(
+                ValidationResult(file=relative_path, valid=False, errors=errors)
+            )
+            continue
+
+        # Validate metadata against the Pydantic model.
+        metadata = dict(post.metadata)
+        try:
+            HookMetadata.model_validate(metadata)
+        except PydanticValidationError as exc:
+            for err in exc.errors():
+                loc = ".".join(str(part) for part in err["loc"]) or None
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=loc,
+                        message=err["msg"],
+                    )
+                )
+
+        # Ensure the directory name matches the metadata name.
+        meta_name = metadata.get("name")
+        if meta_name is not None and entry.name != meta_name:
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="name",
+                    message=(
+                        f"Hook directory '{entry.name}' does not match "
+                        f"metadata name '{meta_name}'"
+                    ),
+                )
+            )
+
+        # Ensure the markdown body (injection docs) is non-empty.
+        if not post.content.strip():
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message="Hook body (markdown content) is empty",
+                )
+            )
+
+        # Ensure the required entrypoint exists and carries the executable bit.
+        # The command injected into settings.json is always derived as
+        # $CLAUDE_PROJECT_DIR/.claude/hooks/<name>/<name>.sh, so a missing or
+        # non-executable entrypoint leaves the installed hook silently broken.
+        entrypoint_name = f"{entry.name}{_HOOK_ENTRYPOINT_SUFFIX}"
+        entrypoint = entry / entrypoint_name
+        if not entrypoint.is_file():
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message=(
+                        f"Entrypoint '{entrypoint_name}' not found — every hook "
+                        f"must ship an executable '<name>.sh' next to HOOK.md"
+                    ),
+                )
+            )
+        elif not (entrypoint.stat().st_mode & 0o111):
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field=None,
+                    message=(
+                        f"Entrypoint '{entrypoint_name}' is not executable — "
+                        f"set the executable bit (e.g. chmod +x {entrypoint_name})"
+                    ),
+                )
+            )
+
+        # Ensure the on-disk layout matches what /bundle/hooks ships. The
+        # bundler only includes HOOK.md, the entrypoint, and flat files under
+        # scripts/; everything else is dropped at install time. Surface anything
+        # outside the allowlist as a validation error so authors notice before
+        # shipping. Dotfiles are skipped — see the note in validate_skills.
+        for child in sorted(entry.iterdir()):
+            if child.name.startswith("."):
+                continue
+
+            if child.is_file():
+                if (
+                    child.name not in _ALLOWED_HOOK_FILES
+                    and child.name != entrypoint_name
+                ):
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"Unexpected file '{child.name}' in hook — "
+                                "the install bundle only ships HOOK.md, the "
+                                f"'{entrypoint_name}' entrypoint, and flat files "
+                                "under scripts/"
+                            ),
+                        )
+                    )
+                continue
+
+            if not child.is_dir():
+                # Symlinks, sockets, etc. — tar.add wouldn't handle these the
+                # way hook authors expect.
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Unexpected non-file/non-dir entry '{child.name}' "
+                            "in hook directory"
+                        ),
+                    )
+                )
+                continue
+
+            if child.name not in _ALLOWED_HOOK_DIRS:
+                errors.append(
+                    ValidationError(
+                        file=relative_path,
+                        field=None,
+                        message=(
+                            f"Unexpected directory '{child.name}/' in hook "
+                            "— the install bundle only ships HOOK.md, the "
+                            "entrypoint, and flat files under scripts/"
+                        ),
+                    )
+                )
+                continue
+
+            # Allowed dir (scripts/) — the bundler walks it with iterdir() and
+            # only adds is_file() entries, so anything non-file is dropped.
+            for script_child in sorted(child.iterdir()):
+                if script_child.name.startswith("."):
+                    continue
+                if not script_child.is_file():
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"Nested entry '{child.name}/{script_child.name}' "
+                                f"is not a flat file — only flat files are "
+                                f"allowed under {child.name}/"
+                            ),
+                        )
+                    )
+                    continue
+                # scripts/ only allows .js, .ts, .py files.
+                if script_child.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"File '{child.name}/{script_child.name}' has "
+                                f"disallowed extension — scripts/ only "
+                                f"allows {', '.join(sorted(_ALLOWED_SCRIPT_EXTENSIONS))}"
+                            ),
+                        )
+                    )
+
+        results.append(
+            ValidationResult(
+                file=relative_path,
+                valid=len(errors) == 0,
+                errors=errors,
+            )
+        )
+
+    return results
+
+
 def validate_registry(registry_path: Path) -> list[ValidationResult]:
     """Validate the entire registry at *registry_path*.
 
-    Validates both skill definitions and MCP server definitions.
+    Validates skill, MCP server, agent, and hook definitions.
 
     Returns:
         Combined list of :class:`ValidationResult` objects.
@@ -470,4 +712,5 @@ def validate_registry(registry_path: Path) -> list[ValidationResult]:
     results.extend(validate_skills(registry_path))
     results.extend(validate_mcp_definitions(registry_path))
     results.extend(validate_agents(registry_path))
+    results.extend(validate_hooks(registry_path))
     return results
