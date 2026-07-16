@@ -67,7 +67,7 @@ After this slice, the full flow works: install → inject → hook is live in Cl
 
 After this slice, contributors know how to author hooks and users see the `hook` command.
 
-- [ ] **Sub-task 6.1:** Add a hook authoring section to `docs/CONTRIBUTING.md`: directory layout, frontmatter schema, entrypoint convention (derived command, `hook_event_name` branching for multi-event hooks), injection-instructions requirement, POSIX-shell note. **[Agent: general-purpose]**
-- [ ] **Sub-task 6.2:** Update the root `README.md` CLI command table with `hook <names...>` and an example. **[Agent: general-purpose]**
-- [ ] **Sub-task 6.3:** Full regression pass: `just test -v`, `just test-cli`, `just validate-registry`. **[Agent: qa-tester]**
-- [ ] **Sub-task 6.4:** Git commit. **[Agent: general-purpose]**
+- [x] **Sub-task 6.1:** Add a hook authoring section to `docs/CONTRIBUTING.md`: directory layout, frontmatter schema, entrypoint convention (derived command, `hook_event_name` branching for multi-event hooks), injection-instructions requirement, POSIX-shell note. **[Agent: general-purpose]**
+- [x] **Sub-task 6.2:** Update the root `README.md` CLI command table with `hook <names...>` and an example. **[Agent: general-purpose]**
+- [x] **Sub-task 6.3:** Full regression pass: `just test -v`, `just test-cli`, `just validate-registry`. **[Agent: qa-tester]**
+- [x] **Sub-task 6.4:** Git commit. **[Agent: general-purpose]**

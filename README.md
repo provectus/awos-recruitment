@@ -2,11 +2,11 @@
 
 # AWOS Recruitment
 
-A curated registry of Claude Code skills, agents, and tools with a smart search MCP server. The Provectus Way of assembling AI capabilities for your project.
+A curated registry of Claude Code skills, agents, tools, and hooks with a smart search MCP server. The Provectus Way of assembling AI capabilities for your project.
 
 Connect the MCP server to Claude Code, search for capabilities using natural language, and install them into your project with a single command.
 
-> **Works best with [AWOS](https://github.com/provectus/awos)** — the AI Workflow Orchestration System for spec-driven development. AWOS drives the SDLC pipeline from spec to implementation; Recruitment provisions the right skills, agents, and tools for each task. Use the built-in `/awos:hire` command to fully automate capability provisioning — it searches, selects, and installs everything your project needs in one step.
+> **Works best with [AWOS](https://github.com/provectus/awos)** — the AI Workflow Orchestration System for spec-driven development. AWOS drives the SDLC pipeline from spec to implementation; Recruitment provisions the right skills, agents, tools, and hooks for each task. Use the built-in `/awos:hire` command to fully automate capability provisioning — it searches, selects, and installs everything your project needs in one step.
 
 ## Connect MCP
 
@@ -31,7 +31,7 @@ claude mcp add awos-recruitment --transport http --scope project https://recruit
 }
 ```
 
-Once connected, Claude Code gains access to the `search_capabilities` tool — search the registry using natural language with an optional type filter (`skill`, `agent`, `tool`).
+Once connected, Claude Code gains access to the `search_capabilities` tool — search the registry using natural language with an optional type filter (`skill`, `agent`, `tool`, `hook`).
 
 ## CLI
 
@@ -46,6 +46,7 @@ npx @provectusinc/awos-recruitment <command> <names...>
 | `skill <names...>` | Install skills into `.claude/skills/` |
 | `mcp <names...>` | Install MCP server definitions into `.mcp.json` |
 | `agent <names...>` | Install agents into `.claude/agents/` (auto-installs referenced skills) |
+| `hook <names...>` | Install hooks into `.claude/hooks/` and inject their configuration into `.claude/settings.json` |
 
 Examples:
 
@@ -53,6 +54,7 @@ Examples:
 npx @provectusinc/awos-recruitment skill modern-python-development
 npx @provectusinc/awos-recruitment mcp context7 playwright
 npx @provectusinc/awos-recruitment agent testing-expert
+npx @provectusinc/awos-recruitment hook protect-env-files
 ```
 
 ## Documentation
@@ -60,5 +62,5 @@ npx @provectusinc/awos-recruitment agent testing-expert
 | Document | Description |
 |----------|-------------|
 | [Development Guide](docs/DEVELOPMENT.md) | Prerequisites, setup, commands, and project structure |
-| [Contributing to the Registry](docs/CONTRIBUTING.md) | How to add skills, MCP definitions, and agents |
+| [Contributing to the Registry](docs/CONTRIBUTING.md) | How to add skills, MCP definitions, agents, and hooks |
 | [Philosophy](docs/PHILOSOPHY.md) | Why "Recruitment" and the vision behind the project |
