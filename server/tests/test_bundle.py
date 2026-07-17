@@ -635,7 +635,7 @@ async def test_hook_valid_request_returns_200(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files"]},
+            json={"names": ["docs-that-work-gate"]},
         )
 
     assert response.status_code == 200, (
@@ -649,17 +649,17 @@ async def test_hook_valid_request_returns_tar_gz(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files"]},
+            json={"names": ["docs-that-work-gate"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
         names = tar.getnames()
 
-    assert "protect-env-files/HOOK.md" in names, (
+    assert "docs-that-work-gate/HOOK.md" in names, (
         f"Expected HOOK.md in archive, got {names}"
     )
-    assert "protect-env-files/protect-env-files.sh" in names, (
+    assert "docs-that-work-gate/docs-that-work-gate.sh" in names, (
         f"Expected entrypoint .sh in archive, got {names}"
     )
 
@@ -670,12 +670,12 @@ async def test_hook_entrypoint_carries_exec_bit(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files"]},
+            json={"names": ["docs-that-work-gate"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-        member = tar.getmember("protect-env-files/protect-env-files.sh")
+        member = tar.getmember("docs-that-work-gate/docs-that-work-gate.sh")
 
     assert member.mode & 0o111, (
         f"Expected entrypoint to carry the exec bit, got mode {oct(member.mode)}"
@@ -693,7 +693,7 @@ async def test_hook_partial_matches_returns_200(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files", "nonexistent-hook"]},
+            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
         )
 
     assert response.status_code == 200, (
@@ -707,15 +707,15 @@ async def test_hook_partial_matches_contains_only_existing(asgi_app):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files", "nonexistent-hook"]},
+            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
         names = tar.getnames()
 
-    assert any(n.startswith("protect-env-files/") for n in names), (
-        f"Expected protect-env-files entries in archive, got {names}"
+    assert any(n.startswith("docs-that-work-gate/") for n in names), (
+        f"Expected docs-that-work-gate entries in archive, got {names}"
     )
     assert not any(n.startswith("nonexistent-hook/") for n in names), (
         f"Did not expect nonexistent-hook entries in archive, got {names}"

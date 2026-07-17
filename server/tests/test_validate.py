@@ -199,15 +199,15 @@ def test_valid_hook_metadata():
     """A dict with valid name, description, and hooks should pass validation."""
     meta = HookMetadata.model_validate(
         {
-            "name": "protect-env-files",
-            "description": "Blocks edits to .env files",
+            "name": "docs-that-work-gate",
+            "description": "Blocks commits when docs are stale",
             "hooks": [
-                {"event": "PreToolUse", "matcher": "Edit|Write", "timeout": 10}
+                {"event": "PreToolUse", "matcher": "Bash", "timeout": 10}
             ],
         }
     )
-    assert meta.name == "protect-env-files", (
-        f"Expected name 'protect-env-files', got '{meta.name}'"
+    assert meta.name == "docs-that-work-gate", (
+        f"Expected name 'docs-that-work-gate', got '{meta.name}'"
     )
     assert len(meta.hooks) == 1, (
         f"Expected exactly 1 hook entry, got {len(meta.hooks)}"
@@ -216,8 +216,8 @@ def test_valid_hook_metadata():
     assert entry.event == "PreToolUse", (
         f"Expected event 'PreToolUse', got '{entry.event}'"
     )
-    assert entry.matcher == "Edit|Write", (
-        f"Expected matcher 'Edit|Write', got '{entry.matcher}'"
+    assert entry.matcher == "Bash", (
+        f"Expected matcher 'Bash', got '{entry.matcher}'"
     )
     assert entry.timeout == 10, (
         f"Expected timeout 10, got {entry.timeout}"

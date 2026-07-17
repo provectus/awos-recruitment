@@ -10,11 +10,11 @@
 
 The AWOS Recruitment system enables teams to centrally manage and distribute **skills**, **MCP server definitions**, and **agents** through a full pipeline: a Git-managed registry, semantic search, server-side bundling, and CLI installation. However, **Claude Code hooks** — event-driven commands that run automatically at lifecycle points (before/after tool use, on session start, etc.) — are not yet part of this pipeline.
 
-Hooks are the primary mechanism for enforcing team-wide guardrails and automations (e.g., "block edits to `.env` files", "run the linter after every edit", "notify on session end"). Without registry support, each developer must hand-craft hook scripts and manually edit `.claude/settings.json` — an error-prone process that leads to inconsistent guardrails across a team, exactly the problem AWOS Recruitment exists to solve.
+Hooks are the primary mechanism for enforcing team-wide guardrails and automations (e.g., "refresh `CLAUDE.md`/`README.md` before every commit so docs never go stale", "run the linter after every edit", "notify on session end"). Without registry support, each developer must hand-craft hook scripts and manually edit `.claude/settings.json` — an error-prone process that leads to inconsistent guardrails across a team, exactly the problem AWOS Recruitment exists to solve.
 
 Hooks differ from existing capability types in one important way: installation is not just a file drop. A hook consists of (a) optional script files placed in the project and (b) a configuration entry that must be **merged into `.claude/settings.json`** so Claude Code activates it. Each hook must therefore carry its own injection documentation, and the installer must perform the settings merge deterministically.
 
-**Success looks like:** A developer (or the `awos:hire` flow) searches for a guardrail (e.g., "protect env files"), discovers a hook in the registry, installs it with a single CLI command, and the hook is immediately active — script files in place, `.claude/settings.json` updated, zero manual file or JSON editing.
+**Success looks like:** A developer (or the `awos:hire` flow) searches for a guardrail (e.g., "keep docs updated on commit"), discovers a hook in the registry, installs it with a single CLI command, and the hook is immediately active — script files in place, `.claude/settings.json` updated, zero manual file or JSON editing.
 
 ---
 
@@ -43,7 +43,7 @@ Hooks differ from existing capability types in one important way: installation i
 
   **Acceptance Criteria:**
   - [x] A hook directory placed in `registry/hooks/` with a valid `HOOK.md` is loaded by the registry loader with `type="hook"`.
-  - [x] Hooks appear in semantic search results when a relevant natural language query is submitted (e.g., "block edits to env files" returns `protect-env-files`).
+  - [x] Hooks appear in semantic search results when a relevant natural language query is submitted (e.g., "keep documentation updated before committing" returns `docs-that-work-gate`).
   - [x] Filtering by `type="hook"` returns only hook results.
   - [x] Hooks without a description are silently skipped during loading (consistent with skills).
 
@@ -90,7 +90,7 @@ Hooks differ from existing capability types in one important way: installation i
   - Hooks not found in the registry.
 
   **Acceptance Criteria:**
-  - [x] Running `npx @provectusinc/awos-recruitment hook protect-env-files` installs the directory to `.claude/hooks/protect-env-files/` and adds the corresponding entries under `hooks.PreToolUse` in `.claude/settings.json`.
+  - [x] Running `npx @provectusinc/awos-recruitment hook docs-that-work-gate` installs the directory to `.claude/hooks/docs-that-work-gate/` and adds the corresponding entries under `hooks.PreToolUse` in `.claude/settings.json`.
   - [x] If `.claude/settings.json` does not exist, it is created containing only the injected hook configuration.
   - [x] If `.claude/settings.json` exists with unrelated settings and hooks, those are preserved unchanged after injection.
   - [x] Re-running the same install command changes nothing and reports all items as skipped (idempotent).

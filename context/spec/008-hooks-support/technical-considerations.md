@@ -148,12 +148,12 @@ There is **no `command` field** — the command is always the derived entrypoint
 - **Dedupe rule (append-new-group, global dedupe):** an entry is *present* when any existing group under the same event has the same `matcher` (both-absent counts as equal) and its inner `hooks` array contains a command equal to the derived entrypoint path. Present → skip; otherwise **append a fresh group** — user-authored groups are never mutated.
 - **Write:** `JSON.stringify(parsed, null, 2) + "\n"` (same normalization as `.mcp.json`; content preserved, whitespace normalized).
 
-### 2.12. Registry Seed: `protect-env-files`
+### 2.12. Registry Seed: `docs-that-work-gate`
 
 One real hook validates the pipeline end-to-end and satisfies the real-registry smoke tests:
 
-- `registry/hooks/protect-env-files/HOOK.md` — frontmatter (`event: PreToolUse`, `matcher: Edit|Write`), body with description and manual injection instructions.
-- `registry/hooks/protect-env-files/protect-env-files.sh` — executable; reads the tool-call JSON from stdin, exits with code 2 (block) when the target path matches `.env` patterns.
+- `registry/hooks/docs-that-work-gate/HOOK.md` — frontmatter (`event: PreToolUse`, `matcher: Bash`), body with description, the gating rules, and manual injection instructions.
+- `registry/hooks/docs-that-work-gate/docs-that-work-gate.sh` — executable, pure POSIX sh + git; gates `git commit` commands on documentation freshness. Pending changes (`git status --porcelain`: staged + unstaged + untracked) are mapped to their owning docs — the nearest ancestor directory containing `CLAUDE.md`/`README.md` (repo root only owns root-level files). If an owning doc has no pending changes of its own, the hook exits 2 with instructions for Claude to refresh it via the `docs-that-work` skill (`registry/skills/docs-that-work/`) and retry. Loop prevention: updated docs count as fresh; a checksum marker in `.git/docs-that-work-gate.ok` lets an unchanged retry pass ("docs already accurate"); doc-only change sets are never gated. Behavior is covered by `server/tests/test_docs_that_work_gate_hook.py`, which executes the script in scratch git repositories.
 
 ---
 
@@ -188,7 +188,7 @@ One real hook validates the pipeline end-to-end and satisfies the real-registry 
 | `_load_hooks()` | `test_registry.py` | New `_write_hook` helper; correct parsing; skip without description; `type="hook"`; mixed-types test extended; real-registry smoke test includes `"hook"` |
 | `validate_hooks()` | `test_validate.py` | Valid hook passes; dir-name mismatch; empty body; **missing entrypoint fails; non-executable entrypoint fails**; unexpected root file fails; bad `scripts/` extension fails; `validate_registry` count assertions updated 3→4 |
 | `POST /bundle/hooks` | `test_bundle.py` | tar.gz contains `<name>/HOOK.md` + entrypoint (+ scripts); **entry mode carries exec bit**; partial/not-found; 400 on >20 or bad names |
-| Search | `test_search_index.py`, `test_search_tool.py` | `type="hook"` sample + filter test; real-registry search returns `protect-env-files` |
+| Search | `test_search_index.py`, `test_search_tool.py` | `type="hook"` sample + filter test; real-registry search returns `docs-that-work-gate` |
 | Telemetry | `test_bundle_telemetry.py`, `test_telemetry.py` | `track_install(name, "hook")` called per bundled hook |
 
 ### CLI (TypeScript — vitest)
@@ -206,7 +206,7 @@ One real hook validates the pipeline end-to-end and satisfies the real-registry 
 
 | File | Action |
 |------|--------|
-| `registry/hooks/protect-env-files/` | **Create** (HOOK.md + executable entrypoint) |
+| `registry/hooks/docs-that-work-gate/` | **Create** (HOOK.md + executable entrypoint) |
 | `server/src/awos_recruitment_mcp/models/hook_metadata.py` | **Create** |
 | `server/src/awos_recruitment_mcp/models/capability.py`, `models/__init__.py` | Modify — type literal, exports |
 | `server/src/awos_recruitment_mcp/registry.py` | Modify — `_load_hooks()`, `resolve_hook_paths()` |

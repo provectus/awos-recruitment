@@ -215,7 +215,7 @@ async def test_search_type_filter_tool(mcp_client):
 async def test_search_type_filter_hook(mcp_client):
     """Filtering by type='hook' should return only hooks."""
     result = await mcp_client.call_tool(
-        "search_capabilities", {"query": "block edits to env files", "type": "hook"}
+        "search_capabilities", {"query": "keep documentation updated before committing", "type": "hook"}
     )
     assert not result.is_error
 
@@ -229,11 +229,11 @@ async def test_search_type_filter_hook(mcp_client):
         )
 
 
-async def test_search_returns_protect_env_files_hook(mcp_client):
-    """A relevant query should surface the protect-env-files seed hook."""
+async def test_search_returns_docs_that_work_gate_hook(mcp_client):
+    """A relevant query should surface the docs-that-work-gate seed hook."""
     result = await mcp_client.call_tool(
         "search_capabilities",
-        {"query": "block edits to env files", "type": "hook"},
+        {"query": "keep documentation updated before committing", "type": "hook"},
     )
     assert not result.is_error
 
@@ -241,8 +241,8 @@ async def test_search_returns_protect_env_files_hook(mcp_client):
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
     returned_names = {item["name"] for item in parsed}
-    assert "protect-env-files" in returned_names, (
-        f"Expected 'protect-env-files' in hook results, got: {returned_names}"
+    assert "docs-that-work-gate" in returned_names, (
+        f"Expected 'docs-that-work-gate' in hook results, got: {returned_names}"
     )
 
 

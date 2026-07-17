@@ -54,7 +54,7 @@ Examples:
 npx @provectusinc/awos-recruitment skill modern-python-development
 npx @provectusinc/awos-recruitment mcp context7 playwright
 npx @provectusinc/awos-recruitment agent testing-expert
-npx @provectusinc/awos-recruitment hook protect-env-files
+npx @provectusinc/awos-recruitment hook docs-that-work-gate
 ```
 
 ## Documentation

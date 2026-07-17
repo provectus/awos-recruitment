@@ -199,10 +199,10 @@ async def test_bundle_hooks_tracks_found_capabilities(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files"]},
+            json={"names": ["docs-that-work-gate"]},
         )
 
-    mock_track_install.assert_called_once_with("protect-env-files", "hook")
+    mock_track_install.assert_called_once_with("docs-that-work-gate", "hook")
 
 
 @patch("awos_recruitment_mcp.server.track_install")
@@ -233,7 +233,7 @@ async def test_bundle_hooks_tracks_only_found_in_mixed_request(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.post(
             "/bundle/hooks",
-            json={"names": ["protect-env-files", "nonexistent-hook"]},
+            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
         )
 
-    mock_track_install.assert_called_once_with("protect-env-files", "hook")
+    mock_track_install.assert_called_once_with("docs-that-work-gate", "hook")

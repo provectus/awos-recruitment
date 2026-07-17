@@ -43,7 +43,7 @@ SAMPLE_CAPABILITIES = [
         type="agent",
     ),
     RegistryCapability(
-        name="protect-env-files",
+        name="docs-that-work-gate",
         description="Blocks Claude Code from editing or overwriting .env files and other environment secret files",
         type="hook",
     ),
@@ -211,7 +211,7 @@ class TestTypeFilter:
         )
         for result in results:
             assert result["name"] in {
-                "protect-env-files",
+                "docs-that-work-gate",
             }, f"Expected only hooks, got {result['name']}"
 
     def test_filter_excludes_other_type(

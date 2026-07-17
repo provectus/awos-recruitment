@@ -289,7 +289,7 @@ The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this mer
 
 ### Example
 
-See `registry/hooks/protect-env-files/` for a complete example.
+See `registry/hooks/docs-that-work-gate/` for a complete example.
 
 ---
 

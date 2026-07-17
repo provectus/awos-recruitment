@@ -237,13 +237,13 @@ def test_track_install_agent_type(mock_client: MagicMock) -> None:
 @patch.object(telemetry, "_client", new_callable=MagicMock)
 def test_track_install_hook_type(mock_client: MagicMock) -> None:
     """track_install() should pass capability_type='hook' through to properties."""
-    telemetry.track_install("protect-env-files", "hook")
+    telemetry.track_install("docs-that-work-gate", "hook")
 
     mock_client.capture.assert_called_once_with(
         distinct_id="anonymous",
         event="capability_installed",
         properties={
-            "capability_name": "protect-env-files",
+            "capability_name": "docs-that-work-gate",
             "capability_type": "hook",
         },
     )

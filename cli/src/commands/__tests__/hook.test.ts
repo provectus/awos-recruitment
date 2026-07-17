@@ -34,19 +34,19 @@ function makeTempDir(prefix: string): string {
 
 /**
  * Helper: stage an extracted-bundle temp dir containing a single hook named
- * `protect-env-files` with a HOOK.md and an executable entrypoint script.
+ * `docs-that-work-gate` with a HOOK.md and an executable entrypoint script.
  * Returns the bundle dir path.
  */
-function stageProtectEnvBundle(): string {
+function stageDocsGateBundle(): string {
   const bundleDir = makeTempDir("bundle-");
-  const hookSrc = path.join(bundleDir, "protect-env-files");
+  const hookSrc = path.join(bundleDir, "docs-that-work-gate");
   fs.mkdirSync(hookSrc, { recursive: true });
   fs.writeFileSync(
     path.join(hookSrc, "HOOK.md"),
-    "# Protect Env Files",
+    "# Docs That Work Gate",
     "utf-8",
   );
-  const scriptPath = path.join(hookSrc, "protect-env-files.sh");
+  const scriptPath = path.join(hookSrc, "docs-that-work-gate.sh");
   fs.writeFileSync(scriptPath, "#!/usr/bin/env bash\nexit 0\n", "utf-8");
   fs.chmodSync(scriptPath, 0o755);
   return bundleDir;
@@ -102,25 +102,25 @@ describe("installHooks", () => {
   // 1. Successful install of a hook directory
   // -----------------------------------------------------------------------
   it("copies a found hook into .claude/hooks/<name>/", async () => {
-    const bundleDir = stageProtectEnvBundle();
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const installedDir = path.join(
       fakeCwd,
       ".claude",
       "hooks",
-      "protect-env-files",
+      "docs-that-work-gate",
     );
     expect(
       fs.existsSync(path.join(installedDir, "HOOK.md")),
     ).toBe(true);
     expect(
-      fs.existsSync(path.join(installedDir, "protect-env-files.sh")),
+      fs.existsSync(path.join(installedDir, "docs-that-work-gate.sh")),
     ).toBe(true);
 
     // No failures -> process.exit not called.
@@ -131,7 +131,7 @@ describe("installHooks", () => {
   // 2. .claude/hooks/ is created when absent
   // -----------------------------------------------------------------------
   it("creates .claude/hooks/ when it does not exist", async () => {
-    const bundleDir = stageProtectEnvBundle();
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
@@ -142,7 +142,7 @@ describe("installHooks", () => {
       false,
     );
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     expect(fs.existsSync(path.join(fakeCwd, ".claude", "hooks"))).toBe(
       true,
@@ -153,7 +153,7 @@ describe("installHooks", () => {
   // 3. Silent skip on existing hook directory (success, exit not called with 1)
   // -----------------------------------------------------------------------
   it("silently skips an already-installed hook and leaves files untouched", async () => {
-    const bundleDir = stageProtectEnvBundle();
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     // Pre-create the target dir with a marker file that must survive.
@@ -162,7 +162,7 @@ describe("installHooks", () => {
       fakeCwd,
       ".claude",
       "hooks",
-      "protect-env-files",
+      "docs-that-work-gate",
     );
     fs.mkdirSync(existingDir, { recursive: true });
     const marker = path.join(existingDir, "HOOK.md");
@@ -170,7 +170,7 @@ describe("installHooks", () => {
 
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     // Pre-existing marker file must be untouched.
     expect(fs.readFileSync(marker, "utf-8")).toBe("# Original");
@@ -203,20 +203,20 @@ describe("installHooks", () => {
   //    through fs.cpSync into the installed location.
   // -----------------------------------------------------------------------
   it("preserves the executable bit on the installed entrypoint script", async () => {
-    const bundleDir = stageProtectEnvBundle();
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const installedScript = path.join(
       fakeCwd,
       ".claude",
       "hooks",
-      "protect-env-files",
-      "protect-env-files.sh",
+      "docs-that-work-gate",
+      "docs-that-work-gate.sh",
     );
     const mode = fs.statSync(installedScript).mode;
     expect(mode & 0o111).not.toBe(0);
@@ -227,13 +227,13 @@ describe("installHooks", () => {
   //    installed hook is still present.
   // -----------------------------------------------------------------------
   it("installs found hooks and still exits 1 when another is not found", async () => {
-    const bundleDir = stageProtectEnvBundle();
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files", "nonexistent"]);
+    await installHooks(["docs-that-work-gate", "nonexistent"]);
 
     // The found hook is installed.
     expect(
@@ -242,7 +242,7 @@ describe("installHooks", () => {
           fakeCwd,
           ".claude",
           "hooks",
-          "protect-env-files",
+          "docs-that-work-gate",
           "HOOK.md",
         ),
       ),
@@ -265,27 +265,27 @@ describe("installHooks", () => {
   // 7. Fresh install creates settings.json with derived command + timeout.
   it("creates settings.json with the derived command and timeout on fresh install", async () => {
     const bundleDir = stageBundleWithFrontmatter(
-      "protect-env-files",
-      "  - event: PreToolUse\n    matcher: Edit|Write\n    timeout: 10\n",
+      "docs-that-work-gate",
+      "  - event: PreToolUse\n    matcher: Bash\n    timeout: 10\n",
     );
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const settings = readSettings(fakeCwd);
     expect(settings).toEqual({
       hooks: {
         PreToolUse: [
           {
-            matcher: "Edit|Write",
+            matcher: "Bash",
             hooks: [
               {
                 type: "command",
                 command:
-                  "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-env-files/protect-env-files.sh",
+                  "$CLAUDE_PROJECT_DIR/.claude/hooks/docs-that-work-gate/docs-that-work-gate.sh",
                 timeout: 10,
               },
             ],
@@ -345,7 +345,7 @@ describe("installHooks", () => {
   // 10. Unrelated existing settings keys and user hooks are preserved.
   it("preserves unrelated settings keys and existing user hooks", async () => {
     const bundleDir = stageBundleWithFrontmatter(
-      "protect-env-files",
+      "docs-that-work-gate",
       "  - event: PreToolUse\n    matcher: Edit|Write\n    timeout: 10\n",
     );
     mockDownloadBundle.mockResolvedValue(bundleDir);
@@ -370,7 +370,7 @@ describe("installHooks", () => {
       "utf-8",
     );
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const settings = readSettings(fakeCwd);
     expect(settings.$schema).toBe("https://x/schema.json");
@@ -383,7 +383,7 @@ describe("installHooks", () => {
   // 11. Repair: pre-existing hook dir (skipped) with valid HOOK.md, settings
   //     missing the entry -> entry injected.
   it("repairs settings for a skipped hook whose entry is missing", async () => {
-    const name = "protect-env-files";
+    const name = "docs-that-work-gate";
     const bundleDir = stageBundleWithFrontmatter(
       name,
       "  - event: PreToolUse\n    matcher: Edit|Write\n    timeout: 10\n",
@@ -421,7 +421,7 @@ describe("installHooks", () => {
     // fresh bundle for every download (mirrors the real downloadBundle).
     mockDownloadBundle.mockImplementation(async () =>
       stageBundleWithFrontmatter(
-        "protect-env-files",
+        "docs-that-work-gate",
         "  - event: PreToolUse\n    matcher: Edit|Write\n    timeout: 10\n",
       ),
     );
@@ -429,7 +429,7 @@ describe("installHooks", () => {
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const settingsPath = path.join(fakeCwd, ".claude", "settings.json");
     const afterFirst = fs.readFileSync(settingsPath, "utf-8");
@@ -440,7 +440,7 @@ describe("installHooks", () => {
     >;
     stdoutSpy.mockClear();
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     const afterSecond = fs.readFileSync(settingsPath, "utf-8");
     expect(afterSecond).toBe(afterFirst);
@@ -454,19 +454,19 @@ describe("installHooks", () => {
   // 13. Unparseable HOOK.md frontmatter -> warning on stderr, exit 0, no
   //     settings.json created.
   it("warns and skips settings for a hook with unparseable frontmatter", async () => {
-    // stageProtectEnvBundle writes a HOOK.md with NO frontmatter.
-    const bundleDir = stageProtectEnvBundle();
+    // stageDocsGateBundle writes a HOOK.md with NO frontmatter.
+    const bundleDir = stageDocsGateBundle();
     mockDownloadBundle.mockResolvedValue(bundleDir);
 
     const fakeCwd = makeTempDir("cwd-");
     vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
 
-    await installHooks(["protect-env-files"]);
+    await installHooks(["docs-that-work-gate"]);
 
     // Files installed, but no settings.json written.
     expect(
       fs.existsSync(
-        path.join(fakeCwd, ".claude", "hooks", "protect-env-files", "HOOK.md"),
+        path.join(fakeCwd, ".claude", "hooks", "docs-that-work-gate", "HOOK.md"),
       ),
     ).toBe(true);
     expect(
@@ -474,7 +474,7 @@ describe("installHooks", () => {
     ).toBe(false);
 
     expect(process.stderr.write).toHaveBeenCalledWith(
-      "Warning: could not parse hook 'protect-env-files' metadata — settings not updated.\n",
+      "Warning: could not parse hook 'docs-that-work-gate' metadata — settings not updated.\n",
     );
     expect(process.exit).not.toHaveBeenCalledWith(1);
   });
