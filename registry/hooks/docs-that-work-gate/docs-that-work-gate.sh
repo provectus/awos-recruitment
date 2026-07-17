@@ -6,7 +6,9 @@
 # updated, the commit is blocked (exit 2) and the stderr message instructs
 # Claude to refresh those docs with the docs-that-work skill, stage them,
 # and retry. Hooks cannot invoke skills directly — the block reason fed back
-# to Claude is the trigger; Claude does the documentation work.
+# to Claude is the trigger; Claude does the documentation work. When the
+# skill is not installed in the project, the message instructs installing it
+# first (the reference would otherwise be a dead pointer).
 #
 # Ownership rule: each changed file belongs to the NEAREST ancestor directory
 # containing CLAUDE.md or README.md. Repo-root docs only own files that sit
@@ -106,7 +108,12 @@ printf '%s' "$checksum" > "$marker"
     echo "docs-that-work-gate: commit blocked — documentation may be stale."
     echo "The pending changes touch directories whose documentation was not updated:"
     printf '%s' "$stale" | sed 's/^/  - /'
-    echo "Use the docs-that-work skill to review these files against the pending changes; update what is stale, stage the doc updates, and re-run the commit."
+    if [ -d ".claude/skills/docs-that-work" ]; then
+        echo "You MUST invoke the docs-that-work skill (Skill tool) to review these files against the pending changes — do not update them from memory. Update what is stale, stage the doc updates, and re-run the commit."
+    else
+        echo "Install the paired docs-that-work skill first: npx @provectusinc/awos-recruitment skill docs-that-work"
+        echo "Then invoke it (Skill tool) to review these files against the pending changes — do not update them from memory. Update what is stale, stage the doc updates, and re-run the commit."
+    fi
     echo "If the documentation is already accurate, re-run the same commit unchanged — the gate remembers this review and will let it pass."
 } >&2
 exit 2

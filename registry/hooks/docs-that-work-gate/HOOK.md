@@ -23,6 +23,11 @@ and re-run the commit.
 
 Hooks cannot invoke skills directly — the block reason fed back to Claude is
 the trigger. The hook is the tripwire; Claude does the documentation work.
+The block message adapts to the project: when
+`.claude/skills/docs-that-work/` is installed it instructs Claude to invoke
+the skill (imperatively — "do not update the docs from memory"); when it is
+missing, it instructs installing the skill first, so the reference is never
+a dead pointer.
 
 ## Why a team would want it
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-HOOK_SCRIPT = (
+HOOK_SCRIPT: Path = (
     Path(__file__).resolve().parents[2]
     / "registry"
     / "hooks"
@@ -28,7 +28,9 @@ COMMIT_PAYLOAD = json.dumps(
 )
 
 
-def run_hook(cwd: Path, stdin_text: str = COMMIT_PAYLOAD) -> subprocess.CompletedProcess:
+def run_hook(
+    cwd: Path, stdin_text: str = COMMIT_PAYLOAD
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [str(HOOK_SCRIPT)],
         input=stdin_text,
@@ -60,7 +62,7 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_hook_script_exists_and_is_executable():
+def test_hook_script_exists_and_is_executable() -> None:
     """The registry entrypoint must exist with the executable bit set."""
     assert HOOK_SCRIPT.is_file(), f"Missing hook entrypoint: {HOOK_SCRIPT}"
     assert HOOK_SCRIPT.stat().st_mode & 0o111, (
@@ -68,7 +70,7 @@ def test_hook_script_exists_and_is_executable():
     )
 
 
-def test_blocks_when_owning_docs_not_updated(repo: Path):
+def test_blocks_when_owning_docs_not_updated(repo: Path) -> None:
     """A code change under server/ with untouched server/CLAUDE.md blocks."""
     (repo / "server" / "src" / "app.py").write_text("changed\n")
 
@@ -83,7 +85,35 @@ def test_blocks_when_owning_docs_not_updated(repo: Path):
     )
 
 
-def test_allows_when_owning_docs_also_updated(repo: Path):
+def test_block_message_instructs_install_when_skill_missing(repo: Path) -> None:
+    """Without .claude/skills/docs-that-work, the message says to install it."""
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2, f"Expected block, got {result.returncode}"
+    assert "npx @provectusinc/awos-recruitment skill docs-that-work" in result.stderr, (
+        f"Expected install instruction on stderr, got: {result.stderr!r}"
+    )
+
+
+def test_block_message_demands_skill_invocation_when_installed(repo: Path) -> None:
+    """With the skill installed, the message imperatively demands invoking it."""
+    (repo / ".claude" / "skills" / "docs-that-work").mkdir(parents=True)
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2, f"Expected block, got {result.returncode}"
+    assert "MUST invoke the docs-that-work skill" in result.stderr, (
+        f"Expected imperative skill instruction on stderr, got: {result.stderr!r}"
+    )
+    assert "npx @provectusinc/awos-recruitment" not in result.stderr, (
+        f"Install instruction should be absent when skill exists, got: {result.stderr!r}"
+    )
+
+
+def test_allows_when_owning_docs_also_updated(repo: Path) -> None:
     """Updating the owning CLAUDE.md alongside the code change passes."""
     (repo / "server" / "src" / "app.py").write_text("changed\n")
     (repo / "server" / "CLAUDE.md").write_text("updated docs\n")
@@ -95,7 +125,7 @@ def test_allows_when_owning_docs_also_updated(repo: Path):
     )
 
 
-def test_doc_only_change_set_passes(repo: Path):
+def test_doc_only_change_set_passes(repo: Path) -> None:
     """A change set consisting only of doc files is never gated."""
     (repo / "server" / "CLAUDE.md").write_text("only docs changed\n")
     (repo / "README.md").write_text("also docs\n")
@@ -105,7 +135,7 @@ def test_doc_only_change_set_passes(repo: Path):
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
 
 
-def test_unchanged_retry_passes_then_gate_rearms(repo: Path):
+def test_unchanged_retry_passes_then_gate_rearms(repo: Path) -> None:
     """Block, identical retry passes via the marker, third attempt blocks again."""
     (repo / "server" / "src" / "app.py").write_text("changed\n")
 
@@ -123,7 +153,7 @@ def test_unchanged_retry_passes_then_gate_rearms(repo: Path):
     )
 
 
-def test_content_edit_after_block_invalidates_marker(repo: Path):
+def test_content_edit_after_block_invalidates_marker(repo: Path) -> None:
     """Editing file content between attempts re-blocks despite the marker."""
     (repo / "server" / "src" / "app.py").write_text("changed\n")
     assert run_hook(repo).returncode == 2
@@ -136,7 +166,7 @@ def test_content_edit_after_block_invalidates_marker(repo: Path):
     )
 
 
-def test_nested_file_does_not_trigger_root_docs(repo: Path):
+def test_nested_file_does_not_trigger_root_docs(repo: Path) -> None:
     """Root README.md does not own nested files without their own docs."""
     (repo / "lib").mkdir()
     (repo / "lib" / "util.py").write_text("code\n")
@@ -149,7 +179,7 @@ def test_nested_file_does_not_trigger_root_docs(repo: Path):
     )
 
 
-def test_root_level_file_triggers_root_docs(repo: Path):
+def test_root_level_file_triggers_root_docs(repo: Path) -> None:
     """A file changed at the repo root is owned by the root README.md."""
     (repo / "Makefile").write_text("all:\n")
 
@@ -161,13 +191,13 @@ def test_root_level_file_triggers_root_docs(repo: Path):
     )
 
 
-def test_clean_tree_passes(repo: Path):
+def test_clean_tree_passes(repo: Path) -> None:
     """Nothing to commit — nothing to gate."""
     result = run_hook(repo)
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
 
 
-def test_non_commit_command_passes(repo: Path):
+def test_non_commit_command_passes(repo: Path) -> None:
     """Bash commands without git commit are not gated."""
     (repo / "server" / "src" / "app.py").write_text("changed\n")
     payload = json.dumps(
@@ -179,13 +209,13 @@ def test_non_commit_command_passes(repo: Path):
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
 
 
-def test_outside_git_repo_passes(tmp_path: Path):
+def test_outside_git_repo_passes(tmp_path: Path) -> None:
     """Fail open when the working directory is not a git repository."""
     result = run_hook(tmp_path)
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
 
 
-def test_garbage_stdin_passes(repo: Path):
+def test_garbage_stdin_passes(repo: Path) -> None:
     """Unreadable payloads fail open."""
     result = run_hook(repo, "not json at all")
     assert result.returncode == 0, f"Expected allow, got {result.returncode}"
