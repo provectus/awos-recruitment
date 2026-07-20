@@ -166,6 +166,37 @@ def test_content_edit_after_block_invalidates_marker(repo: Path) -> None:
     )
 
 
+def test_untracked_rewrite_after_block_invalidates_marker(repo: Path) -> None:
+    """Rewriting an UNTRACKED file between attempts must re-block.
+
+    Regression: `git diff HEAD` never sees untracked content and porcelain
+    emits a content-independent `?? path`, so the checksum used to be
+    byte-identical across a full rewrite of a new file.
+    """
+    (repo / "server" / "brand_new.py").write_text("brand new content v1\n")
+
+    first = run_hook(repo)
+    assert first.returncode == 2, "First attempt must block"
+
+    (repo / "server" / "brand_new.py").write_text("totally different v2\n")
+
+    second = run_hook(repo)
+    assert second.returncode == 2, (
+        "Rewritten untracked content must invalidate the acknowledgement"
+    )
+
+
+def test_unchanged_untracked_retry_still_passes(repo: Path) -> None:
+    """Loop-breaker 2 must survive the fix: identical retry passes."""
+    (repo / "server" / "brand_new.py").write_text("brand new content v1\n")
+
+    first = run_hook(repo)
+    assert first.returncode == 2
+
+    second = run_hook(repo)
+    assert second.returncode == 0, "Unchanged retry must still pass"
+
+
 def test_nested_file_does_not_trigger_root_docs(repo: Path) -> None:
     """Root README.md does not own nested files without their own docs."""
     (repo / "lib").mkdir()
@@ -257,6 +288,50 @@ def test_commit_command_with_description_still_gated(repo: Path) -> None:
     result = run_hook(repo, payload)
 
     assert result.returncode == 2, "Real commit must still be gated"
+
+
+def test_unborn_head_repo_blocks_and_marker_cycle_works(tmp_path: Path) -> None:
+    """On an unborn HEAD (no commits yet) the checksum falls back to the
+    staged diff (`git diff HEAD || git diff --cached`): block, then
+    edit + re-stage re-blocks, then an identical retry passes.
+
+    The SECOND run is the assertion that pins the `--cached` fallback:
+    re-staging edited content leaves the porcelain status byte-identical
+    (`A  server/app.py`) and adds no untracked files, so only the staged
+    diff distinguishes the tree from the marker — without the fallback the
+    checksum would match and the run would wrongly pass. The final run
+    keeps marker-cycle coverage: the fresh marker written by the second
+    block is consumed by an unchanged retry.
+
+    Note: staging a doc alongside the code change would count it as "fresh"
+    (any CLAUDE.md/README.md present in `git status` counts, regardless of
+    commit history), so the code change's owning doc must be gitignored to
+    stay out of the change set and trigger the block — see docs-that-work-gate.sh
+    comment "Ownership rule" / loop-breaker 1.
+    """
+    git(tmp_path, "init")
+    git(tmp_path, "config", "user.email", "test@test")
+    git(tmp_path, "config", "user.name", "Test")
+    (tmp_path / "server").mkdir()
+    (tmp_path / "server" / "CLAUDE.md").write_text("docs\n")
+    (tmp_path / ".gitignore").write_text("server/CLAUDE.md\n")
+    (tmp_path / "server" / "app.py").write_text("code\n")
+    git(tmp_path, "add", "-A")
+
+    first = run_hook(tmp_path)
+    assert first.returncode == 2, f"Expected block: {first.stderr}"
+
+    (tmp_path / "server" / "app.py").write_text("edited\n")
+    git(tmp_path, "add", "server/app.py")
+
+    second = run_hook(tmp_path)
+    assert second.returncode == 2, (
+        "Edited staged content must re-block: porcelain is unchanged, so "
+        "only the staged-diff fallback can detect the edit"
+    )
+
+    third = run_hook(tmp_path)
+    assert third.returncode == 0, "Identical retry must pass via marker"
 
 
 def test_payload_without_command_key_passes(repo: Path) -> None:

@@ -17,9 +17,10 @@
 # Loop prevention (worst case two blocks per commit, never a deadlock):
 #   1. A doc file with pending changes counts as fresh — once Claude updates
 #      it, the retried commit passes.
-#   2. On block, a checksum of `git status --porcelain` is stored in
-#      .git/docs-that-work-gate.ok. A retry with an unchanged tree passes —
-#      this is how "the docs are already accurate" is acknowledged.
+#   2. On block, a checksum of the pending state (porcelain status + tracked
+#      diff + untracked file content) is stored in <git-dir>/docs-that-work-gate.ok.
+#      A retry with an unchanged tree passes — this is how "the docs are
+#      already accurate" is acknowledged.
 #   3. Change sets consisting only of CLAUDE.md/README.md files always pass.
 #
 # Pure POSIX sh + git. Anything unexpected (not a repo, no pending changes,
@@ -32,7 +33,8 @@ input=$(cat)
 # Only gate commit commands. The payload is the raw tool-call JSON; extract
 # the tool_input.command string value so sibling fields (description) cannot
 # false-positive the scan. The sed pattern captures a JSON string value with
-# its escapes kept as-is (\" etc.); the first "command" key wins. -E (POSIX
+# its escapes kept as-is (\" etc.); the greedy .* means the LAST "command"
+# key wins. -E (POSIX
 # extended regex, already used by the grep below) is required for the
 # alternation: BSD/macOS sed's basic-regex \| is not alternation — only
 # GNU sed treats it that way — so a BRE version of this pattern silently
@@ -64,10 +66,22 @@ non_doc=$(printf '%s\n' "$changed" | grep -vE '(^|/)(CLAUDE|README)\.md$' || tru
 [ -n "$non_doc" ] || exit 0
 
 # Loop-breaker 2: an unchanged retry after a block passes. The checksum
-# covers the porcelain status AND the tracked-content diff, so editing any
-# file between attempts invalidates the acknowledgement.
+# covers the porcelain status, the tracked-content diff, AND the content of
+# every untracked file (via per-file cksum) — editing any file between
+# attempts, tracked or not, invalidates the acknowledgement. On an unborn
+# HEAD the tracked diff falls back to the staged diff.
 marker="$git_dir/docs-that-work-gate.ok"
-checksum=$({ printf '%s' "$status"; git diff HEAD --no-color 2>/dev/null || true; } | cksum)
+checksum=$({
+    printf '%s' "$status"
+    git diff HEAD --no-color 2>/dev/null \
+        || git diff --cached --no-color 2>/dev/null \
+        || true
+    git ls-files --others --exclude-standard 2>/dev/null \
+        | while IFS= read -r uf; do
+              [ -f "$uf" ] && cksum "$uf" 2>/dev/null
+          done
+    true
+} | cksum)
 if [ -f "$marker" ] && [ "$(cat "$marker")" = "$checksum" ]; then
     rm -f "$marker"
     exit 0

@@ -54,9 +54,11 @@ npx @provectusinc/awos-recruitment hook docs-that-work-gate
   changes of its own. Once Claude updates it, the retried commit passes.
 - **Loop prevention** (worst case two blocks per commit, never a deadlock):
   1. Doc files with pending changes are fresh (above).
-  2. On block, a checksum of the pending state (`git status --porcelain`
-     plus the tracked-content diff) is stored in
-     `.git/docs-that-work-gate.ok`. Re-running the *same* commit unchanged
+  2. On block, a checksum of the pending state (porcelain status plus the
+     tracked-content diff plus untracked file content) is stored in
+     the repository's git dir (`.git/docs-that-work-gate.ok`; in a linked
+     worktree, that worktree's own git dir as reported by
+     `git rev-parse --git-dir`). Re-running the *same* commit unchanged
      passes and consumes the marker — this is how "the docs are already
      accurate" is acknowledged. Any further edit invalidates it.
   3. Change sets consisting only of `CLAUDE.md`/`README.md` files always
