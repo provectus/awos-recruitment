@@ -26,7 +26,7 @@
 # Pure POSIX sh + git. Anything unexpected (not a repo, no pending changes,
 # non-commit command, unreadable payload) fails open with exit 0.
 
-set -eu
+set -euf
 
 input=$(cat)
 
@@ -83,7 +83,7 @@ checksum=$({
     true
 } | cksum)
 if [ -f "$marker" ] && [ "$(cat "$marker")" = "$checksum" ]; then
-    rm -f "$marker"
+    rm -f "$marker" 2>/dev/null || true
     exit 0
 fi
 
@@ -123,11 +123,9 @@ done
 IFS=$old_ifs
 
 if [ -z "$stale" ]; then
-    rm -f "$marker"
+    rm -f "$marker" 2>/dev/null || true
     exit 0
 fi
-
-printf '%s' "$checksum" > "$marker"
 
 {
     echo "docs-that-work-gate: commit blocked — documentation may be stale."
@@ -141,4 +139,9 @@ printf '%s' "$checksum" > "$marker"
     fi
     echo "If the documentation is already accurate, re-run the same commit unchanged — the gate remembers this review and will let it pass."
 } >&2
+
+# Marker write is best-effort: on a read-only git dir the gate still blocks
+# with the message above (degraded mode: every retry re-blocks instead of
+# the acknowledgement passing — safe direction).
+printf '%s' "$checksum" > "$marker" 2>/dev/null || true
 exit 2

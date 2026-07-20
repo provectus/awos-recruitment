@@ -342,3 +342,33 @@ def test_payload_without_command_key_passes(repo: Path) -> None:
     result = run_hook(repo, payload)
 
     assert result.returncode == 0
+
+
+def test_unwritable_git_dir_still_blocks_with_message(repo: Path) -> None:
+    """A read-only .git must not turn the block into a silent exit 1.
+
+    Exit 1 is non-blocking for Claude Code hooks; the gate must still exit 2
+    and print the actionable message even when the marker cannot be written.
+    """
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+    git_dir = repo / ".git"
+    git_dir.chmod(0o555)
+    try:
+        result = run_hook(repo)
+    finally:
+        git_dir.chmod(0o755)
+
+    assert result.returncode == 2, (
+        f"Expected block (2), got {result.returncode}: {result.stderr}"
+    )
+    assert "documentation may be stale" in result.stderr
+
+
+def test_glob_metacharacter_filename_handled(repo: Path) -> None:
+    """A changed path containing '*' must not be glob-expanded."""
+    (repo / "server" / "src" / "weird*name.py").write_text("code\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2
+    assert "server/CLAUDE.md" in result.stderr
