@@ -227,12 +227,19 @@ async def bundle_hooks(request: Request) -> Response:
         unique_names, config.registry_path
     )
 
-    for hook_dir in found_paths:
+    # A hook without its entrypoint would install as a settings entry
+    # pointing at a script that doesn't exist — omit the whole directory so
+    # the CLI reports it not-found instead of "installed". Filtering once up
+    # front keeps telemetry honest too: a hook that ships nothing must not
+    # be counted as an install.
+    shippable = [d for d in found_paths if (d / f"{d.name}.sh").is_file()]
+
+    for hook_dir in shippable:
         track_install(hook_dir.name, "hook")
 
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for hook_dir in found_paths:
+        for hook_dir in shippable:
             hook_name = hook_dir.name
 
             hook_md = hook_dir / "HOOK.md"
@@ -240,8 +247,7 @@ async def bundle_hooks(request: Request) -> Response:
                 tar.add(str(hook_md), arcname=f"{hook_name}/HOOK.md")
 
             entrypoint = hook_dir / f"{hook_name}.sh"
-            if entrypoint.is_file():
-                tar.add(str(entrypoint), arcname=f"{hook_name}/{hook_name}.sh")
+            tar.add(str(entrypoint), arcname=f"{hook_name}/{hook_name}.sh")
 
             scripts_dir = hook_dir / "scripts"
             if scripts_dir.is_dir():

@@ -97,6 +97,25 @@ function stageBundleWithRawHookMd(name: string, hookMd: string): string {
   return bundleDir;
 }
 
+/**
+ * Helper: stage a bundle for a hook missing its `<name>.sh` entrypoint —
+ * HOOK.md only. The server is expected to omit entrypoint-less hook dirs
+ * from the bundle entirely, but this simulates it shipping one anyway (a
+ * stale/misbehaving server), giving processHooks' post-copy check something
+ * to catch.
+ */
+function stageBundleMissingEntrypoint(name: string): string {
+  const bundleDir = makeTempDir("bundle-");
+  const hookSrc = path.join(bundleDir, name);
+  fs.mkdirSync(hookSrc, { recursive: true });
+  fs.writeFileSync(
+    path.join(hookSrc, "HOOK.md"),
+    `---\nname: ${name}\ndescription: Test hook\nhooks:\n  - event: PreToolUse\n---\n\nBody.\n`,
+    "utf-8",
+  );
+  return bundleDir;
+}
+
 // ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
@@ -278,6 +297,42 @@ describe("installHooks", () => {
 
     // The missing one triggers exit(1).
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // Endpoint URL + entrypoint defense-in-depth
+  // -----------------------------------------------------------------------
+  it("requests the /bundle/hooks endpoint with the requested names", async () => {
+    const bundleDir = stageDocsGateBundle();
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installHooks(["docs-that-work-gate"], { yes: true });
+
+    expect(mockDownloadBundle).toHaveBeenCalledWith(
+      expect.stringContaining("/bundle/hooks"),
+      ["docs-that-work-gate"],
+    );
+  });
+
+  it("reports an error and exits 1 when the copied hook lacks its entrypoint", async () => {
+    const bundleDir = stageBundleMissingEntrypoint("no-entry");
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installHooks(["no-entry"], { yes: true });
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      "Error: hook 'no-entry' bundle is missing its entrypoint — not installed.\n",
+    );
+    expect(
+      fs.existsSync(path.join(fakeCwd, ".claude", "hooks", "no-entry")),
+    ).toBe(false);
   });
 
   // -----------------------------------------------------------------------

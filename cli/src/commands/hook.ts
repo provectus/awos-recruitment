@@ -71,7 +71,9 @@ export async function installHooks(
   printResults(results);
   printSettingsSummary(settings);
 
-  const hasNotFound = results.some((r) => r.status === "not-found");
+  const hasNotFound = results.some(
+    (r) => r.status === "not-found" || r.status === "error",
+  );
   if (hasNotFound) {
     process.exit(1);
   }
@@ -177,6 +179,21 @@ export function processHooks(
     fs.mkdirSync(hooksBaseDir, { recursive: true });
     const sourceDir = path.join(tempDir, name);
     fs.cpSync(sourceDir, targetDir, { recursive: true });
+
+    // Defense in depth: the server omits entrypoint-less hooks from the
+    // bundle, but don't trust that blindly — a copied dir without its
+    // <name>.sh would otherwise report "installed" while settings.json
+    // ends up pointing at a script that was never written to disk.
+    const entrypoint = path.join(targetDir, `${name}.sh`);
+    if (!fs.existsSync(entrypoint)) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+      results.push({
+        name,
+        status: "error",
+        message: `Error: hook '${name}' bundle is missing its entrypoint — not installed.`,
+      });
+      continue;
+    }
 
     results.push({
       name,
@@ -326,7 +343,7 @@ function groupEntriesByEvent(
  */
 function printResults(results: InstallResult[]): void {
   for (const result of results) {
-    if (result.status === "not-found") {
+    if (result.status === "not-found" || result.status === "error") {
       process.stderr.write(result.message + "\n");
     } else {
       process.stdout.write(result.message + "\n");

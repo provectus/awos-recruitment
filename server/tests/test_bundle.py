@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import tarfile
+from unittest.mock import patch
 
 import httpx
 import pytest
+import awos_recruitment_mcp.server as server_module
 from awos_recruitment_mcp.server import mcp
 
 
@@ -14,6 +17,44 @@ from awos_recruitment_mcp.server import mcp
 def asgi_app():
     """Return the ASGI app from the FastMCP server for in-process HTTP testing."""
     return mcp.http_app()
+
+
+@pytest.fixture
+async def client(asgi_app):
+    """An httpx.AsyncClient wired to the default (real registry) FastMCP app."""
+    transport = httpx.ASGITransport(app=asgi_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+
+
+@pytest.fixture
+def client_factory(monkeypatch):
+    """Build an httpx.AsyncClient against the FastMCP app rooted at a custom registry_path.
+
+    The route handlers read the module-level ``config`` global at request time,
+    so monkeypatching ``server_module.config`` to a copy with a different
+    ``registry_path`` (via ``dataclasses.replace`` — ``Config`` is frozen) is
+    enough to redirect every ``/bundle/*`` route without touching real registry
+    data. Returns a callable that yields an async-context-manager client.
+    """
+
+    def _make_client(registry_path) -> httpx.AsyncClient:
+        patched_config = dataclasses.replace(
+            server_module.config, registry_path=str(registry_path)
+        )
+        monkeypatch.setattr(server_module, "config", patched_config)
+        app = server_module.mcp.http_app()
+        transport = httpx.ASGITransport(app=app)
+        return httpx.AsyncClient(transport=transport, base_url="http://test")
+
+    return _make_client
+
+
+def tar_member_names(content: bytes) -> list[str]:
+    """Extract member names from raw gzip-compressed tar bytes."""
+    buf = io.BytesIO(content)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        return tar.getnames()
 
 
 # ---------------------------------------------------------------------------
@@ -815,3 +856,67 @@ async def test_hook_invalid_name_pattern_returns_400(asgi_app):
     assert response.status_code == 400, (
         f"Expected HTTP 400, got {response.status_code}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Defense-in-depth: entrypoint-less hooks, scripts/ filtering, traversal names
+# ---------------------------------------------------------------------------
+
+
+@patch("awos_recruitment_mcp.server.track_install")
+async def test_bundle_hooks_skips_entrypointless_dir(
+    mock_track_install, tmp_path, client_factory
+):
+    """A hook dir without its `<name>.sh` entrypoint must ship nothing at all.
+
+    Shipping HOOK.md alone would let the CLI report the hook "installed"
+    while pointing settings.json at a script that was never bundled. The
+    same rule applies to telemetry: a hook that ships nothing was not
+    installed, so track_install must not be called for it.
+    """
+    hooks = tmp_path / "hooks" / "broken-hook"
+    hooks.mkdir(parents=True)
+    (hooks / "HOOK.md").write_text(
+        "---\nname: broken-hook\ndescription: d\nhooks:\n  - event: PreToolUse\n---\nbody\n"
+    )
+
+    async with client_factory(tmp_path) as client:
+        response = await client.post("/bundle/hooks", json={"names": ["broken-hook"]})
+
+    names = tar_member_names(response.content)
+    assert names == [], "A hook without its entrypoint must not ship at all"
+    mock_track_install.assert_not_called()
+
+
+async def test_bundle_hooks_scripts_filtering(tmp_path, client_factory):
+    """The scripts/ bundling branch keeps allowed .sh helpers, drops the rest."""
+    hook = tmp_path / "hooks" / "my-hook"
+    scripts = hook / "scripts"
+    scripts.mkdir(parents=True)
+    (hook / "HOOK.md").write_text(
+        "---\nname: my-hook\ndescription: d\nhooks:\n  - event: PreToolUse\n---\nbody\n"
+    )
+    entry = hook / "my-hook.sh"
+    entry.write_text("#!/bin/sh\nexit 0\n")
+    entry.chmod(0o755)
+    (scripts / "helper.sh").write_text("#!/bin/sh\n")
+    (scripts / ".hidden").write_text("x")
+    (scripts / "bad.rb").write_text("x")
+
+    async with client_factory(tmp_path) as client:
+        response = await client.post("/bundle/hooks", json={"names": ["my-hook"]})
+
+    names = tar_member_names(response.content)
+    assert "my-hook/scripts/helper.sh" in names
+    assert not any(".hidden" in n or "bad.rb" in n for n in names)
+
+
+@pytest.mark.parametrize("bad", [["../agents"], [".."], ["a/b"], ["/etc"]])
+async def test_bundle_hooks_traversal_names_rejected(client, bad):
+    """Path-traversal-shaped names are rejected by BundleRequest's name pattern.
+
+    This is expected to already pass — it pins the existing
+    `^[a-z0-9-]{1,64}$` regex on `BundleRequest.names`, not new behavior.
+    """
+    response = await client.post("/bundle/hooks", json={"names": bad})
+    assert response.status_code == 400
