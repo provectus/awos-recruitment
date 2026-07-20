@@ -372,3 +372,36 @@ def test_glob_metacharacter_filename_handled(repo: Path) -> None:
 
     assert result.returncode == 2
     assert "server/CLAUDE.md" in result.stderr
+
+
+def test_renamed_file_uses_new_path(repo: Path) -> None:
+    """`git mv` porcelain (`R old -> new`) must resolve ownership by new path."""
+    git(repo, "mv", "server/src/app.py", "server/src/renamed.py")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2
+    assert "server/CLAUDE.md" in result.stderr
+
+
+def test_deleted_owning_doc_climbs_to_ancestor(repo: Path) -> None:
+    """Deleting server/CLAUDE.md while changing server code: the deleted doc
+    cannot be 'fresh' (it no longer exists); ownership climbs to root README,
+    which only owns root-level files — so nothing is stale and the change
+    passes. Pins current behavior."""
+    (repo / "server" / "src" / "app.py").write_text("changed\n")
+    git(repo, "rm", "-q", "server/CLAUDE.md")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 0
+
+
+def test_filename_with_space_still_blocks(repo: Path) -> None:
+    """Porcelain C-quotes 'a b.py'; the gate must still block on presence."""
+    (repo / "server" / "src" / "a b.py").write_text("code\n")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 2
+    assert "server/CLAUDE.md" in result.stderr
