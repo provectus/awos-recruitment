@@ -228,7 +228,7 @@ Each entry in the `hooks` list has the following fields:
 
 | Field | Type | Required | Rules |
 |-------|------|----------|-------|
-| `event` | string | Yes | One of the nine Claude Code hook events: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Notification`, `Stop`, `SubagentStop`, `PreCompact`, `SessionStart`, `SessionEnd`. |
+| `event` | string | Yes | A documented Claude Code hook event (see `server/src/awos_recruitment_mcp/models/hook_metadata.py` for the authoritative list), e.g. `PreToolUse`, `PostToolUse`, `SessionStart`. |
 | `matcher` | string | No | Tool-name matcher (e.g. `Edit\|Write`). Omit for events that don't use matchers. |
 | `timeout` | integer | No | Timeout in seconds. Must be greater than 0. |
 

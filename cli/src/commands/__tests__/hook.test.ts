@@ -757,6 +757,61 @@ describe("installHooks", () => {
       );
     });
 
+    it("hashes and parses the LOCAL entrypoint/HOOK.md for an already-installed hook, not the bundle's", async () => {
+      const name = "docs-that-work-gate";
+
+      // Bundle has DIFFERENT entrypoint content than the local install.
+      const bundleDir = stageBundleWithFrontmatter(
+        name,
+        "  - event: PreToolUse\n    matcher: Bash\n    timeout: 10\n",
+      );
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      // Pre-create the local install with DIFFERENT entrypoint content and
+      // its own valid HOOK.md — Phase 1 will skip it, and the consent
+      // summary must reflect these local files, not the downloaded bundle.
+      const installedDir = path.join(fakeCwd, ".claude", "hooks", name);
+      fs.mkdirSync(installedDir, { recursive: true });
+      const localScriptPath = path.join(installedDir, `${name}.sh`);
+      const localScriptContent =
+        "#!/usr/bin/env bash\n# local drifted content\nexit 0\n";
+      fs.writeFileSync(localScriptPath, localScriptContent, "utf-8");
+      fs.chmodSync(localScriptPath, 0o755);
+      fs.writeFileSync(
+        path.join(installedDir, "HOOK.md"),
+        `---\nname: ${name}\ndescription: Local\nhooks:\n  - event: PreToolUse\n    matcher: Bash\n    timeout: 10\n---\n\nBody.\n`,
+        "utf-8",
+      );
+
+      // installHooks deletes the bundle temp dir once it's done, so capture
+      // the bundle's entrypoint hash before running it.
+      const bundleHash = createHash("sha256")
+        .update(
+          fs.readFileSync(path.join(bundleDir, name, `${name}.sh`)),
+        )
+        .digest("hex");
+
+      await installHooks([name], { yes: true });
+
+      const localHash = createHash("sha256")
+        .update(fs.readFileSync(localScriptPath))
+        .digest("hex");
+      expect(localHash).not.toBe(bundleHash);
+
+      const stdoutSpy = process.stdout.write as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      const output = stdoutSpy.mock.calls.map((call) => call[0]).join("");
+      expect(output).toContain(localHash);
+      expect(output).not.toContain(bundleHash);
+      expect(output).toContain(
+        "already installed — existing local files kept; settings derive from the local HOOK.md",
+      );
+    });
+
     it("throws CliError without yes when stdin is not a TTY, writing nothing", async () => {
       // vitest runs non-TTY, so no stubbing needed.
       const bundleDir = stageDocsGateBundle();

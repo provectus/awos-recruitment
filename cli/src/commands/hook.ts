@@ -80,14 +80,25 @@ export async function installHooks(
 }
 
 /**
- * Prints, for each requested hook present in the bundle, the sha256 of its
- * entrypoint script and the event bindings from its HOOK.md — the exact
- * artifacts about to be armed. Names missing from the bundle are reported
- * later by processHooks as not-found; they are skipped here.
+ * Prints, for each requested hook, the sha256 of its entrypoint script and
+ * the event bindings that are about to be armed. For a hook that is
+ * already installed at `.claude/hooks/<name>` in the current working
+ * directory, Phase 1 keeps the local files untouched and Phase 2's settings
+ * repair reads the LOCAL `HOOK.md` — so the summary must hash and parse the
+ * LOCAL copy, not the freshly downloaded bundle, or the operator would be
+ * consenting to artifacts that are discarded. Not-yet-installed hooks are
+ * summarized from the downloaded bundle as before. Names missing from
+ * their source are reported later by processHooks as not-found; they are
+ * skipped here.
  */
 function printHookSummaries(tempDir: string, names: string[]): void {
+  const hooksBaseDir = path.join(process.cwd(), ".claude", "hooks");
+
   for (const name of names) {
-    const entrypoint = path.join(tempDir, name, `${name}.sh`);
+    const alreadyInstalled = fs.existsSync(path.join(hooksBaseDir, name));
+    const sourceDir = alreadyInstalled ? hooksBaseDir : tempDir;
+
+    const entrypoint = path.join(sourceDir, name, `${name}.sh`);
     if (!fs.existsSync(entrypoint)) {
       continue;
     }
@@ -95,8 +106,13 @@ function printHookSummaries(tempDir: string, names: string[]): void {
       .update(fs.readFileSync(entrypoint))
       .digest("hex");
     process.stdout.write(`Hook '${name}'\n  entrypoint sha256: ${sha256}\n`);
+    if (alreadyInstalled) {
+      process.stdout.write(
+        "  already installed — existing local files kept; settings derive from the local HOOK.md\n",
+      );
+    }
 
-    const entries = readHookEntries(tempDir, name);
+    const entries = readHookEntries(sourceDir, name);
     for (const entry of entries ?? []) {
       const details: string[] = [];
       if (entry.matcher !== undefined) {
