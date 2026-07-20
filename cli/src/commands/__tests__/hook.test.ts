@@ -69,6 +69,22 @@ function stageBundleWithFrontmatter(name: string, hooksYaml: string): string {
   return bundleDir;
 }
 
+/**
+ * Helper: stage a bundle for a hook with a HOOK.md written verbatim from
+ * `hookMd`. Used where `stageBundleWithFrontmatter`'s fixed `hooks:\n<yaml>`
+ * template can't express the case under test (e.g. `hooks: []`).
+ */
+function stageBundleWithRawHookMd(name: string, hookMd: string): string {
+  const bundleDir = makeTempDir("bundle-");
+  const hookSrc = path.join(bundleDir, name);
+  fs.mkdirSync(hookSrc, { recursive: true });
+  fs.writeFileSync(path.join(hookSrc, "HOOK.md"), hookMd, "utf-8");
+  const scriptPath = path.join(hookSrc, `${name}.sh`);
+  fs.writeFileSync(scriptPath, "#!/usr/bin/env bash\nexit 0\n", "utf-8");
+  fs.chmodSync(scriptPath, 0o755);
+  return bundleDir;
+}
+
 // ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
@@ -260,6 +276,19 @@ describe("installHooks", () => {
   function readSettings(cwd: string): Record<string, unknown> {
     const settingsPath = path.join(cwd, ".claude", "settings.json");
     return JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+  }
+
+  /**
+   * Helper: read the raw .claude/settings.json text under a cwd, or `""` if
+   * it was never written (the file-not-written case is itself a pass for
+   * "no bad key ended up in settings").
+   */
+  function readSettingsRaw(cwd: string): string {
+    const settingsPath = path.join(cwd, ".claude", "settings.json");
+    if (!fs.existsSync(settingsPath)) {
+      return "";
+    }
+    return fs.readFileSync(settingsPath, "utf-8");
   }
 
   // 7. Fresh install creates settings.json with derived command + timeout.
@@ -477,5 +506,89 @@ describe("installHooks", () => {
       "Warning: could not parse hook 'docs-that-work-gate' metadata — settings not updated.\n",
     );
     expect(process.exit).not.toHaveBeenCalledWith(1);
+  });
+
+  // -----------------------------------------------------------------------
+  // Hook entry validation: invalid `hooks` entries must warn and leave
+  // settings.json untouched rather than being written verbatim.
+  // -----------------------------------------------------------------------
+  describe("hook entry validation", () => {
+    it("warns and skips settings when an entry is missing event", async () => {
+      const bundleDir = stageBundleWithFrontmatter(
+        "bad-hook",
+        "  - matcher: Bash\n    timeout: 10\n",
+      );
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["bad-hook"]);
+
+      expect(readSettingsRaw(fakeCwd)).not.toContain('"undefined"');
+      expect(process.stderr.write).toHaveBeenCalledWith(
+        "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
+      );
+    });
+
+    it("warns and skips settings for an unknown event name", async () => {
+      const bundleDir = stageBundleWithFrontmatter(
+        "bad-hook",
+        "  - event: FileChangedd\n",
+      );
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["bad-hook"]);
+
+      expect(process.stderr.write).toHaveBeenCalledWith(
+        "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
+      );
+      expect(
+        fs.existsSync(path.join(fakeCwd, ".claude", "settings.json")),
+      ).toBe(false);
+    });
+
+    it("warns and skips settings for a string timeout", async () => {
+      // Quoted "10" so YAML parses it as a string, not a number.
+      const bundleDir = stageBundleWithFrontmatter(
+        "bad-hook",
+        '  - event: PreToolUse\n    timeout: "10"\n',
+      );
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["bad-hook"]);
+
+      expect(process.stderr.write).toHaveBeenCalledWith(
+        "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
+      );
+      expect(
+        fs.existsSync(path.join(fakeCwd, ".claude", "settings.json")),
+      ).toBe(false);
+    });
+
+    it("warns on an empty hooks list instead of reporting a clean run", async () => {
+      const hookMd =
+        "---\nname: bad-hook\ndescription: d\nhooks: []\n---\n\nBody.\n";
+      const bundleDir = stageBundleWithRawHookMd("bad-hook", hookMd);
+      mockDownloadBundle.mockResolvedValue(bundleDir);
+
+      const fakeCwd = makeTempDir("cwd-");
+      vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+      await installHooks(["bad-hook"]);
+
+      expect(process.stderr.write).toHaveBeenCalledWith(
+        "Warning: could not parse hook 'bad-hook' metadata — settings not updated.\n",
+      );
+      expect(
+        fs.existsSync(path.join(fakeCwd, ".claude", "settings.json")),
+      ).toBe(false);
+    });
   });
 });

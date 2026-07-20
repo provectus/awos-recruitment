@@ -8,11 +8,8 @@ import {
   mergeHookGroups,
   type HookSettingsGroup,
 } from "../lib/settings-merge.js";
-import type {
-  HookDefinition,
-  HookFrontmatter,
-  InstallResult,
-} from "../lib/types.js";
+import { HOOK_EVENTS } from "../lib/types.js";
+import type { HookDefinition, InstallResult } from "../lib/types.js";
 
 /**
  * Installs one or more hooks by downloading their directories from the AWOS
@@ -166,10 +163,26 @@ function injectSettings(results: InstallResult[]): SettingsInjectionResult {
   return { added, skipped, warnings };
 }
 
+/** Narrow an unknown frontmatter entry to a valid HookDefinition. */
+function isValidHookEntry(value: unknown): value is HookDefinition {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.event === "string" &&
+    (HOOK_EVENTS as readonly string[]).includes(entry.event) &&
+    (entry.matcher === undefined || typeof entry.matcher === "string") &&
+    (entry.timeout === undefined ||
+      (typeof entry.timeout === "number" && entry.timeout > 0))
+  );
+}
+
 /**
  * Reads and validates a hook's `HOOK.md` entries. Returns the entries array, or
  * `null` when the file is missing, has no frontmatter, or its `hooks` field is
- * absent or not an array.
+ * absent, not a non-empty array, or contains any entry that fails validation
+ * (missing/unknown `event`, wrong-typed `matcher`/`timeout`, etc.).
  */
 function readHookEntries(
   hooksBaseDir: string,
@@ -181,13 +194,17 @@ function readHookEntries(
   }
 
   const content = fs.readFileSync(hookFile, "utf-8");
-  const frontmatter = parseFrontmatter(content) as HookFrontmatter | null;
+  const frontmatter = parseFrontmatter(content) as { hooks?: unknown } | null;
 
-  if (!frontmatter || !Array.isArray(frontmatter.hooks)) {
+  const hooks = frontmatter?.hooks;
+  if (!Array.isArray(hooks) || hooks.length === 0) {
+    return null;
+  }
+  if (!hooks.every(isValidHookEntry)) {
     return null;
   }
 
-  return frontmatter.hooks;
+  return hooks;
 }
 
 /**
