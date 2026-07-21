@@ -60,7 +60,7 @@ and flag the file as drift.
 Reference: `handlers/create-order.ts` is the canonical handler — copy its structure.
 
 - Do: validate input via schema at the top, one service call, return envelope
-- Don't: raw SQL in handlers (leaked into `legacy-report.ts` — do not replicate)
+- Don't: raw SQL in handlers (leaked into `sales-report.ts` and others — do not replicate)
 ```
 
 **The conflict rule:** Design Intent outranks existing code. When existing code contradicts it, follow Design Intent and flag the contradicting file as drift — never silently replicate the drifted pattern, and never silently ignore the mismatch.

@@ -1,6 +1,6 @@
 # Documentation Anti-Patterns
 
-How to recognize and avoid both documentation failure modes: writing what code already reveals (bloat), and not writing what code no longer reveals (drift).
+How to recognize and avoid documentation bloat.
 
 ## Bloated CLAUDE.md: Before & After
 
@@ -85,33 +85,7 @@ If any answer is **yes**, don't write it — with one guard:
 - "All tests are in `__tests__/`" → `glob` finds them. **Don't write it.**
 - "Prices are cents (integers), never floats" → no config or code pattern reveals this convention. **Write it.**
 - "We use ESLint with airbnb config" → it's in `.eslintrc`. **Don't write it.**
-- "Handlers never touch the DB directly" → most handlers show this, but `legacy-report.ts` hits the DB (drift) — the intended pattern is no longer discoverable. **Write it as Design Intent.**
-
-## Anti-Pattern Multiplication
-
-Agents copy existing code. When an anti-pattern leaks into a package, every generated file multiplies it — unless the intended shape is documented.
-
-### Without Design Intent
-
-A package has one canonical handler that delegates to services and three report handlers with raw SQL — a shortcut that spread before anyone caught it. An agent asked to add another report imitates its nearest neighbors, so raw SQL lands in the new handler too — and each copy makes the anti-pattern look more canonical to the next agent. Obviously-labeled drift (a lone `legacy-*` file) is the easy case: agents avoid it unaided. Drift that is plausibly named, or in the majority, is what multiplies.
-
-### With Design Intent
-
-The package CLAUDE.md says:
-
-```markdown
-# Design Intent
-
-If existing code contradicts this section, follow this section
-and flag the file as drift.
-
-Reference: `handlers/create-order.ts` is the canonical handler — copy its structure.
-
-- Do: validate input via schema at the top, one service call, return envelope
-- Don't: raw SQL in handlers (leaked into `sales-report.ts` and others — do not replicate)
-```
-
-The agent follows `create-order.ts` and reports: "the report handlers contradict the documented Design Intent — flagging as drift, not replicating." Multiplication stops and the leak is surfaced instead of spread.
+- "Handlers never touch the DB directly" → most handlers show this, but `sales-report.ts` hits the DB (drift) — the intended pattern is no longer discoverable. **Write it as Design Intent.**
 
 ## Common Mistakes
 

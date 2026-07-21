@@ -6,6 +6,10 @@ How to write, confirm, and maintain Design Intent sections in package-level CLAU
 
 Agents treat existing code as the strongest signal for how new code should look. Code shows the **actual** shape of a package, not the **intended** one. Once an anti-pattern leaks in, agents replicate and multiply it — nothing in the code says which pattern is canonical and which is drift. Where actual and intended diverge, the divergence is undiscoverable from code. That divergence is exactly what CLAUDE.md exists to capture.
 
+**Without Design Intent:** a package has one canonical handler that delegates to services and three report handlers with raw SQL — a shortcut that spread before anyone caught it. An agent asked to add another report imitates its nearest neighbors, so raw SQL lands in the new handler too — and each copy makes the anti-pattern look more canonical to the next agent. Obviously-labeled drift (a lone `legacy-*` file) is the easy case: agents avoid it unaided; drift that is plausibly named, or in the majority, is what multiplies.
+
+**With Design Intent:** the package CLAUDE.md carries the section shown in The Canonical Format below. The agent follows `create-order.ts`, reports that the report handlers contradict the documented intent, and flags them as drift instead of replicating them. Multiplication stops; the leak is surfaced instead of spread.
+
 ## The Canonical Format
 
 Every Design Intent section has three parts: the conflict preamble, a golden example pointer, and 2–4 do/don't rules.
@@ -19,7 +23,7 @@ and flag the file as drift.
 Reference: `handlers/create-order.ts` is the canonical handler — copy its structure.
 
 - Do: validate input via schema at the top, one service call, return envelope
-- Don't: raw SQL in handlers (leaked into `legacy-report.ts` — do not replicate)
+- Don't: raw SQL in handlers (leaked into `sales-report.ts` and others — do not replicate)
 ```
 
 Budget: ~35 lines. Combined with the non-obvious constraints (~35 lines), the whole CLAUDE.md stays under 70.
