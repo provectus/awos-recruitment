@@ -3,7 +3,8 @@ name: docs-that-work
 description: >-
   Project documentation guidelines. Use when asked to "write documentation",
   "create a CLAUDE.md", "write a README", "document this project",
-  "improve documentation", or when creating/updating CLAUDE.md or README.md files.
+  "improve documentation", "add a Design Intent section", or when
+  creating/updating CLAUDE.md or README.md files.
 ---
 
 # Docs That Work
@@ -16,6 +17,8 @@ Before writing any documentation line, ask: _"Could an agent find this by readin
 
 If yes, don't write it. Directory trees, exports, types, linter rules, commands, dependencies, test locations, env var names — all discoverable from code and config files. See `references/anti-patterns.md` for the full catalog.
 
+One caveat: code reveals the **actual** shape of the codebase, not the **intended** one. Where they diverge — an anti-pattern that leaked in and spread — the divergence is undiscoverable from code and is exactly what needs documenting. See [Design Intent](references/design-intent.md) below.
+
 Every line you add has a maintenance cost that compounds across every session. Stale docs cause worse decisions than no docs.
 
 ## CLAUDE.md Rules
@@ -27,17 +30,44 @@ Every line you add has a maintenance cost that compounds across every session. S
 - Project purpose — 1-2 sentences on what this does and why
 - Undiscoverable conventions — naming patterns, architectural decisions, gotchas
 - Non-obvious constraints — "never import X from Y", "always run Z before W"
+- Design Intent — the intended shape of code in a package (package-level CLAUDE.md only, see below)
 
 **Content that does NOT belong:** anything that passes the discoverability rule — commands, directory trees, exports, types, config rules, dependency lists.
 
 **Structure:**
 
 - Root `CLAUDE.md` — project-wide context applicable everywhere
-- Service-level `CLAUDE.md` — that module's non-obvious constraints only, never repeat root content
+- Service-level `CLAUDE.md` — that module's non-obvious constraints and, where useful, its Design Intent; never repeat root content
 
-**Size:** target <30 lines. If you're past 50 lines, it's bloated. Cut ruthlessly.
+**Size:** target <70 lines total — ~35 for non-obvious constraints, ~35 for Design Intent. A CLAUDE.md without a Design Intent section should stay around 35. Past 70, it's bloated. Cut ruthlessly.
 
 See `references/claude-md-guide.md` for templates and examples.
+
+## Design Intent
+
+Agents treat existing code as the strongest signal for how new code should look. When an anti-pattern leaks into a package, nothing in the code says which pattern is canonical and which is drift — so agents replicate it. A Design Intent section writes the intended shape down.
+
+**Where:** package-level (i.e., service/module-level) CLAUDE.md, next to the code it shapes. Root `CLAUDE.md` stays constraints-only.
+
+**Format:** conflict preamble + golden example pointer + 2–4 do/don't rules (~35 lines max):
+
+```markdown
+# Design Intent
+
+If existing code contradicts this section, follow this section
+and flag the file as drift.
+
+Reference: `handlers/create-order.ts` is the canonical handler — copy its structure.
+
+- Do: validate input via schema at the top, one service call, return envelope
+- Don't: raw SQL in handlers (leaked into `legacy-report.ts` — do not replicate)
+```
+
+**The conflict rule:** Design Intent outranks existing code. When existing code contradicts it, follow Design Intent and flag the contradicting file as drift — never silently replicate the drifted pattern, and never silently ignore the mismatch.
+
+**Authoring:** propose from code, human confirms. Draft the golden example and rules from the dominant or best pattern, then get human confirmation before it lands — if the anti-pattern IS the majority pattern, inferring intent autonomously enshrines the drift.
+
+See `references/design-intent.md` for the full format spec, authoring protocol, and maintenance rules.
 
 ## README.md Rules
 
@@ -87,3 +117,4 @@ If you're unsure whether something needs docs, apply the three-question test fro
 | ------------------------------------------------------ | ------------------------------- |
 | CLAUDE.md and README templates                         | `references/claude-md-guide.md` |
 | Anti-patterns, bloat examples, the three-question test | `references/anti-patterns.md`   |
+| Design Intent format, authoring protocol, maintenance  | `references/design-intent.md`   |

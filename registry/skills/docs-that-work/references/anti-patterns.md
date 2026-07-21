@@ -55,7 +55,7 @@ Everything removed was discoverable. Everything kept requires human knowledge.
 ## Catalog of Discoverable Content
 
 | Pattern | Why It's Discoverable | What an Agent Does Instead |
-|---|---|---|
+| --- | --- | --- |
 | Directory trees | `glob` or `ls` | Scans the filesystem |
 | Exports / public API | Read `index.ts` or `__init__.py` | Reads entry point files |
 | Type definitions | Read source files | Reads the type/interface definitions |
@@ -75,14 +75,41 @@ Before adding any line to documentation, ask:
 1. **Could an agent find this by reading a config file?**
 2. **Could an agent find this by reading source code?**
 3. **Could an agent find this by running a standard command?**
-
-If any answer is **yes**, don't write it.
+If any answer is **yes**, don't write it — with one guard:
+   1. **Is what's discoverable actually what's intended?** If the code has drifted from the intended pattern, the intent is no longer discoverable. Write it — as a Design Intent section (see `design-intent.md` in this directory).
 
 ### Examples
 
 - "All tests are in `__tests__/`" → `glob` finds them. **Don't write it.**
 - "Prices are cents (integers), never floats" → no config or code pattern reveals this convention. **Write it.**
 - "We use ESLint with airbnb config" → it's in `.eslintrc`. **Don't write it.**
+- "Handlers never touch the DB directly" → most handlers show this, but `legacy-report.ts` hits the DB (drift) — the intended pattern is no longer discoverable. **Write it as Design Intent.**
+
+## Anti-Pattern Multiplication
+
+Agents copy existing code. When an anti-pattern leaks into a package, every generated file multiplies it — unless the intended shape is documented.
+
+### Without Design Intent
+
+A package has nine handlers that delegate to services and one legacy handler with raw SQL. An agent asked to add a handler imitates whichever file it reads first. If that's the legacy one, raw SQL spreads to the new handler — and each copy makes the anti-pattern look more canonical to the next agent.
+
+### With Design Intent
+
+The package CLAUDE.md says:
+
+```markdown
+# Design Intent
+
+If existing code contradicts this section, follow this section
+and flag the file as drift.
+
+Reference: `handlers/create-order.ts` is the canonical handler — copy its structure.
+
+- Do: validate input via schema at the top, one service call, return envelope
+- Don't: raw SQL in handlers (leaked into `legacy-report.ts` — do not replicate)
+```
+
+The agent follows `create-order.ts` and reports: "`legacy-report.ts` contradicts the documented Design Intent — flagging as drift, not replicating." Multiplication stops and the leak is surfaced instead of spread.
 
 ## Common Mistakes
 

@@ -11,7 +11,8 @@ npx @provectusinc/awos-recruitment skill docs-that-work
 ## What This Skill Teaches
 
 - **The discoverability rule** — never document what code already reveals
-- **CLAUDE.md discipline** — non-obvious context only, target <30 lines
+- **CLAUDE.md discipline** — non-obvious context and Design Intent only, target <70 lines
+- **Design Intent sections** — document the intended shape of a package so agents stop multiplying leaked anti-patterns; intent outranks existing code
 - **README.md structure** — executable setup steps, not prose
 - **Grey box documentation** — describe interfaces, not internals
 - **Document separation** — each file has one job, no duplication
@@ -20,7 +21,8 @@ npx @provectusinc/awos-recruitment skill docs-that-work
 ## Files
 
 | File | Content |
-|---|---|
+| --- | --- |
 | `SKILL.md` | Core guidelines and rules |
 | `references/claude-md-guide.md` | Templates for CLAUDE.md and README.md, decision tables |
 | `references/anti-patterns.md` | Bloat examples, discoverable content catalog, three-question test |
+| `references/design-intent.md` | Design Intent format, authoring protocol, maintenance rules |
