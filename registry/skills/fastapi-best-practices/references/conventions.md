@@ -1,104 +1,9 @@
-# Project Conventions
-
-## Domain-Based Module Layout
-
-Organize by **domain** (auth, posts, payments), not by file type (routers/, models/, services/). Each domain is a self-contained package with a standard set of modules.
-
-### Full project tree
-
-```
-fastapi-project/
-├── alembic/                     # Migration scripts
-├── src/
-│   ├── auth/                    # Auth domain
-│   │   ├── router.py            # API endpoints
-│   │   ├── schemas.py           # Pydantic request/response models
-│   │   ├── models.py            # Database (ORM) models
-│   │   ├── service.py           # Business logic
-│   │   ├── dependencies.py      # Route-level dependencies
-│   │   ├── config.py            # Domain env vars (BaseSettings)
-│   │   ├── constants.py         # Constants and error codes
-│   │   ├── exceptions.py        # Domain exceptions (e.g., InvalidCredentials)
-│   │   └── utils.py             # Non-business helpers
-│   ├── posts/                   # Posts domain
-│   │   ├── router.py
-│   │   ├── schemas.py
-│   │   ├── models.py
-│   │   ├── service.py
-│   │   ├── dependencies.py
-│   │   ├── constants.py
-│   │   ├── exceptions.py
-│   │   └── utils.py
-│   ├── aws/                     # External service client
-│   │   ├── client.py            # SDK wrapper
-│   │   ├── schemas.py
-│   │   ├── config.py
-│   │   ├── constants.py
-│   │   ├── exceptions.py
-│   │   └── utils.py
-│   ├── config.py                # Global configuration
-│   ├── models.py                # Shared DB models
-│   ├── exceptions.py            # Global exception handlers
-│   ├── pagination.py            # Shared modules (pagination, etc.)
-│   ├── database.py              # DB engine & session setup
-│   └── main.py                  # FastAPI app initialization
-├── tests/
-│   ├── auth/                    # Tests mirror domain structure
-│   ├── posts/
-│   └── aws/
-├── templates/                   # Jinja2 templates (if needed)
-├── .env
-├── alembic.ini
-└── pyproject.toml
-```
-
-### Domain module reference
-
-| Module | Purpose | When to create |
-|---|---|---|
-| `router.py` | API endpoints — the core of each domain | Always |
-| `schemas.py` | Pydantic request/response models | Always |
-| `models.py` | Database (ORM) models | When domain has DB tables |
-| `service.py` | Business logic functions | When logic goes beyond simple CRUD |
-| `dependencies.py` | Route-level dependencies (validation, auth) | When routes need shared validation |
-| `config.py` | Domain-specific env vars via `BaseSettings` | When domain has its own config |
-| `constants.py` | Constants and error codes | Always |
-| `exceptions.py` | Domain-specific exceptions | Always |
-| `utils.py` | Non-business helpers (normalization, enrichment) | When needed |
-| `client.py` | External service SDK wrapper | For external service integrations |
-
-### Global vs domain modules
-
-Global modules at `src/` root handle cross-cutting concerns:
-
-| Module | Purpose |
-|---|---|
-| `main.py` | App init, middleware, router mounting |
-| `config.py` | Global settings (DB URL, Redis, CORS, environment) |
-| `database.py` | Engine, session factory, base model |
-| `models.py` | Shared models (if any) |
-| `exceptions.py` | Global exception handlers, base exception classes |
-| `pagination.py` | Shared utilities used across domains |
-
-### Cross-domain imports
-
-Always use explicit module names to make the origin clear:
-
-```python
-from src.auth import constants as auth_constants
-from src.notifications import service as notification_service
-from src.posts.constants import ErrorCode as PostsErrorCode
-```
-
-### When to create a new domain package
-
-- The feature has its own API endpoints → new domain
-- The feature is an external service integration (AWS, Stripe) → new domain with `client.py`
-- Shared utilities used across multiple domains → keep at `src/` root level, not in a domain
+# Conventions
 
 ## Database Naming Conventions
 
 ### Table names
+
 - `lower_case_snake` format
 - Singular form: `post`, `user`, `post_like`
 - Group related tables with a prefix: `payment_account`, `payment_bill`
@@ -106,6 +11,7 @@ from src.posts.constants import ErrorCode as PostsErrorCode
 - Use `_date` suffix for date columns: `birth_date`, `start_date`
 
 ### Column naming consistency
+
 - Use `profile_id` across all tables that reference profiles
 - Use concrete names where semantically appropriate: `creator_id` when only creators are valid, `course_id` instead of generic `post_id` in a course-specific table
 
@@ -129,6 +35,7 @@ metadata = MetaData(naming_convention=POSTGRES_INDEXES_NAMING_CONVENTION)
 ## SQL-First Approach
 
 Prefer database-level operations over Python-side processing:
+
 - Complex joins and filtering belong in SQL
 - Aggregate nested JSON in the database for responses with nested objects
 - The database handles data processing faster and cleaner than CPython
@@ -156,6 +63,7 @@ select_query = (
 ## Alembic Migrations
 
 ### Rules
+
 - Migrations must be **static and reversible** — structure should not depend on dynamic data
 - Use **descriptive file names** with slugs that explain the change
 - Always generate both upgrade and downgrade functions

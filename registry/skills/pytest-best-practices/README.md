@@ -15,7 +15,7 @@ npx @provectusinc/awos-recruitment skill pytest-best-practices
 The skill covers:
 
 - Test independence and isolation principles
-- Naming conventions and directory structure
+- Naming conventions (test placement follows the project's structure conventions, not this skill)
 - Fixtures: scopes, factories, teardown, `conftest.py`
 - Parametrization: basic, IDs, stacking, indirect, edge cases
 - Mocking: patching, side effects, async mocks, spies, assertions
