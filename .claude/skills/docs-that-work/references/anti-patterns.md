@@ -68,7 +68,10 @@ Note the Zustand line: it is a drift rule ("previous migration was partial"). A 
 | Script commands | Read `package.json` scripts or `justfile` | Reads task runner config |
 | CI pipeline steps | Read `.github/workflows/` | Reads CI config |
 
-If it's in a file an agent can read, it doesn't need documentation — with one exception: when code has drifted from the intended pattern, the file shows the drift, not the intent. That case is covered by the guard in the test below.
+If it's in a file an agent can read, it doesn't need documentation — with two exceptions:
+
+- **Drift.** When code has drifted from the intended pattern, the file shows the drift, not the intent. That case is covered by the guard in the test below.
+- **Expensive lookups.** Some answers are technically in the repo but take a chain of files to reconstruct. `just test` sits in the justfile one `grep` away — leave it there. "The suite that gates CI is `just test-integration`, not `just test`" is spread across a workflow file and a justfile and stated outright by neither — write that one down.
 
 ## The Three-Question Test
 
@@ -87,6 +90,23 @@ If any answer is **yes**, don't write it — with one guard: **is what's discove
 - "We use ESLint with airbnb config" → it's in `.eslintrc`. **Don't write it.**
 - "Handlers never touch the DB directly" → most handlers show this, but `sales-report.ts` hits the DB (drift) — the intended pattern is no longer discoverable. **Write it as Design Intent.**
 
+## The No-Op Catalog
+
+The three-question test only catches lines the code already answers. A second class of bloat passes it cleanly: lines that are undiscoverable, true, and change nothing an agent would have done anyway. Test each one against the model's **default behavior** — not against a new hire's ignorance.
+
+| No-op line                                  | Why it's a no-op                      | The live version                                                                                |
+| ------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| "Write clean, maintainable code"            | the default                           | (nothing — delete)                                                                                |
+| "Add tests for new functionality"           | the default                           | "Integration tests need `just db-up` first — without it they pass by skipping"                    |
+| "Follow existing patterns in the codebase"  | the default, and wrong where drift is | a Design Intent section naming the golden example                                                 |
+| "Be careful with database migrations"       | names a topic, not a behavior         | "Migrations are numbered by hand — check the highest existing number before adding one"           |
+| "Use TypeScript strictly"                   | `tsconfig.json` decides this          | (nothing — discoverable)                                                                          |
+| "This is a monorepo with multiple packages" | visible from the directory layout     | (nothing — discoverable)                                                                          |
+
+The pattern: a no-op names a **topic** or a **virtue**; a live line names a **specific fact that flips a decision**. When a line fails the test, delete the whole line — a trimmed no-op is still a no-op.
+
+Disagreement over whether a line is a no-op is really disagreement over how the agent behaves without it. Resolve it by experiment — pull the line, run the task, compare the result — rather than by argument.
+
 ## Common Mistakes
 
 When asked to "document the project," agents typically:
@@ -96,5 +116,6 @@ When asked to "document the project," agents typically:
 3. **Copy type definitions** — paste interfaces and types into docs
 4. **Write a novel** — produce 200+ line CLAUDE.md files that no agent will fully process
 5. **Duplicate across files** — put the same commands in README, CLAUDE.md, and CONTRIBUTING.md
+6. **Write virtues** — "clean code", "follow best practices", "be careful with X": lines nothing in the repo contradicts and no agent acts on
 
 Recognize these patterns. When you catch yourself doing any of them, stop and apply the three-question test to every line.

@@ -33,6 +33,8 @@ Order processing API for the warehouse system. Receives orders from the storefro
 
 Commands like `just dev`, `just test`, `just lint` are discoverable from the justfile — only the non-obvious prerequisite gotcha is documented.
 
+**Budget: ~25 lines.** The root file loads on every turn of every session, whether or not that session touches the code it describes, so it carries project-wide content only. Anything scoped to one module belongs in that module's file, and a Design Intent section never belongs here.
+
 ## Service-Level CLAUDE.md Template
 
 ```markdown
@@ -58,6 +60,8 @@ Reference: `[canonical file]` — copy its structure.
 ```
 
 The Exception line is optional — include it only for files that deviate from the intent on purpose (human-confirmed). See `design-intent.md` in this directory.
+
+**Budget: ~35 lines of non-obvious context plus ~10–15 for Design Intent, ≤70 combined.** A package file loads only when the agent works in that directory, which is what buys it the larger allowance.
 
 ### Example: Payment Module
 
@@ -128,7 +132,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 | Contradicts or narrows a root convention | Service-level `CLAUDE.md` (with explicit note) |
 | Describes the intended shape of code in one package | Service-level `CLAUDE.md` (Design Intent section) |
 
-When unsure, put it in root. Easier to push down later than to discover missing context scattered across services.
+When unsure, put it in the narrowest file that still covers every place the rule applies. Root is the expensive default — it is charged on every turn of every session — so promote a rule to root when a second service actually needs it, not in anticipation.
 
 ## What Belongs Where
 
