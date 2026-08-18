@@ -172,10 +172,12 @@ glab api -X POST "projects/$PROJECT/merge_requests/$IID/draft_notes" \
   --form "position[head_sha]=$HEAD_SHA" \
   --form 'position[old_path]=src/foo.py' \
   --form 'position[new_path]=src/foo.py' \
-  --form 'position[new_line]=42'
+  --form 'position[new_line]=42' | jq .id
 ```
 
-- **`position[...]` must go via `--form`. Sending it with `-f` silently discards it.** `-f/--raw-field` builds a JSON body, and GitLab only reads the bracketed position params form-encoded — so with `-f` the call returns **HTTP 201, exit 0**, and the note lands **unanchored at MR level with `position: null`**. There is no error to catch: it looks like a clean success and the author sees a top-level comment with no idea which line it means. This has happened on a live MR; four notes had to be deleted and reposted.
+Collect each returned `.id` as you post (`POSTED_IDS="${POSTED_IDS:+$POSTED_IDS,}$NOTE_ID"`) — inline notes only, not the summary note below. The anchoring check scopes to these, so the user's own pre-existing drafts never enter it.
+
+- **`position[...]` must go via `--form`. Sending it with `-f` silently discards it.** `-f/--raw-field` builds a JSON body, and GitLab only reads the bracketed position params form-encoded — so with `-f` the call returns **HTTP 201, exit 0**, and the note lands **unanchored at MR level with `position: null`**. There is no error to catch: it looks like a clean success, and the author sees a top-level comment with no idea which line it refers to. The only way back is deleting and reposting every affected note.
 - `new_line` is the line in the MR's head version. For a line that only exists before the change (a deletion), send `position[old_line]` instead; for a line present in both, sending both is safest.
 - `old_path` is required even when the file wasn't renamed — set it equal to `new_path`.
 - **Multi-line findings degrade to single-line.** GitLab anchors ranges with `position[line_range][start|end][line_code]`, where a line code is a per-file hash the API doesn't hand you directly. Don't fabricate one: anchor the comment at the range's most relevant line and describe the span in the comment text ("lines 10–14 …").
@@ -189,15 +191,16 @@ glab api -X POST "projects/$PROJECT/merge_requests/$IID/draft_notes" \
 
 `bulk_publish` also accepts a summary at submit time (see below) — but the user, not you, runs the submit, so the positionless draft note is what actually guarantees the summary reaches the MR. Post it here, and still print the verbatim summary in step 7. **Once it exists, don't also pass `note=` to `bulk_publish`** — that would post the same text a second time as a separate summary note.
 
-**Verify anchoring, not just arrival.** A count check can't see the failure above, because the mis-delivered notes are still *there* — just detached. Re-read what you posted and assert every inline note has a non-null `position.new_path` and `position.new_line`:
+**Verify anchoring, not just arrival.** A count check can't see the failure above, because the mis-delivered notes are still *there* — just detached. Re-read the notes this run created and assert each has a path and a line anchor — `new_line`, or `old_line` for a comment on a deleted line:
 
 ```sh
-glab api "projects/$PROJECT/merge_requests/$IID/draft_notes" | jq -r '
-  .[] | select(.note != null)
-  | "\(if .position.new_path == null then "UNANCHORED" else "ok" end)  \(.position.new_path // "-"):\(.position.new_line // "-")  \(.id)"'
+glab api "projects/$PROJECT/merge_requests/$IID/draft_notes" | jq -r --argjson ids "[$POSTED_IDS]" '
+  .[] | select(.id as $id | $ids | index($id))
+  | "\(if .position.new_path == null or (.position.new_line == null and .position.old_line == null)
+       then "UNANCHORED" else "ok" end)  \(.position.new_path // "-"):\(.position.new_line // .position.old_line // "-")  \(.id)"'
 ```
 
-Anything reading `UNANCHORED` that wasn't meant to be the summary was mis-delivered — fix it before telling the user delivery succeeded.
+Every row must read `ok` — the summary note isn't in `$POSTED_IDS`, so there is no expected `UNANCHORED`. Any `UNANCHORED` row was mis-delivered, and delivery hasn't succeeded until this check is clean: fix it before telling the user anything landed.
 
 After creating, confirm the drafts landed — re-run `find-pending-review` and check the count is `BASELINE + <findings> + 1` for the summary note. It is not equal to what you posted: pre-existing drafts are appended to, never replaced, so comparing against the posted count alone reports a phantom failure for any user who had drafts of their own. Report the count to the user with the MR URL; GitLab shows pending drafts in the MR's **Changes** tab, and publishing is a button there ("Submit review"), or:
 
