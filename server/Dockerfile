@@ -46,7 +46,15 @@ FROM python:3.12-slim AS runtime
 
 # Upgrade OS packages to pull in security patches not yet present in the
 # base image (e.g. openssl CVE fixes flagged by the Trivy image scan).
-RUN apt-get update \
+#
+# SECURITY_REFRESH busts the build cache for this layer. BuildKit keys a RUN
+# on its expanded command string, which never changes for an apt upgrade, so
+# with a registry cache the layer is restored forever and the image keeps the
+# package versions of the day it was first built. CI passes a per-run value
+# so the upgrade actually re-runs and picks up newly released patches.
+ARG SECURITY_REFRESH=0
+RUN echo "security refresh: ${SECURITY_REFRESH}" \
+    && apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 

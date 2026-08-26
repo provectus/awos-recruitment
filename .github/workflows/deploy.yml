@@ -49,6 +49,10 @@ jobs:
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          # Per-run value so the OS security-upgrade layer is never served
+          # from the cache -- deployed images ship today's patch level.
+          build-args: |
+            SECURITY_REFRESH=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

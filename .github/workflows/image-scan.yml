@@ -25,6 +25,10 @@ jobs:
           file: server/Dockerfile
           load: true
           tags: awos-recruitment-mcp:pr-${{ github.event.pull_request.number }}
+          # Per-run value so the OS security-upgrade layer is never served
+          # from the cache -- the scan must see today's patch level.
+          build-args: |
+            SECURITY_REFRESH=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
