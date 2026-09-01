@@ -192,17 +192,21 @@ async def test_bundle_agents_tracks_only_found_in_mixed_request(
 @patch("awos_recruitment_mcp.server.track_install")
 async def test_bundle_hooks_tracks_found_capabilities(
     mock_track_install,
-    asgi_app,
+    hook_registry,
+    client_factory,
 ) -> None:
-    """POST /bundle/hooks should call track_install for each found hook."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    """POST /bundle/hooks should call track_install for each found hook.
+
+    The real registry ships no hooks, so this runs against a staged tmp
+    registry holding the synthetic ``sample-gate`` hook.
+    """
+    async with client_factory(hook_registry) as client:
         await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate"]},
+            json={"names": ["sample-gate"]},
         )
 
-    mock_track_install.assert_called_once_with("docs-that-work-gate", "hook")
+    mock_track_install.assert_called_once_with("sample-gate", "hook")
 
 
 @patch("awos_recruitment_mcp.server.track_install")
@@ -224,16 +228,16 @@ async def test_bundle_hooks_does_not_track_not_found(
 @patch("awos_recruitment_mcp.server.track_install")
 async def test_bundle_hooks_tracks_only_found_in_mixed_request(
     mock_track_install,
-    asgi_app,
+    hook_registry,
+    client_factory,
 ) -> None:
     """POST /bundle/hooks with a mix of found and not-found names should only
     track the found ones.
     """
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
+            json={"names": ["sample-gate", "nonexistent-hook"]},
         )
 
-    mock_track_install.assert_called_once_with("docs-that-work-gate", "hook")
+    mock_track_install.assert_called_once_with("sample-gate", "hook")

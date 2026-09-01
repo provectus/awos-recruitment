@@ -229,23 +229,6 @@ async def test_search_type_filter_hook(mcp_client):
         )
 
 
-async def test_search_returns_docs_that_work_gate_hook(mcp_client):
-    """A relevant query should surface the docs-that-work-gate seed hook."""
-    result = await mcp_client.call_tool(
-        "search_capabilities",
-        {"query": "keep documentation updated before committing", "type": "hook"},
-    )
-    assert not result.is_error
-
-    parsed = _parse_result(result)
-    assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
-
-    returned_names = {item["name"] for item in parsed}
-    assert "docs-that-work-gate" in returned_names, (
-        f"Expected 'docs-that-work-gate' in hook results, got: {returned_names}"
-    )
-
-
 # ---------------------------------------------------------------------------
 # Threshold filtering
 # ---------------------------------------------------------------------------

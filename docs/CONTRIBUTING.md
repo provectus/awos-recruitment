@@ -287,10 +287,6 @@ The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this mer
 - An existing, executable `<name>.sh` entrypoint
 - Directory layout: only `HOOK.md`, `README.md`, the entrypoint, and flat `.sh` files under `scripts/` are allowed (README.md is registry-local documentation — it validates but is not part of the install bundle)
 
-### Example
-
-See `registry/hooks/docs-that-work-gate/` for a complete example.
-
 ---
 
 ## Validating Your Changes

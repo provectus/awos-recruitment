@@ -191,11 +191,11 @@ describe("downloadBundle", () => {
   it("preserves the executable bit of an entry through tar extraction", async () => {
     const tarGz = createTarGzBuffer(
       {
-        "docs-that-work-gate/HOOK.md": "# Docs That Work Gate",
-        "docs-that-work-gate/docs-that-work-gate.sh":
+        "sample-gate/HOOK.md": "# Sample Gate",
+        "sample-gate/sample-gate.sh":
           "#!/usr/bin/env bash\nexit 0\n",
       },
-      { "docs-that-work-gate/docs-that-work-gate.sh": 0o755 },
+      { "sample-gate/sample-gate.sh": 0o755 },
     );
 
     vi.stubGlobal(
@@ -205,15 +205,15 @@ describe("downloadBundle", () => {
 
     const result = await downloadBundle(
       "http://localhost:9999/bundle/hooks",
-      ["docs-that-work-gate"],
+      ["sample-gate"],
     );
 
     tempDirs.push(result);
 
     const script = path.join(
       result,
-      "docs-that-work-gate",
-      "docs-that-work-gate.sh",
+      "sample-gate",
+      "sample-gate.sh",
     );
     expect(fs.existsSync(script)).toBe(true);
     expect(fs.statSync(script).mode & 0o111).not.toBe(0);

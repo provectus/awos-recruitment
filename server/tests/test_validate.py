@@ -199,15 +199,15 @@ def test_valid_hook_metadata():
     """A dict with valid name, description, and hooks should pass validation."""
     meta = HookMetadata.model_validate(
         {
-            "name": "docs-that-work-gate",
+            "name": "sample-gate",
             "description": "Blocks commits when docs are stale",
             "hooks": [
                 {"event": "PreToolUse", "matcher": "Bash", "timeout": 10}
             ],
         }
     )
-    assert meta.name == "docs-that-work-gate", (
-        f"Expected name 'docs-that-work-gate', got '{meta.name}'"
+    assert meta.name == "sample-gate", (
+        f"Expected name 'sample-gate', got '{meta.name}'"
     )
     assert len(meta.hooks) == 1, (
         f"Expected exactly 1 hook entry, got {len(meta.hooks)}"

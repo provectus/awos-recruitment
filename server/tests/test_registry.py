@@ -454,7 +454,11 @@ class TestEmptyRegistry:
 
 
 def test_real_registry_loads_all_capabilities() -> None:
-    """Load the real registry and verify it contains at least one of each type."""
+    """Load the real registry and verify it contains at least one skill, tool, and agent.
+
+    Hooks are not required — the registry currently ships none; the hook
+    loading contract is covered by the tmp-registry tests above.
+    """
     real_registry = Path(__file__).resolve().parent.parent.parent / "registry"
 
     if not real_registry.is_dir():
@@ -467,12 +471,10 @@ def test_real_registry_loads_all_capabilities() -> None:
     skill_caps = [c for c in caps if c.type == "skill"]
     tool_caps = [c for c in caps if c.type == "tool"]
     agent_caps = [c for c in caps if c.type == "agent"]
-    hook_caps = [c for c in caps if c.type == "hook"]
 
     assert len(skill_caps) >= 1, "Registry should contain at least one skill"
     assert len(tool_caps) >= 1, "Registry should contain at least one tool"
     assert len(agent_caps) >= 1, "Registry should contain at least one agent"
-    assert len(hook_caps) >= 1, "Registry should contain at least one hook"
 
     for cap in caps:
         assert cap.name, "Every capability must have a name"

@@ -40,7 +40,7 @@ just validate-registry
 just test
 ```
 
-5. Add behavior tests as `server/tests/test_<name>_hook.py` — run the script via `subprocess` with tool-call JSON payloads and assert exit codes (see `test_docs_that_work_gate_hook.py` for the pattern).
+5. Add behavior tests as `server/tests/test_<name>_hook.py` — run the script via `subprocess` with tool-call JSON payloads and assert exit codes.
 6. Open a PR — CI runs the same validation; review is the registry's quality gate.
 
 ## Trying a Hook Locally

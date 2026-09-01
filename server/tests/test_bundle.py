@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import dataclasses
 import io
 import tarfile
 from unittest.mock import patch
 
 import httpx
 import pytest
-import awos_recruitment_mcp.server as server_module
 from awos_recruitment_mcp.server import mcp
 
 
@@ -25,29 +23,6 @@ async def client(asgi_app):
     transport = httpx.ASGITransport(app=asgi_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-
-
-@pytest.fixture
-def client_factory(monkeypatch):
-    """Build an httpx.AsyncClient against the FastMCP app rooted at a custom registry_path.
-
-    The route handlers read the module-level ``config`` global at request time,
-    so monkeypatching ``server_module.config`` to a copy with a different
-    ``registry_path`` (via ``dataclasses.replace`` — ``Config`` is frozen) is
-    enough to redirect every ``/bundle/*`` route without touching real registry
-    data. Returns a callable that yields an async-context-manager client.
-    """
-
-    def _make_client(registry_path) -> httpx.AsyncClient:
-        patched_config = dataclasses.replace(
-            server_module.config, registry_path=str(registry_path)
-        )
-        monkeypatch.setattr(server_module, "config", patched_config)
-        app = server_module.mcp.http_app()
-        transport = httpx.ASGITransport(app=app)
-        return httpx.AsyncClient(transport=transport, base_url="http://test")
-
-    return _make_client
 
 
 def tar_member_names(content: bytes) -> list[str]:
@@ -666,17 +641,16 @@ async def test_agent_invalid_name_pattern_returns_400(asgi_app):
 
 
 # ---------------------------------------------------------------------------
-# Valid request
+# Valid request (against a staged tmp registry — the real one ships no hooks)
 # ---------------------------------------------------------------------------
 
 
-async def test_hook_valid_request_returns_200(asgi_app):
+async def test_hook_valid_request_returns_200(hook_registry, client_factory):
     """POST a single valid hook name and verify HTTP 200."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate"]},
+            json={"names": ["sample-gate"]},
         )
 
     assert response.status_code == 200, (
@@ -684,39 +658,35 @@ async def test_hook_valid_request_returns_200(asgi_app):
     )
 
 
-async def test_hook_valid_request_returns_tar_gz(asgi_app):
+async def test_hook_valid_request_returns_tar_gz(hook_registry, client_factory):
     """POST a single valid hook name and verify the archive contains HOOK.md and the entrypoint."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate"]},
+            json={"names": ["sample-gate"]},
         )
 
-    buf = io.BytesIO(response.content)
-    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-        names = tar.getnames()
+    names = tar_member_names(response.content)
 
-    assert "docs-that-work-gate/HOOK.md" in names, (
+    assert "sample-gate/HOOK.md" in names, (
         f"Expected HOOK.md in archive, got {names}"
     )
-    assert "docs-that-work-gate/docs-that-work-gate.sh" in names, (
+    assert "sample-gate/sample-gate.sh" in names, (
         f"Expected entrypoint .sh in archive, got {names}"
     )
 
 
-async def test_hook_entrypoint_carries_exec_bit(asgi_app):
+async def test_hook_entrypoint_carries_exec_bit(hook_registry, client_factory):
     """The bundled entrypoint .sh tar member must retain its executable bit."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate"]},
+            json={"names": ["sample-gate"]},
         )
 
     buf = io.BytesIO(response.content)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-        member = tar.getmember("docs-that-work-gate/docs-that-work-gate.sh")
+        member = tar.getmember("sample-gate/sample-gate.sh")
 
     assert member.mode & 0o111, (
         f"Expected entrypoint to carry the exec bit, got mode {oct(member.mode)}"
@@ -728,13 +698,12 @@ async def test_hook_entrypoint_carries_exec_bit(asgi_app):
 # ---------------------------------------------------------------------------
 
 
-async def test_hook_partial_matches_returns_200(asgi_app):
+async def test_hook_partial_matches_returns_200(hook_registry, client_factory):
     """POST a mix of existing and nonexistent hook names and verify HTTP 200."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
+            json={"names": ["sample-gate", "nonexistent-hook"]},
         )
 
     assert response.status_code == 200, (
@@ -742,21 +711,18 @@ async def test_hook_partial_matches_returns_200(asgi_app):
     )
 
 
-async def test_hook_partial_matches_contains_only_existing(asgi_app):
+async def test_hook_partial_matches_contains_only_existing(hook_registry, client_factory):
     """POST a mix of existing and nonexistent hook names; archive contains only the existing one."""
-    transport = httpx.ASGITransport(app=asgi_app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with client_factory(hook_registry) as client:
         response = await client.post(
             "/bundle/hooks",
-            json={"names": ["docs-that-work-gate", "nonexistent-hook"]},
+            json={"names": ["sample-gate", "nonexistent-hook"]},
         )
 
-    buf = io.BytesIO(response.content)
-    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-        names = tar.getnames()
+    names = tar_member_names(response.content)
 
-    assert any(n.startswith("docs-that-work-gate/") for n in names), (
-        f"Expected docs-that-work-gate entries in archive, got {names}"
+    assert any(n.startswith("sample-gate/") for n in names), (
+        f"Expected sample-gate entries in archive, got {names}"
     )
     assert not any(n.startswith("nonexistent-hook/") for n in names), (
         f"Did not expect nonexistent-hook entries in archive, got {names}"
