@@ -100,10 +100,10 @@ def test_multiple_users(make_user):
 
 <conftest_pattern>
 
-Share fixtures across modules in `tests/conftest.py`:
+Share fixtures across modules in a `conftest.py` at their common root — pytest loads `conftest.py` files along the path from rootdir down to each test file, whatever the project's layout:
 
 ```python
-# tests/conftest.py
+# conftest.py at the tests' common root
 import pytest
 
 @pytest.fixture

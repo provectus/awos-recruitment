@@ -19,21 +19,21 @@ class UserCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=128)
     username: str = Field(min_length=1, max_length=128, pattern="^[A-Za-z0-9-_]+$")
     email: EmailStr
-    age: int = Field(ge=18, default=None)
+    age: int | None = Field(default=None, ge=18)
     favorite_band: MusicBand | None = None
     website: AnyUrl | None = None
 ```
 
 ## Custom Base Model
 
-Create a project-wide base model for consistent serialization:
+Create a project-wide base model, plus annotated types for consistent serialization. `json_encoders` is deprecated in Pydantic v2 — custom serialization lives in annotated serializers (`PlainSerializer`) or `@field_serializer`, not in `model_config`:
 
 ```python
 from datetime import datetime
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer
 
 
 def datetime_to_gmt_str(dt: datetime) -> str:
@@ -42,22 +42,33 @@ def datetime_to_gmt_str(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+# Declare once; every schema field annotated with it serializes consistently
+UTCDateTime = Annotated[datetime, PlainSerializer(datetime_to_gmt_str, when_used="json")]
+
+
 class CustomModel(BaseModel):
     model_config = ConfigDict(
-        json_encoders={datetime: datetime_to_gmt_str},
-        populate_by_name=True,
+        validate_by_name=True,
+        validate_by_alias=True,
     )
+```
 
-    def serializable_dict(self, **kwargs):
-        """Return a dict with only serializable fields."""
-        default_dict = self.model_dump()
-        return jsonable_encoder(default_dict)
+```python
+class PostResponse(CustomModel):
+    id: UUID4
+    created_at: UTCDateTime  # serialized via datetime_to_gmt_str
 ```
 
 Benefits:
-- Consistent datetime formatting across all responses
-- Single place to add shared serialization logic
+
+- Consistent datetime formatting across all responses via one annotated type
+- Single place (`CustomModel`) to add shared config and behavior
 - All domain schemas inherit shared behavior
+
+Notes:
+
+- `populate_by_name=True` is superseded in Pydantic 2.11+ by `validate_by_name=True` + `validate_by_alias=True` (the pair is the exact equivalent; `populate_by_name` is slated for deprecation in v3).
+- No `serializable_dict` helper is needed: `model_dump(mode="json")` returns a JSON-compatible dict natively — `jsonable_encoder` over `model_dump()` is a v1-era workaround.
 
 ## Split BaseSettings by Domain
 
@@ -98,6 +109,8 @@ class Config(BaseSettings):
 settings = Config()
 ```
 
+The unit of the split is the **class**, not the file: each domain gets its own `BaseSettings` class, initialized independently. Where those classes live follows the project's structure conventions — the paths above show a per-domain-module layout; a project that keeps one top-level `config.py` (e.g. the vertical-slice layout of the companion `fastapi-vertical-slice-architecture` skill) holds `AuthConfig` and `Config` as two classes in that single file, and the split survives intact.
+
 ## Response Serialization Gotcha
 
 FastAPI creates your Pydantic response model **twice** — once when you return it, and once internally for validation:
@@ -114,7 +127,7 @@ async def root():
     return ProfileResponse()
 ```
 
-The flow: your object → `jsonable_encoder` → dict → validate against `response_model` → JSON.
+The flow: your object → validated into a second `response_model` instance → serialized (`model_dump`) → JSON.
 
 Be aware of this when using expensive validators or side effects in response models.
 
@@ -159,26 +172,50 @@ class PostResponse(BaseModel):
     creator: CreatorInfo
 ```
 
-### Shared base with read-only fields
+### Never share a base across request and response
 
 ```python
+# Preferred — each schema declares its own fields
+class PostCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    content: str
+
+class PostUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    content: str | None = None
+
+class PostResponse(BaseModel):
+    id: UUID4
+    title: str
+    content: str
+    created_at: datetime
+```
+
+```python
+# Avoid — one base spanning both directions
 class PostBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     content: str
 
 class PostCreate(PostBase):
-    pass
+    pass                       # a subclass that adds nothing — a pass-through
 
-class PostUpdate(BaseModel):
-    title: str | None = Field(None, min_length=1, max_length=200)
+class PostUpdate(BaseModel):   # cannot inherit PostBase — its optionality differs
+    title: str | None = Field(default=None, min_length=1, max_length=200)
     content: str | None = None
 
-class PostResponse(PostBase):
+class PostResponse(PostBase):  # now on PostCreate's release schedule
     id: UUID4
     created_at: datetime
 ```
 
-### Config for ORM mode
+Two duplicated field declarations are cheaper than the coupling. The first time the response needs a field the request does not carry — or the same field under a different constraint — the shared base fractures, and the path of least resistance is widening it and defaulting fields to `None`. That is how a single god-schema with every field `X | None` arrives, and by then request validation is gone.
+
+The `Avoid` block reports its own failure: `PostUpdate` cannot inherit `PostBase`, because its optionality differs. A base may be shared only **within** one direction, and only when the fields are identical in both type and constraint — rarer than it looks. `PostCreate` and `PostUpdate` fail that test, which is why the preferred form declares all three independently.
+
+### `from_attributes` for ORM objects
+
+Read attributes off SQLAlchemy (or any) objects — the v2 rename of v1's `orm_mode`:
 
 ```python
 class PostResponse(BaseModel):
@@ -188,3 +225,21 @@ class PostResponse(BaseModel):
     title: str
     created_at: datetime
 ```
+
+`from_attributes` is how an ORM object becomes a response — it is not permission to skip the response schema. `response_model` is always a Pydantic class, never the SQLAlchemy model:
+
+```python
+# Preferred — the Pydantic schema is the contract; from_attributes reads the ORM object
+@router.get("/posts/{post_id}", response_model=PostResponse)
+async def get_post(post_id: UUID4, db: DbSession) -> Post:
+    ...
+```
+
+```python
+# Avoid — the ORM model as the response contract
+@router.get("/posts/{post_id}", response_model=Post)   # Post is the SQLAlchemy model
+async def get_post(post_id: UUID4, db: DbSession):
+    ...
+```
+
+The `Avoid` form satisfies "always set `response_model`" and still ships every column. The failure is silent and deferred: the endpoint is correct today, and starts leaking the day someone adds `password_hash`, `internal_margin`, or a soft-delete flag to the table. The preferred form fails closed — a new column reaches a client only when someone adds the field to `PostResponse` on purpose.
