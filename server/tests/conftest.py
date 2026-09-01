@@ -5,12 +5,11 @@ import pytest
 from fastmcp import Client
 
 import awos_recruitment_mcp.server as server_module
-from awos_recruitment_mcp.server import mcp
 
 
 @pytest.fixture
 async def mcp_client():
-    async with Client(mcp) as client:
+    async with Client(server_module.mcp) as client:
         yield client
 
 
