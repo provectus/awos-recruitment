@@ -80,6 +80,7 @@ Instructions for the AI assistant go here...
 | `user-invocable` | boolean | Show/hide from the `/` slash command menu. |
 | `allowed-tools` | string | Comma-separated list of tools Claude can use. |
 | `model` | string | Model override when this skill is active. |
+| `effort` | string | Reasoning effort while this skill is active: `low`, `medium`, `high`, `xhigh`, or `max`. Omit to follow the session's own setting. |
 | `context` | string | Set to `fork` to run in an isolated subagent. |
 | `agent` | string | Subagent type when `context: fork` is set. |
 | `hooks` | object | Skill-scoped hooks configuration. |
@@ -171,6 +172,7 @@ System prompt instructions go here.
 | Field | Type | Description |
 |-------|------|-------------|
 | `model` | string | Target model identifier (e.g., `opus`, `sonnet`, `haiku`). |
+| `effort` | string | Reasoning effort the agent runs at: `low`, `medium`, `high`, `xhigh`, or `max`. Subagents doing routine work should declare `effort: low` — it cuts thinking time and cost without changing the model. Omit to follow the session's own setting. |
 | `skills` | list of strings | Skill names this agent references. Each must be kebab-case. **All referenced skills must exist in `registry/skills/`.** May be an empty list (`skills: []`) or omitted entirely when the agent does not depend on any skills (see `registry/agents/testing-expert.md` for an example with `skills: []`). |
 
 **No other fields are allowed.** The validator rejects unknown front matter fields.

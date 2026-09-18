@@ -9,6 +9,7 @@ description: >-
   and annotates tests with @spec and @regression for regression suite
   management.
 model: sonnet
+effort: low
 skills: []
 ---
 

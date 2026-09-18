@@ -1,7 +1,8 @@
 ---
 name: terraform-aws
 description: Orchestrates Research → Design → Implement → Validate workflow for building AWS infrastructure with Terraform. Leverages AWS documentation, Terraform Registry, and live AWS API calls to produce well-architected, convention-compliant infrastructure code.
-model: opus
+model: sonnet
+effort: low
 skills:
   - terraform-conventions
 ---

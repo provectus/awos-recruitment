@@ -188,6 +188,65 @@ def test_agent_optional_fields_default_none():
     assert meta.skills is None, (
         f"Expected skills to be None, got {meta.skills}"
     )
+    assert meta.effort is None, (
+        f"Expected effort to be None, got '{meta.effort}'"
+    )
+
+
+def test_agent_effort_accepts_every_level():
+    """Each documented effort level should validate."""
+    for level in ("low", "medium", "high", "xhigh", "max"):
+        meta = AgentMetadata.model_validate(
+            {
+                "name": "effort-agent",
+                "description": "Agent with an effort level",
+                "effort": level,
+            }
+        )
+        assert meta.effort == level, (
+            f"Expected effort '{level}', got '{meta.effort}'"
+        )
+
+
+def test_agent_invalid_effort_rejected():
+    """An effort level outside the documented set should be rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        AgentMetadata.model_validate(
+            {
+                "name": "effort-agent",
+                "description": "Bad effort level",
+                "effort": "very-high",
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "effort" in error_fields, (
+        f"Expected a validation error for 'effort', got errors for: {error_fields}"
+    )
+
+
+def test_skill_effort_field():
+    """Skills accept the same effort levels as agents, and reject others."""
+    meta = SkillMetadata.model_validate(
+        {
+            "name": "effort-skill",
+            "description": "Skill with an effort level",
+            "effort": "low",
+        }
+    )
+    assert meta.effort == "low", (
+        f"Expected effort 'low', got '{meta.effort}'"
+    )
+
+    with pytest.raises(ValidationError):
+        SkillMetadata.model_validate(
+            {
+                "name": "effort-skill",
+                "description": "Bad effort level",
+                "effort": "minimal",
+            }
+        )
 
 
 # ---------------------------------------------------------------------------

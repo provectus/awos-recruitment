@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -19,6 +21,9 @@ class SkillMetadata(BaseModel):
         user_invocable: Whether the user can invoke this skill directly.
         allowed_tools: Comma-separated list of tools the skill may use.
         model: Model identifier this skill is designed for.
+        effort: Reasoning effort level the skill runs at. Lower levels cut
+            thinking time and cost; omit it to follow the session's own
+            effort setting.
         context: Additional context string.
         agent: Agent identifier.
         hooks: Arbitrary hook configuration dictionary.
@@ -37,6 +42,7 @@ class SkillMetadata(BaseModel):
     user_invocable: bool | None = Field(None, alias="user-invocable")
     allowed_tools: str | None = Field(None, alias="allowed-tools")
     model: str | None = Field(None)
+    effort: Literal["low", "medium", "high", "xhigh", "max"] | None = Field(None)
     context: str | None = Field(None)
     agent: str | None = Field(None)
     hooks: dict | None = Field(None)
