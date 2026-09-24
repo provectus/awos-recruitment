@@ -1,11 +1,14 @@
 ---
 name: pytest-best-practices
-description: Expert guidance for writing high-quality pytest tests. Use when writing tests, setting up fixtures, parametrizing, mocking, or reviewing test code.
+description: >-
+  Pytest conventions for Python test suites — fixtures and scopes, parametrization,
+  mocking with pytest-mock, built-in fixtures (`tmp_path`, `monkeypatch`, `capsys`,
+  `caplog`), markers, exception testing, and async tests. Use when writing, reviewing,
+  or refactoring Python tests, `conftest.py` fixtures, or pytest configuration in
+  `pytest.ini` / `pyproject.toml`. Does not cover general Python syntax or typing — see
+  modern-python-development — nor FastAPI `TestClient` and app-level test setup — see
+  fastapi-best-practices.
 ---
-
-<objective>
-Provide pytest best practices and patterns for writing maintainable, efficient tests.
-</objective>
 
 <essential_principles>
 
