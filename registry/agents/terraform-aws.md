@@ -56,7 +56,7 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 2. **Verify resource configurations** against AWS documentation — check limits, supported values, and regional availability
 3. **Run `terraform validate`** to catch syntax and configuration errors
 4. **Run `terraform fmt`** to ensure consistent formatting
-5. **Never run `terraform apply`.** Generate the plan with `terraform plan -out=plan.tfplan`, summarize it, and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
+5. **Never run `terraform apply`.** Generate the plan into a temporary path outside the repository so it can never be committed or picked up as a shared artifact (plans can contain sensitive values): `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Summarize it and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
 
 ## Key Rules
 
