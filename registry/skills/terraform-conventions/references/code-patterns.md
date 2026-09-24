@@ -813,7 +813,9 @@ resource "aws_db_instance" "this" {
 ```
 
 Read the generated secret from `aws_db_instance.this.master_user_secret` when
-an application needs its ARN.
+an application needs its ARN. This is not a way to keep using a pre-existing
+secret: RDS creates its own and ignores any other, so existing consumers have
+to be repointed.
 
 **Migration steps:**
 

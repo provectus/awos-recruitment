@@ -41,10 +41,14 @@ Expected behaviour:
 
 Expected behaviour:
 
-- reads the existing secret via data sources rather than creating one
-- passes it as `password_wo` **with** `password_wo_version`, or uses
-  `manage_master_user_password = true` when the pinned versions are below
-  Terraform 1.11 / AWS provider 5.88.0
+- reads the existing secret with an `ephemeral`
+  `aws_secretsmanager_secret_version` lookup rather than creating one, and not
+  with a `data` source, whose result Terraform writes to state
+- passes it as `password_wo` **with** `password_wo_version`
+- does **not** offer `manage_master_user_password = true` as a substitute here:
+  that makes RDS generate its own password in its own secret and never reads
+  `prod/database/password`, so every consumer of the existing secret would
+  start failing to authenticate
 - does not introduce `random_password`
 - does not assign the secret to the plain `password` argument
 - says why: a value assigned to `password` is stored in plaintext in state
