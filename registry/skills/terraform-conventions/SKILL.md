@@ -214,10 +214,11 @@ var.database_instance_class # Not just "instance_class"
 
 **Before generating test code:**
 
-1. **Validate schemas with Terraform MCP:**
-   ```
-   Search provider docs → Get resource schema → Identify block types
-   ```
+1. **Confirm the resource schema** — which nested blocks are sets and which are
+   lists. With the `terraform-mcp-server` MCP server, call
+   `terraform-mcp-server:search_providers` then
+   `terraform-mcp-server:get_provider_details`; without it, read the provider's
+   registry docs page for the pinned version.
 
 2. **Choose correct command mode:**
    - `command = plan` - Fast, for input validation
