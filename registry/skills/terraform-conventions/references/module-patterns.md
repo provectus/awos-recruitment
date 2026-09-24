@@ -407,11 +407,15 @@ For public modules, always include a LICENSE file:
 **Before generating any module or configuration, work out which binary the
 repo uses:**
 
-1. **Detect it from the repo.** In order: a `.terraform.lock.hcl` or
-   `.terraform/` directory; the binary named in CI config
-   (`.github/workflows/`, `.gitlab-ci.yml`, `atlantis.yaml`); `tofu`/`terraform`
-   in the README or Makefile. Default to Terraform when nothing indicates
-   otherwise, and ask only when the repo references both binaries.
+1. **Detect it from the repo.** In order: the binary actually invoked in CI
+   config (`.github/workflows/`, `.gitlab-ci.yml`, `atlantis.yaml`);
+   `tofu`/`terraform` in the README or Makefile; `*.tofu` files, which only
+   OpenTofu reads; the registry host inside `.terraform.lock.hcl` —
+   `registry.opentofu.org/...` means OpenTofu, `registry.terraform.io/...`
+   means Terraform. That a `.terraform.lock.hcl` or `.terraform/` **exists**
+   proves nothing: both tools write those same paths. Default to Terraform when
+   nothing indicates otherwise, and ask only when the repo references both
+   binaries.
 
 2. **Use the preference throughout:**
    - Command examples: `terraform` vs `tofu`

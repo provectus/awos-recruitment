@@ -178,7 +178,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 - Version-specific features noted (1.6+, 1.7+, etc.)
 - **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
 
-When creating modules, the binary is detected from the repo (lock file, CI config, README) and defaults to Terraform; specify a preference to override it.
+When creating modules, the binary is detected from the commands the repo actually runs (CI config, README, Makefile) and from OpenTofu-only markers such as `*.tofu` files or a `registry.opentofu.org` host in `.terraform.lock.hcl` — the mere presence of that lock file is not evidence, since both tools write it. Detection defaults to Terraform; specify a preference to override it.
 
 ---
 
