@@ -1,6 +1,16 @@
 ---
 name: pr-review
-description: Use when authoring a code review of a pull request or merge request — "review this PR", "do a code review on PR #N", "review this MR", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's PR/MR on the hosting platform — GitHub or GitLab — and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
+description: >-
+  Authors a human-voice code review of someone else's pull request or merge request
+  and posts it as a draft (pending) review for the user's approval — "review this PR",
+  "do a code review on PR #N", "review this MR", "leave review comments". Also reviews
+  the user's own branch when the request says "review locally", "review for myself",
+  "just my branch", or "don't post": the review goes to a file and nothing is posted.
+  Works on GitHub and GitLab. Finds issues by orchestrating the code-review and
+  pr-review-toolkit plugins, drafts with no severity badges, and gates every post on
+  the user's approval. This is the reviewer's side; to respond to feedback on a PR the
+  user authored, use pr-comments-address.
+argument-hint: "[PR URL | owner/repo#N | N | branch]"
 ---
 
 <!-- No `context: fork`: a forked skill runs as a subagent, and subagents cannot use AskUserQuestion — the results gate in step 5 depends on it. (The Agent tool is not the constraint: subagents can dispatch nested subagents, so the step 2 engines would run fine.) For isolation from other work, invoke this skill in a dedicated session instead. -->
@@ -39,7 +49,7 @@ Review voice and formatting rules are in [references/house-style.md](references/
 
 ## Input
 
-`args` is a PR reference (public) or a branch/base hint (local): a PR URL, `owner/repo#N`, a bare `N` inside the repo, a branch name, or empty (use the current branch). Parse what you can; if public mode needs a PR you can't resolve, ask for a PR URL.
+`$ARGUMENTS` is a PR reference (public) or a branch/base hint (local): a PR URL, `owner/repo#N`, a bare `N` inside the repo, a branch name, or empty (use the current branch). Parse what you can; if public mode needs a PR you can't resolve, ask for a PR URL.
 
 ## Workflow
 
