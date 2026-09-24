@@ -369,8 +369,16 @@ erased, but the object literal itself survives — so the difference is in *what
 An enum compiles to a self-invoking function that fills a mutable binding, which a bundler
 cannot prove is unused; a const object compiles to a plain object literal it can tree-shake.
 Its values are ordinary strings, so they interoperate with plain string literals and JSON;
-and it avoids the reverse-mapping quirk of numeric enums, where `StatusEnum[0]` is a
-legal lookup that yields a key name. Enums also behave inconsistently across `const enum`,
+and it avoids the reverse-mapping quirk of numeric enums:
+
+```typescript
+enum LevelEnum { Low, High } // numeric — emits Low → 0 *and* 0 → "Low"
+
+const key: string = LevelEnum[0]; // "Low" — a legal lookup that yields a key name
+```
+
+String enums have no reverse mapping, so the same lookup on `StatusEnum` above is a type
+error rather than a surprise. Enums also behave inconsistently across `const enum`,
 `declare enum`, and `isolatedModules`, which const objects never do.
 
 ### Union types for simple cases
