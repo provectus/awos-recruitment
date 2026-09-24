@@ -73,7 +73,13 @@ client.heartbeat()  # health check, returns nanosecond timestamp
 
 ### add()
 
-Add new records. All IDs must be unique and not already exist in the collection.
+Add new records.
+
+IDs must be unique. An ID that is already in the collection is **dropped
+silently** — `add` raises nothing, warns about nothing, `count()` does not
+move, and the existing record keeps its old document, metadata and embedding.
+Nothing in the return value signals the skip, so `add` cannot be used to detect
+collisions; reach for `upsert` whenever a record may already exist.
 
 ```python
 collection.add(

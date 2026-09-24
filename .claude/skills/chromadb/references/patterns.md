@@ -18,7 +18,9 @@ for i in range(0, len(documents), BATCH_SIZE):
     )
 ```
 
-Use `upsert` instead of `add` when re-indexing data that may partially exist to avoid duplicate ID errors.
+Use `upsert` instead of `add` when re-indexing data that may partially exist. A
+duplicate ID does not raise — `add` drops the write silently, so a re-index
+built on `add` looks like it succeeded while leaving stale content in place.
 
 ## Metadata Schema Design
 
@@ -232,10 +234,11 @@ results = collection.query(
 
 ### Common errors
 
-| Error | Cause | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `ValueError` on `add` | Duplicate ID | Use `upsert` instead, or check for existing IDs |
+| `add` succeeds but nothing changes | Duplicate ID — the write is dropped silently | Use `upsert`, or diff against `collection.get(ids=...)` first if you need to know which IDs collided |
 | `ValueError` on `delete` | No criteria specified | Provide at least `ids`, `where`, or `where_document` |
+| `ValueError: Expected where operator to be one of …` | Operator used on the wrong filter, e.g. `$regex` in `where` | `$regex` / `$not_regex` belong in `where_document` |
 | Dimension mismatch | Embedding size doesn't match collection | Ensure all embeddings use the same model/dimension |
 | Collection not found | `get_collection` on missing name | Use `get_or_create_collection` instead |
 

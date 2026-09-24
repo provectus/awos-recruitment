@@ -75,7 +75,7 @@ collection.add(
 )
 ```
 
-- `ids` — required, must be unique strings.
+- `ids` — required, must be unique strings. An ID that already exists is **skipped silently**: no exception, no warning, and the stored record is left untouched. Use `upsert` whenever the data may already be indexed.
 - `documents` — raw text; Chroma uses the collection's embedding function to generate embeddings.
 - `metadatas` — optional dict per document for filtering.
 
@@ -302,7 +302,7 @@ Useful for inspecting collection contents during development.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `ValueError` on `add` | Duplicate ID | Use `upsert` instead |
+| `add` silently does nothing | The ID already exists — the write is dropped with no error and no warning | Use `upsert` when re-indexing; `count()` will not move and the stored record keeps its old content |
 | Dimension mismatch | Embedding size differs from collection | Ensure consistent embedding model |
 | `ValueError` on `delete` | No criteria given | Provide `ids`, `where`, or `where_document` |
 | `ValueError: Embedding function <name> not found` on `get_collection` | A custom embedding function's class is not registered in this process | Import the module that defines it and decorate the class with `@register_embedding_function` |
