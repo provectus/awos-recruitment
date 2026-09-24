@@ -6,19 +6,15 @@ The two engines are independent until the merge — don't run them back to back.
 
 ## Engine 1: the code-review plugin (breadth)
 
-The `code-review` plugin runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, five parallel agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting. Treat that score as a breadth filter, not a truth signal: a model's self-reported confidence is unreliable on its own, so this skill never leans on it alone — every finding is cross-checked by a second, independent engine (the `pr-review-toolkit` agents) and the human gate, which is the cross-review that actually raises quality.
+**Dependency:** the `code-review` plugin from the official marketplace — `claude plugin install code-review@claude-plugins-official`. It runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, parallel review agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting. Treat that score as a breadth filter, not a truth signal: a model's self-reported confidence is unreliable on its own, so this skill never leans on it alone — every finding is cross-checked by a second, independent engine (the `pr-review-toolkit` agents) and the human gate, which is the cross-review that actually raises quality.
 
-Locate its command spec and follow its **analysis steps** to produce the scored, filtered findings list:
+Invoke it through the Skill tool (`code-review:code-review`), which loads its instructions into this context. Follow its analysis steps to produce the scored, filtered findings list, with two departures: skip its eligibility gate (this skill has already decided to review, and in local mode there is no PR — hand it the local diff instead), and **do not perform its posting step** — this skill owns delivery, in its own voice. Keep the findings in memory: file, line, what, why, suggested fix, confidence, and flag reason. Don't locate or read the plugin's files on disk: the Skill tool is the interface, and the plugin's layout and step order are not this skill's to depend on.
 
-```sh
-find ~/.claude/plugins -path '*code-review*/commands/code-review.md' -not -path '*/cache/*' 2>/dev/null | head -1
-```
-
-(If that finds nothing, drop the `-not -path` filter.) `Read` it and follow its analysis steps, then **stop before the step that posts** — its final step comments on the PR in a fixed style with an emoji footer, which this skill replaces. Keep the in-memory findings: file, line, what, why, suggested fix, confidence, and flag reason.
+If the Skill tool lists only Claude Code's bundled `code-review` skill and not the plugin's namespaced one, the bundled skill can stand in for breadth: run it with no flags (no `--comment`, no `--fix`) so it reports and posts nothing, and treat its findings as unscored — judge confidence from how decisively each is verified, as for the toolkit agents.
 
 ## Engine 2: pr-review-toolkit agents (depth)
 
-The `pr-review-toolkit` plugin provides specialized review agents that go deeper than a generic pass on the dimension they own. Dispatch them with the Agent tool (`subagent_type: "pr-review-toolkit:<agent>"`), giving each the PR diff and scope. For a large diff, chunk it by file or directory and dispatch per chunk rather than handing each agent the whole thing — a diff that overflows the context window gets reviewed shallowly; note in the summary if a chunk was too big to cover fully. Select by what the diff actually changed — running an agent whose dimension the PR doesn't touch wastes tokens and invites false positives:
+**Dependency:** the `pr-review-toolkit` plugin from the official marketplace — `claude plugin install pr-review-toolkit@claude-plugins-official`. It provides specialized review agents that go deeper than a generic pass on the dimension they own. Dispatch them with the Agent tool (`subagent_type: "pr-review-toolkit:<agent>"`), giving each the PR diff and scope. For a large diff, chunk it by file or directory and dispatch per chunk rather than handing each agent the whole thing — a diff that overflows the context window gets reviewed shallowly; note in the summary if a chunk was too big to cover fully. Select by what the diff actually changed — running an agent whose dimension the PR doesn't touch wastes tokens and invites false positives:
 
 | Agent | Run when the diff… | Looks for |
 |---|---|---|
@@ -34,15 +30,12 @@ Give each agent the context its dimension needs, not just the diff: `pr-test-ana
 
 ## Collecting the engines' results
 
-Dispatching is the easy half. Getting the results back is where a review quietly loses half its wall-clock, so the mechanics are not optional.
+Dispatching is the easy half; collection is where a review loses its wall-clock. The rules (the run that produced them is in [design-notes.md](design-notes.md)):
 
-**Dispatch engines as ordinary subagents — never as named background agents.** An unnamed `Agent` call returns the agent's output as the tool result and the harness notifies you the moment it finishes. A *named* agent runs as a background teammate whose completion arrives as a teammate message instead, and that message can land long after the work is done. Measured on a real run: six engines were all idle within 8 minutes, their results were not collected for 28, and every completion notification arrived in one batch **after the review had already been posted**. Naming the agents is what broke it.
-
-**Never poll.** No `sleep` loops, no `until [ -s <file> ]; do sleep 30; done`, no watching a task's output file, no re-listing a directory to see if something appeared. The same run spent **31 of its 72 minutes** in 35 polling calls, 17 of which were killed by the 120-second command timeout — while waiting on results that already existed. If you find yourself writing a wait loop, the dispatch was wrong: fix the dispatch.
-
-**Never read agent transcripts to recover a result.** The `.jsonl` files under the session's `subagents/` directory are harness internals, not an API. Scraping them for "the last assistant message" is how you end up acting on a **partial** result — in the same run, one such scrape returned a 76-byte fragment of a triage that was still running, and an evidence pass was read mid-flight and posted on, with the real report arriving afterwards carrying three corrections that were already live.
-
-**An engine that returns no findings is a failed engine.** Not an empty one — a failed one. Say so, degrade via *When a plugin is missing* below, and tell the user in the step 7 summary which engine didn't report. The failure mode to refuse outright: reconstructing an engine's output yourself from whatever you can find and handing it to the triage subagent as engine findings. That is session-authored content entering the one channel the skill protects from session influence, and it silently destroys the independence the whole triage step exists for. If an engine produced nothing, the review has one engine, and the user should know it.
+- **Dispatch engines as ordinary, unnamed `Agent` calls.** An unnamed call returns the output as the tool result and the harness notifies you when it finishes; a *named* agent runs as a background teammate whose completion can arrive long after the work is done.
+- **Don't poll.** No `sleep` loops, no `until [ -s <file> ]`, no watching an output file or re-listing a directory. A wait loop means the dispatch was wrong — fix the dispatch.
+- **Don't read agent transcripts to recover a result.** The `.jsonl` files under the session's `subagents/` directory are harness internals, not an API; scraping them returns partial results from runs still in flight.
+- **An engine that returns no findings is a failed engine**, not an empty one. Say so, degrade via *When a plugin is missing* below, and tell the user in the step 7 summary which engine didn't report. Don't reconstruct its output yourself and hand that to triage as engine findings — session-authored content in that channel destroys the independence the triage step exists for. If an engine produced nothing, the review has one engine, and the user should know it.
 
 ## Merge and carry forward
 
