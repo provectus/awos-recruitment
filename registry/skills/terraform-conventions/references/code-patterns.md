@@ -512,7 +512,12 @@ variable "backup_retention" {
 
 ### Write-Only Arguments (Terraform 1.11+)
 
-**Always use write-only arguments or external secret management:**
+**Use write-only arguments or external secret management for every secret.**
+
+Each resource also needs a provider version that implements the argument —
+`aws_db_instance.password_wo` landed in AWS provider 5.88.0. Check the pins in
+`versions.tf` first; see `references/security-compliance.md` for the fallback
+when the pinned versions are older.
 
 ```hcl
 # GOOD - External secret with write-only argument
@@ -529,8 +534,10 @@ resource "aws_db_instance" "this" {
   instance_class = "db.t3.micro"
   username       = "admin"
 
-  # write-only: Terraform sends to AWS then forgets it (not in state)
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Terraform sends to AWS then forgets it (not in state).
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 
 # BAD - Secret ends up in state file
@@ -777,29 +784,28 @@ resource "aws_db_instance" "this" {
   engine   = "mysql"
   username = "admin"
 
-  # write-only: Sent to AWS, not stored in state
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Sent to AWS, not stored in state.
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 ```
 
-**Option 2: Separate secret creation (if Terraform 1.11+ not available)**
+**Option 2: Let RDS own the password (if Terraform 1.11+ not available)**
 
 ```hcl
-# GOOD - Reference pre-existing secret
-# Secret created outside Terraform (manually or separate process)
+# GOOD - AWS generates the password, stores it in Secrets Manager,
+# and Terraform never sees the value
+resource "aws_db_instance" "this" {
+  engine   = "mysql"
+  username = "admin"
 
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
+  manage_master_user_password = true  # Cannot be combined with password/password_wo
 }
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
-}
-
-# Note: Without write-only, you may need to handle secret rotation
-# outside Terraform or accept that the secret value appears in state
-# during initial creation but not after rotation
 ```
+
+Read the generated secret from `aws_db_instance.this.master_user_secret` when
+an application needs its ARN.
 
 **Migration steps:**
 
