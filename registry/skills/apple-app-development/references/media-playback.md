@@ -1,6 +1,20 @@
 # Media Playback Reference (AVFoundation & AVKit)
 
-Comprehensive guide to media playback on Apple platforms. Covers AVPlayer, AVKit integration with SwiftUI and UIKit, audio session management, Picture-in-Picture, AirPlay, offline downloads, and performance. For tvOS-specific playback patterns see `tvos-patterns.md`.
+Comprehensive guide to media playback on Apple platforms. Covers AVPlayer, AVKit integration with SwiftUI and UIKit, audio session management, Picture-in-Picture, AirPlay, offline downloads, and performance. For tvOS-specific playback patterns see `references/tvos-patterns.md`.
+
+## Contents
+- Architecture Overview
+- AVKit — Standard Playback (VideoPlayer (SwiftUI), AVPlayerViewController (UIKit / UIViewControllerRepresentable))
+- AVFoundation — Playback Engine (AVPlayer & AVPlayerItem, Time Observation, AVQueuePlayer, Custom Player UI with AVPlayerLayer)
+- AVAudioSession (Categories, Setup, Background Audio, Interruption Handling, Route Change Handling)
+- Picture-in-Picture (PiP) (With AVPlayerViewController (Simplest), With Custom Player (AVPictureInPictureController), PiP Requirements)
+- AirPlay & External Display (Enabling AirPlay, Route Detection, Route Picker (Custom UI))
+- Offline Downloads (HLS) (Download Setup, Starting a Download, Aggregate Download (Multiple Variants), Delegate Callbacks, Playing Downloaded Content, Storage Management)
+- Media Selection (Subtitles & Audio Tracks)
+- Now Playing & Remote Controls (MPNowPlayingInfoCenter, MPRemoteCommandCenter)
+- Asset Loading
+- Performance & Best Practices (Memory Management, Preloading, Error Handling)
+- Common Pitfalls
 
 ## Architecture Overview
 

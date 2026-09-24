@@ -311,7 +311,7 @@ tvOS apps render on large screens. Design for the living room viewing distance.
 | Resolution | When Used |
 |---|---|
 | 1920x1080 (1080p) | Apple TV HD (discontinued Oct 2022) |
-| 3840x2160 (4K) | Apple TV 4K (current, 3rd gen 2022+) |
+| 3840x2160 (4K) | Apple TV 4K (3rd gen, 2022 and later) |
 
 SwiftUI uses points, so the coordinate space is always **1920x1080** regardless of device. The system handles pixel doubling for 4K.
 

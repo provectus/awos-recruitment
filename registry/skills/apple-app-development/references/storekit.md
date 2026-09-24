@@ -159,6 +159,7 @@ struct MyApp: App {
     }
 }
 
+@MainActor
 @Observable
 class StoreManager {
     private var updateListenerTask: Task<Void, Never>?
@@ -619,6 +620,7 @@ let result = try await product.purchase(options: [
 ## Complete Store Implementation
 
 ```swift
+@MainActor
 @Observable
 class StoreManager {
     private(set) var products: [Product] = []

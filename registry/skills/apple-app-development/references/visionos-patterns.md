@@ -927,5 +927,5 @@ Framework for building tabletop experiences (board games, collaborative tools). 
 - **Persistence APIs** — Content can be locked to physical surfaces and persist across app sessions using spatial anchors.
 - **ImagePresentationComponent** — New component for displaying 2D, spatial photos, and spatial scenes in RealityKit.
 - **Unified Coordinate Conversion** — Simplifies moving between SwiftUI, RealityKit, and ARKit coordinate spaces.
-- **WidgetKit on visionOS** — Widgets are now available on visionOS 26.
+- **WidgetKit on visionOS** — Added in visionOS 26.
 - **Spatial accessories** — Support for PlayStation VR2 Sense controllers and Logitech Muse.

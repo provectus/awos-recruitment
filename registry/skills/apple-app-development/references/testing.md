@@ -1324,6 +1324,6 @@ struct DiscountCalculator {
 ## Related References
 
 - **`references/code-quality.md`** — Xcode Static Analyzer, sanitizers (ASan, TSan, UBSan), Periphery, Xcode build settings. Sanitizers are configured in test plans alongside test configurations described here.
-- **`swift-development` skill's `references/static-analysis.md`** — SwiftLint, SwiftFormat configuration and CI integration.
+- **`swift-development` skill, static-analysis reference** — SwiftLint, SwiftFormat configuration and CI integration.
 - **`references/concurrency.md`** — async/await, actors, `@MainActor` — essential context for testing concurrent code.
 - **`references/project-structure.md`** — test target organization, schemes, and multi-module test setup.

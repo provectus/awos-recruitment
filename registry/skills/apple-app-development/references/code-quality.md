@@ -1,6 +1,6 @@
 # Code Quality Reference (Xcode Analysis, Sanitizers, Dead Code)
 
-Apple platform-specific quality tools that complement language-level linting. For SwiftLint and SwiftFormat configuration, rules, and CI setup, see the `swift-development` skill's `references/static-analysis.md`. This reference covers Xcode-specific tooling: static analyzer, runtime sanitizers, dead code detection, Danger-Swift, and build settings.
+Apple platform-specific quality tools that complement language-level linting. For SwiftLint and SwiftFormat configuration, rules, and CI setup, see the `swift-development` skill (its static-analysis reference). This reference covers Xcode-specific tooling: static analyzer, runtime sanitizers, dead code detection, Danger-Swift, and build settings.
 
 ## Contents
 - When to use which tool (decision table)
@@ -23,7 +23,7 @@ Apple platform-specific quality tools that complement language-level linting. Fo
 | Periphery | Dead code detection | CLI, CI |
 | Danger-Swift | Automated PR checks and conventions | CI |
 
-**Rule:** Run Xcode Analyze before releases. Enable sanitizers in dedicated test plan configurations. Run Periphery after major refactors. For linting and formatting (SwiftLint, SwiftFormat), see `swift-development` skill's `references/static-analysis.md`.
+**Rule:** Run Xcode Analyze before releases. Enable sanitizers in dedicated test plan configurations. Run Periphery after major refactors. For linting and formatting (SwiftLint, SwiftFormat), see the `swift-development` skill (its static-analysis reference).
 
 
 ## Xcode Static Analyzer
@@ -385,6 +385,6 @@ SWIFT_OPTIMIZATION_LEVEL = -O
 
 ## Related References
 
-- **`swift-development` skill's `references/static-analysis.md`** — SwiftLint, SwiftFormat configuration, rules, combined setup, pre-commit hooks, CI integration.
+- **`swift-development` skill, static-analysis reference** — SwiftLint, SwiftFormat configuration, rules, combined setup, pre-commit hooks, CI integration.
 - **`references/testing.md`** — Test plans, test configurations, and CI/CD test commands. Sanitizers configured here are enabled in test plans described there.
 - **`references/project-structure.md`** — Build configurations, schemes, and xcconfig setup referenced in the build settings section above.
