@@ -1,6 +1,14 @@
 ---
 name: react-best-practices
-description: React performance optimization guidelines. This skill should be used when writing, reviewing, or refactoring React code to ensure optimal performance patterns. Triggers on tasks involving React components, data fetching, bundle optimization, or performance improvements.
+description: >-
+  Performance optimization for React applications — rendering, re-renders,
+  data-fetching waterfalls, bundle size, and the JavaScript hot paths inside
+  components. Use when the user mentions slow or janky renders, unnecessary
+  re-renders, memoization (React.memo / useMemo / useCallback), lazy loading,
+  code splitting, bundle size, request waterfalls, laggy scrolling or typing, or
+  asks to review, profile, or speed up React code. Not a general React authoring
+  guide — for folder and layer structure use react-feature-sliced-design, for
+  language and typing questions use typescript-development.
 ---
 
 # React Best Practices
@@ -60,6 +68,11 @@ Comprehensive performance optimization guide for React applications. Contains 37
 - `rendering-conditional-render` - Use ternary, not && for conditionals
 
 ### 6. JavaScript Performance (LOW-MEDIUM)
+
+These rules are framework-agnostic JavaScript. They are here because they pay off in
+the hot paths React components run — render bodies, effects, event handlers, and the
+helpers those call. Reach for them when profiling points at a specific loop or
+lookup, not as general style guidance.
 
 - `js-batch-dom-css` - Group CSS changes via classes or cssText
 - `js-index-maps` - Build Map for repeated lookups

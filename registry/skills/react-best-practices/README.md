@@ -24,7 +24,12 @@ The rules cover:
 
 ## Usage
 
-Once installed, the skill activates automatically when Claude Code detects React-related tasks — writing components, reviewing performance, refactoring code, or optimizing bundles.
+Once installed, the skill activates when performance is the concern — slow or janky
+renders, unnecessary re-renders, memoization, lazy loading, bundle size, request
+waterfalls, or a request to review or profile React code for speed. It is not a
+general React authoring guide: folder and layer structure belongs to
+`react-feature-sliced-design`, language and typing questions to
+`typescript-development`.
 
 Each rule is a standalone `.md` file in `references/`:
 
