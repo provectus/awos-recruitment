@@ -428,7 +428,11 @@ class MyEmbeddingFunction(EmbeddingFunction[Documents]):
 
     def __call__(self, input: Documents) -> Embeddings:
         # input is list[str]; return one vector per document.
-        return [np.asarray(embed(doc, self._endpoint), dtype=np.float32) for doc in input]
+        # `embed` stands in for your own call to the model — supply it.
+        return [
+            np.asarray(embed(doc, self._endpoint), dtype=np.float32)
+            for doc in input
+        ]
 
     @staticmethod
     def name() -> str:
