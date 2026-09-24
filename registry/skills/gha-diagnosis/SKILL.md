@@ -16,7 +16,7 @@ Arguments: `$ARGUMENTS`
 
 This skill runs in its own subagent context with no conversation history, so everything you know about the request is in the line above. It may contain:
 
-- **Nothing** — find failures via `gh run list --status failure --limit 5`
+- **Nothing** — find failures on the current branch via `gh run list --branch "$(git branch --show-current)" --status failure --limit 5`. Scope to the branch: in a repo with several active branches or scheduled workflows, the newest failure in the repo is often someone else's
 - **Run URL** — e.g. `https://github.com/org/repo/actions/runs/123` → extract run ID
 - **Run/Job ID** — use directly with `gh run view <id> --log-failed`
 - **`--push`** — the user's permission to push the fix commits and confirm the result (Phase 3). Without it, stop after committing and report.
@@ -62,8 +62,9 @@ CI only re-runs against the remote, so the loop can only be confirmed by pushing
 **With `--push`**:
 
 1. Push the fix commits
-2. `gh run list --limit 1 --json status,conclusion,url`
-3. If new failures appear, loop back to Phase 1
+2. Find the run for the commit you pushed: `gh run list --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId,status,conclusion,url`. Scope to the commit — a bare `--limit 1` returns the newest run in the repo, which may be another branch's and report green or red for the wrong push. The run can take a few seconds to appear; retry briefly if the list is empty
+3. Wait for it: `gh run watch <databaseId> --exit-status`
+4. If new failures appear, loop back to Phase 1
 
 ## Rules
 
@@ -84,3 +85,4 @@ CI only re-runs against the remote, so the loop can only be confirmed by pushing
 | Update action SHA blindly | Check release notes for breaking changes |
 | Fix warnings not in the error | Only fix what CI flagged |
 | `--no-verify` to bypass hooks | Fix the hook issue |
+| Trust the newest run in the repo | Scope `gh run list` with `--branch` or `--commit` |
