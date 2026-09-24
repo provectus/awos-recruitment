@@ -44,6 +44,16 @@ Every rule file contains:
 - Correct code example
 - Additional context and references
 
+### Why one file per rule
+
+The rules are vendored from upstream and stay one-to-one with the upstream files, so
+a rule can be re-synced, diffed, or dropped on its own. The cost is granularity:
+reviewing a whole category means reading up to 12 files instead of one. `SKILL.md`
+absorbs most of that — it indexes every rule with its impact and a one-line summary,
+which is usually enough to decide whether a rule applies before opening its file.
+Consolidating per category would halve the reads but would make upstream syncs a
+merge rather than a copy, so the split is deliberate.
+
 ## Rule Categories
 
 `Impact` is the range of the per-rule `impact:` values in that category; `Priority`
