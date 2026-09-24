@@ -210,13 +210,20 @@ Place alongside the server script for isolated dependency management:
 
 ```json
 {
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "path": "server.py"
+  },
   "environment": {
+    "type": "uv",
     "dependencies": ["httpx", "pydantic>=2.0"]
   }
 }
 ```
 
-Dependencies are installed in a UV-managed virtual environment before server start.
+`source` points at the server module and is the only required key — omit it and
+the config fails validation. Dependencies are installed in a UV-managed virtual
+environment before server start.
 
 ### When to use
 

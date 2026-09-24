@@ -103,7 +103,7 @@ async def process_files(file_paths: list[str], ctx: Context) -> dict:
 
 Context methods:
 - `ctx.info(msg)`, `ctx.debug(msg)`, `ctx.warning(msg)`, `ctx.error(msg)` — structured logging.
-- `ctx.report_progress(current, total, message)` — progress updates.
+- `ctx.report_progress(progress, total, message)` — progress updates.
 - `ctx.lifespan_context` — dict of resources from the lifespan handler.
 
 Add `ctx: Context` as any parameter — FastMCP injects it automatically (it is not exposed to the AI).
@@ -222,7 +222,8 @@ main.mount(text_server)                      # tools: uppercase (no prefix)
 | Reusable prompts | `@mcp.prompt` with parameters |
 | Modular server | `main.mount(sub_server, namespace="ns")` |
 | Shared resources (DB, HTTP) | Lifespan handler + `ctx.lifespan_context` |
-| Auth | `JWTAuthProvider` or `OAuth2ProxyProvider` |
+| Auth | `JWTVerifier` for JWTs, `OAuthProxy`/`OIDCProxy` for OAuth |
+| Per-tool authorization | `@mcp.tool(auth=require_scopes("admin"))` |
 
 ## Key Rules
 
