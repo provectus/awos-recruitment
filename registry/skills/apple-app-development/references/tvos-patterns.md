@@ -2,6 +2,17 @@
 
 Patterns and guidance for building tvOS apps with SwiftUI. Targets tvOS 17+ and Swift 6+.
 
+## Contents
+- Focus Engine (`@FocusState` and `focusable()`, Custom Focus Behavior, Focus Guides, `onMoveCommand`)
+- Top Shelf (Setting Up, Content Styles)
+- Remote Navigation (Swipe and Press Handling, Gesture Recognition, Button Presses)
+- Media Playback (VideoPlayer (SwiftUI), AVPlayerViewController for Full Control, Background Audio, Picture-in-Picture)
+- Layout Differences (Screen Resolutions, Safe Areas and Overscan, Text Sizing)
+- UI Patterns (Horizontally Scrolling Shelves, Card-Based Layouts and Lock-Up Views, Full-Screen Content, Tabbed Navigation)
+- TVMLKit (When to Use, Basic Setup (Legacy Reference))
+- Multiuser Support (Detecting the Current User, Per-User Data)
+- Limitations (Working Around Limitations)
+
 ## Focus Engine
 
 tvOS has no touch screen or pointer. The **focus engine** determines which element is focused and handles directional navigation from the Siri Remote.

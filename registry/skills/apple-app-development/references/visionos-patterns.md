@@ -2,6 +2,21 @@
 
 Patterns and code examples for building spatial computing apps on visionOS 2+ with Swift 6+ and SwiftUI.
 
+## Contents
+- App Structure (Immersion Styles)
+- RealityKit Fundamentals (Basic RealityView, Loading USDZ Models, Entity-Component-System (ECS))
+- Volumes (Volume World Alignment, Sizing and Positioning Content Inside a Volume)
+- Immersive Spaces (Opening and Dismissing, Passthrough and Full Immersion)
+- Spatial Gestures (Making an Entity Interactive, SpatialTapGesture, DragGesture in 3D, RotateGesture3D and MagnifyGesture, Combining Gestures)
+- Ornaments (Ornament Positioning)
+- Eye and Hand Tracking (ARKit Hand Tracking, Pinch Detection (Custom), Gaze-Based Interaction, Accessibility Considerations)
+- Shared Spaces vs Full Spaces (Shared Space (Default), Full Space, When to Use Each, App Lifecycle in Shared Space)
+- 3D Text and Materials (3D Extruded Text, SimpleMaterial, ShaderGraphMaterial (from Reality Composer Pro), Custom MeshResource)
+- Porting from iOS (Window Sizing, Depth and Hover Effects, Key Porting Considerations, Gradual Adoption Strategy)
+- Accessibility in Spatial Computing (VoiceOver in visionOS, Pointer Accessibility, Alternative Interaction Modes, Best Practices)
+- Performance (Render Budget, Entity Level of Detail (LOD), Optimizing 3D Assets, Profiling Tools, General Rules)
+- visionOS 2+ Features (Object Tracking (visionOS 2), TabletopKit (visionOS 2), visionOS 26 Features)
+
 ## App Structure
 
 visionOS apps use `WindowGroup` for 2D windows, volumetric windows for bounded 3D content, and `ImmersiveSpace` for unbounded 3D experiences.

@@ -36,7 +36,6 @@ Comprehensive guide to testing on Apple platforms. Swift Testing is the modern f
 Swift Testing is Apple's modern test framework (Xcode 16+, Swift 6). It replaces XCTest for unit and integration tests with a cleaner, expression-based API.
 
 ### @Test and Basic Assertions
----
 
 ```swift
 import Testing
@@ -79,7 +78,6 @@ func userFullName() {
 ```
 
 ### Traits
----
 
 Traits configure test behavior — disable tests, set time limits, tag for filtering, and more.
 
@@ -122,7 +120,6 @@ func uploadRetry() async throws {
 ```
 
 ### Custom Tags
----
 
 Tags let you filter and organize tests across suites.
 
@@ -154,7 +151,6 @@ func saveAndRetrieveOrder() async throws {
 Run tagged tests from Xcode by selecting tags in the Test Navigator, or filter in test plans. From CLI, use `swift test --filter` with test name patterns — tag-based filtering is supported through Xcode Test Plans.
 
 ### Parameterized Tests
----
 
 Run the same test logic across multiple inputs — each argument produces a separate test case in the results.
 
@@ -195,7 +191,6 @@ func responseHandling(method: HTTPMethod, statusCode: Int) async throws {
 ```
 
 ### @Suite — Test Organization
----
 
 Group related tests into suites. Suites can nest and share setup via `init`/`deinit`.
 
@@ -271,7 +266,6 @@ struct OrderTests {
 ```
 
 ### Lifecycle: init/deinit Instead of setUp/tearDown
----
 
 Swift Testing uses the struct/class lifecycle — no `setUp`/`tearDown` methods. Use `init` for setup and `deinit` for cleanup.
 
@@ -296,7 +290,6 @@ Swift Testing uses the struct/class lifecycle — no `setUp`/`tearDown` methods.
 ```
 
 ### Confirmation for Async Events
----
 
 `confirmation()` waits for an expected async event — the modern replacement for `XCTExpectation`.
 
@@ -327,7 +320,6 @@ Swift Testing uses the struct/class lifecycle — no `setUp`/`tearDown` methods.
 ```
 
 ### Parallel Execution
----
 
 Swift Testing runs tests in parallel by default. Each `@Test` function runs independently. Use `.serialized` trait on a `@Suite` when tests share mutable state that cannot be isolated.
 
@@ -352,7 +344,6 @@ Rules:
 - Each `@Test` gets a fresh `init` of the containing `@Suite` struct — instance properties are not shared.
 
 ### Migration from XCTest
----
 
 | XCTest | Swift Testing |
 |---|---|
@@ -374,7 +365,6 @@ Rules:
 XCTest is Apple's established testing framework. It remains necessary for UI tests, performance measurement, and targets that must support Xcode 15 or earlier.
 
 ### XCTestCase Pattern
----
 
 ```swift
 import XCTest
@@ -419,7 +409,6 @@ final class UserServiceTests: XCTestCase {
 ```
 
 ### Assertions Quick Reference
----
 
 ```swift
 // Equality
@@ -446,7 +435,6 @@ XCTAssertLessThanOrEqual(latency, 1.0)
 ```
 
 ### XCTExpectation for Async Callbacks
----
 
 Use expectations when testing callback-based (non-async) APIs:
 
@@ -494,7 +482,6 @@ func test_debounce_doesNotFireImmediately() {
 ```
 
 ### addTeardownBlock
----
 
 Register cleanup that runs after each test, even on failure. Useful for cleaning up resources created during a test.
 
@@ -512,7 +499,6 @@ func test_tempFileCreation() throws {
 ```
 
 ### Performance Measurement
----
 
 ```swift
 func test_jsonDecoding_performance() throws {
@@ -551,7 +537,6 @@ Rules:
 XCUITest automates the app's UI through accessibility elements. It launches the app in a separate process and interacts with it like a user would.
 
 ### Application Launch
----
 
 ```swift
 import XCTest
@@ -580,7 +565,6 @@ final class LoginUITests: XCTestCase {
 ```
 
 ### Element Queries
----
 
 ```swift
 func test_loginFlow() {
@@ -605,7 +589,6 @@ func test_loginFlow() {
 ```
 
 ### Accessibility Identifiers
----
 
 Accessibility identifiers are the foundation of reliable UI tests. Set them in your production code:
 
@@ -641,7 +624,6 @@ Rules:
 - Define identifiers as constants in a shared enum to avoid string drift between production and test code.
 
 ### Waiting for Elements
----
 
 ```swift
 func test_searchResults_appear() {
@@ -668,7 +650,6 @@ func test_loadingIndicator_disappears() {
 ```
 
 ### Page Object Pattern
----
 
 Encapsulate screen interactions to keep tests readable and reduce duplication:
 
@@ -739,7 +720,6 @@ func test_invalidCredentials_showsError() {
 ```
 
 ### Screenshots and Attachments
----
 
 ```swift
 func test_onboarding_screenshots() {
@@ -773,7 +753,6 @@ override func setUp() {
 Effective testing requires controlling dependencies. Use protocol-based injection to substitute real implementations with test doubles.
 
 ### Protocol-Based Mocking
----
 
 ```swift
 // Define a protocol for the dependency
@@ -826,7 +805,6 @@ final class StubUserRepository: UserRepository {
 ```
 
 ### Spy Pattern
----
 
 A spy records interactions for later verification.
 
@@ -869,7 +847,6 @@ final class SpyUserRepository: UserRepository {
 ```
 
 ### Dependency Injection for Testability
----
 
 Structure your app so dependencies are injected, never created internally.
 
@@ -917,7 +894,6 @@ func loadOrders_setsOrdersAndTracksAnalytics() async {
 ```
 
 ### SwiftUI Environment-Based Injection
----
 
 ```swift
 // Define environment key
@@ -953,7 +929,6 @@ struct UserProfileView: View {
 ## Testing with @Observable and SwiftUI
 
 ### Testing @Observable ViewModels
----
 
 ```swift
 @MainActor
@@ -1058,7 +1033,6 @@ Rules:
 - In production, `ContinuousClock()` is the default — no behavioral change.
 
 ### Snapshot Testing with swift-snapshot-testing
----
 
 Verify UI appearance by comparing rendered views against reference images.
 
@@ -1130,7 +1104,6 @@ import SnapshotTesting
 ## Test Plans & Configuration
 
 ### Xcode Test Plans (.xctestplan)
----
 
 Test plans define which tests to run, with which configuration. They replace scheme-level test settings.
 
@@ -1166,7 +1139,6 @@ MyApp.xctestplan
 - **Test Repetitions**: Run each test multiple times to catch flaky tests.
 
 ### Test Repetitions
----
 
 Available in test plans and xcodebuild:
 
@@ -1191,7 +1163,6 @@ xcodebuild test \
 ```
 
 ### Code Coverage
----
 
 Enable in the test plan or scheme. Xcode generates coverage data in the `.xcresult` bundle.
 
@@ -1203,7 +1174,6 @@ Enable in the test plan or scheme. Xcode generates coverage data in the `.xcresu
 ## CI/CD Testing
 
 ### xcodebuild Commands
----
 
 ```bash
 # Run all tests
@@ -1235,7 +1205,6 @@ xcodebuild test \
 ```
 
 ### Parallel Testing on CI
----
 
 ```bash
 # Parallel testing across multiple simulators
@@ -1253,7 +1222,6 @@ Rules:
 - UI tests often need serial execution — separate them into their own test plan.
 
 ### Result Bundles (.xcresult)
----
 
 ```bash
 # Export test results as JSON
@@ -1281,7 +1249,6 @@ Result bundles contain:
 ## TDD Workflow
 
 ### Red-Green-Refactor
----
 
 1. **Red** — Write a failing test that defines the desired behavior.
 2. **Green** — Write the minimum code to make the test pass.

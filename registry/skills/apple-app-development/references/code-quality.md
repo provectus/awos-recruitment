@@ -29,7 +29,6 @@ Apple platform-specific quality tools that complement language-level linting. Fo
 ## Xcode Static Analyzer
 
 ### When to Use
----
 
 The Xcode Static Analyzer performs deep analysis of control flow and memory management. Run it via Product > Analyze (Cmd+Shift+B) or enable it in build settings.
 
@@ -93,7 +92,6 @@ CLANG_UNDEFINED_BEHAVIOR_SANITIZER_NULLABILITY = YES
 ```
 
 ### Enabling Sanitizers in Test Plans
----
 
 ```json
 {
@@ -141,7 +139,6 @@ Run separate test plan configurations in CI for sanitizer checks — they incur 
 Periphery scans your Xcode project for unused declarations: classes, structs, enums, protocols, functions, properties, and more. It requires an Xcode project or SPM package to perform indexing.
 
 ### Installation and Basic Usage
----
 
 ```bash
 # Install
@@ -155,7 +152,6 @@ periphery scan --spm
 ```
 
 ### Configuration (`.periphery.yml`)
----
 
 ```yaml
 # .periphery.yml
@@ -180,7 +176,6 @@ retain_unused_protocol_func_params: false
 ```
 
 ### Handling False Positives
----
 
 Periphery may flag code that is actually used through dynamic dispatch or runtime features:
 
@@ -222,7 +217,6 @@ Rules:
 Danger-Swift runs during CI and automates PR review conventions: size warnings, missing tests, lint integration.
 
 ### Setup
----
 
 ```swift
 // Dangerfile.swift
@@ -259,7 +253,6 @@ for file in danger.git.modifiedFiles.filter({ $0.hasSuffix(".swift") }) {
 ## CI/CD Integration
 
 ### Periphery in GitHub Actions
----
 
 ```yaml
 # .github/workflows/code-quality.yml (add to existing workflow)
@@ -282,7 +275,6 @@ for file in danger.git.modifiedFiles.filter({ $0.hasSuffix(".swift") }) {
 ```
 
 ### Sanitizer CI Job
----
 
 ```yaml
   sanitizers:
@@ -312,7 +304,6 @@ Rules:
 ## Xcode Build Settings for Quality
 
 ### Strict Concurrency Checking
----
 
 ```
 // Build Settings > Swift Compiler - Upcoming Features
@@ -322,7 +313,6 @@ SWIFT_STRICT_CONCURRENCY = complete       // Full Swift 6 concurrency checking
 This enables compile-time data race safety. Set to `targeted` for gradual migration, `complete` for full enforcement.
 
 ### Treat Warnings as Errors
----
 
 ```
 // For release builds — prevents shipping code with warnings
@@ -341,7 +331,6 @@ Rules:
 - Fix all warnings before merging to main — enforce via CI.
 
 ### Other Recommended Build Settings
----
 
 ```
 // Enable testability for test targets
@@ -362,7 +351,6 @@ CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE
 ```
 
 ### Xcode Configuration Files (`.xcconfig`)
----
 
 ```
 // Shared.xcconfig — common settings across all configurations

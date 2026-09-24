@@ -2,6 +2,17 @@
 
 Patterns for bridging UIKit and SwiftUI. Use UIKit only when SwiftUI lacks the capability. Target: Swift 6+ / iOS 17+.
 
+## Contents
+- UIViewRepresentable (Lifecycle, Basic Example, Coordinator Pattern, Key Rules, Sizing)
+- UIViewControllerRepresentable (Camera (UIImagePickerController), Document Picker, Mail Compose, Key Rules)
+- Hosting SwiftUI in UIKit (Presenting a SwiftUI View, Embedding as a Child View Controller, Sizing Considerations, In UITableView / UICollectionView Cells)
+- Navigation Interop (Mixing UINavigationController with SwiftUI, Passing Data Between UIKit and SwiftUI, Coordinator Pattern for Mixed Navigation, Key Rules)
+- When to Use UIKit (Decision Guide, SwiftUI Gaps by SDK Release)
+- Migration Strategy (Incremental Migration from UIKit to SwiftUI, Shared ViewModel Layer, Screen-by-Screen Approach, Key Rules)
+- AppKit Interop (macOS) (NSViewRepresentable, NSViewControllerRepresentable, NSHostingController / NSHostingView, Platform Mapping)
+- Swift 6 Concurrency and Representables
+- Common Pitfalls (Memory Management, Update Cycles, Keyboard Handling, Safe Area Differences, Other Common Issues)
+
 ## UIViewRepresentable
 
 Wraps a UIKit `UIView` for use inside SwiftUI.

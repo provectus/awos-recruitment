@@ -2,6 +2,20 @@
 
 Comprehensive guide to monetization on Apple platforms using StoreKit 2. Covers product loading, purchase flows, transaction management, subscriptions, StoreKit SwiftUI views, testing, and server-side verification. StoreKit 2 is the modern Swift-native API (iOS 15+). The original StoreKit API (`SKPaymentQueue`, `SKProduct`, etc.) is formally **deprecated** as of iOS 18 — do not use it for new code.
 
+## Contents
+- Architecture Overview
+- Product Types
+- Loading Products
+- Purchase Flow
+- Transaction Management (Transaction Listener, Current Entitlements, Restore Purchases, Finishing Transactions)
+- Subscriptions (Checking Subscription Status, Subscription Renewal Info, Subscription Offers, Manage Subscriptions)
+- StoreKit SwiftUI Views (iOS 17+) (SubscriptionStoreView, StoreView, ProductView)
+- Verification (On-Device Verification (Default), Server-Side Verification, AppTransaction (App Purchase Verification))
+- Refund Requests
+- Testing (StoreKit Configuration File (Xcode), Sandbox Testing, Transaction Manager (Xcode), Testing Specific Scenarios)
+- Complete Store Implementation
+- Common Pitfalls
+
 ## Architecture Overview
 
 | Component | Purpose |
@@ -59,7 +73,6 @@ Key `Product` properties:
 
 
 ## Purchase Flow
----
 
 ```swift
 func purchase(_ product: Product) async throws {
@@ -125,7 +138,6 @@ let result = try await product.purchase(confirmIn: viewController) // UIViewCont
 
 
 ## Transaction Management
----
 
 ### Transaction Listener
 
@@ -217,7 +229,6 @@ func processUnfinishedTransactions() async {
 
 
 ## Subscriptions
----
 
 ### Checking Subscription Status
 
@@ -273,7 +284,6 @@ let gracePeriodExpirationDate = renewalInfo.gracePeriodExpirationDate
 ```
 
 ### Subscription Offers
----
 
 Four types of offers exist. Each targets a different audience and has different configuration/redemption flows.
 
@@ -414,7 +424,6 @@ try await AppStore.showManageSubscriptions(in: windowScene)
 
 
 ## StoreKit SwiftUI Views (iOS 17+)
----
 
 Pre-built views for merchandising — no custom UI needed for standard storefronts.
 
@@ -497,7 +506,6 @@ ProductView(id: ProductID.premium) {
 
 
 ## Verification
----
 
 StoreKit 2 wraps transactions in `VerificationResult<Transaction>`. The App Store signs transactions in JWS (JSON Web Signature) format.
 
@@ -544,7 +552,6 @@ case .unverified(_, let error):
 
 
 ## Refund Requests
----
 
 ```swift
 // Present refund request UI
@@ -567,7 +574,6 @@ case .userCancelled:
 
 
 ## Testing
----
 
 ### StoreKit Configuration File (Xcode)
 
@@ -611,7 +617,6 @@ let result = try await product.purchase(options: [
 
 
 ## Complete Store Implementation
----
 
 ```swift
 @Observable
