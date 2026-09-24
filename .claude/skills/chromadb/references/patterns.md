@@ -158,7 +158,7 @@ collection = client.create_collection(
 
 Pre-1.x code sets the same knobs through collection metadata, and Chroma still
 accepts it without warning — `metadata={"hnsw:space": "cosine",
-"hnsw:construction_ef": 200, "hnsw:search_ef": 50, "hnsw:M": 32}` produces the
+"hnsw:construction_ef": 100, "hnsw:search_ef": 50, "hnsw:M": 16}` produces the
 same configuration as the `configuration` block above. Two reasons to prefer
 the new form in new code: the key names differ from what the configuration
 actually stores (`hnsw:M` → `max_neighbors`, `hnsw:construction_ef` →
