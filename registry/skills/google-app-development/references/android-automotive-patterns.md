@@ -2,11 +2,20 @@
 
 Target: latest stable AAOS
 
->[toc]
+## Contents
+- AAOS vs Android Auto — architectural distinction
+- Car App Library on AAOS — AAOS-specific differences
+- Car Hardware APIs — `CarHardwareManager`, vehicle sensors
+- System UI Integration — status bar, navigation bar, distraction optimization
+- Media Apps on AAOS — Media3 `MediaLibraryService`, AAOS audio
+- Maps and Navigation — full map rendering, cluster display
+- HVAC and Climate — `CarPropertyManager` for climate control
+- User Management — multi-user, driver profiles, privacy
+- OEM Customization — system vs third-party apps, privileged APIs
+- Testing — AAOS emulator, GSI, HAL simulation
+- Distribution — Play Store for Automotive, compliance, platform variants
 
 Android Automotive OS (AAOS) is a **full embedded operating system** that runs directly on the vehicle's infotainment head unit. For the shared Car App Library API (CarAppService, Session, Screen, Templates, Constraints, Lifecycle, Testing), see `car-app-library.md`. For Android Auto phone projection patterns, see `android-auto-patterns.md`. This file covers AAOS-specific patterns only.
-
-> **Placeholder convention:** `<latest>` / `<latest-stable-api>` are fill-in markers — replace with the current stable version / API level. The bare `<latest-stable-api>` is not valid Kotlin, so never emit it literally.
 
 
 ## AAOS vs Android Auto

@@ -2,9 +2,17 @@
 
 Adapting Android APK apps to run on Meta Quest headsets.
 
->[toc]
-
-> **Placeholder convention:** `<latest>` / `<latest-stable-api>` are fill-in markers — replace with the current stable version / API level. The bare `<latest-stable-api>` is not valid Kotlin, so never emit it literally.
+## Contents
+- Overview — Quest as an AOSP device, 2D panel mode vs native VR
+- Project Setup — Meta XR SDK, manifest configuration, build variants strategy
+- Authentication and Entitlement — Meta Platform SDK, entitlement check
+- Spatial UI — adapting 2D layouts for VR
+- Input and Interaction — replacing touch events
+- Rendering and Performance — frame rate and performance budgets
+- Passthrough and Mixed Reality — Passthrough API, scene understanding, spatial anchors
+- Distribution — Quest Store vs App Lab vs sideloading, submission requirements
+- Testing — development setup
+- Common Pitfalls — unavailable APIs, 2D vs native VR, permissions, orientation, missing Google Play Services
 
 
 ## Overview
@@ -535,7 +543,7 @@ class AnchorManager {
 
 - **Entitlement check** — mandatory for Store and App Lab.
 - **APK format** — Quest Store accepts APKs (not AABs, unlike Google Play).
-- **Target API level** — must meet Meta's minimum (currently API 29+).
+- **Target API level** — must meet the minimum published in Meta's Quest store requirements; check it before setting `targetSdk`.
 - **VR comfort rating** — apps must self-declare a comfort rating (comfortable, moderate, intense).
 - **Performance** — must maintain target frame rate without sustained dropped frames.
 - **Privacy policy** — required; must describe data collection.
