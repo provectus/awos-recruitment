@@ -1,5 +1,13 @@
 # Key and Index Design
 
+## Contents
+
+- **Partition Key Selection** — cardinality/traffic evaluation table, composite key principles
+- **Write Sharding** — random vs calculated suffixes, shard count by write rate, hot partition anti-patterns
+- **Sort Key Patterns** — hierarchical composite keys, version control pattern, entity-type prefixes, key design checklist
+- **Secondary Indexes** — GSI vs LSI, projection strategy, sparse indexes, GSI overloading, write amplification
+- **Query vs Scan** — query optimization, parallel scan guidelines, avoiding capacity spikes
+
 ## Partition Key Selection
 
 ### Evaluation guide
