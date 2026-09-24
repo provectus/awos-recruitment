@@ -22,9 +22,9 @@ This document provides detailed code patterns, structure guidelines, and modern 
 
 ### Resource Block Structure
 
-**Strict argument ordering:**
+**Argument ordering:**
 
-1. `count` or `for_each` FIRST (blank line after)
+1. `count` or `for_each` first (blank line after)
 2. Other arguments (alphabetical or logical grouping)
 3. `tags` as last real argument
 4. `depends_on` after tags (if needed)
