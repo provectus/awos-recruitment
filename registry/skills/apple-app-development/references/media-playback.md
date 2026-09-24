@@ -1,6 +1,20 @@
 # Media Playback Reference (AVFoundation & AVKit)
 
-Comprehensive guide to media playback on Apple platforms. Covers AVPlayer, AVKit integration with SwiftUI and UIKit, audio session management, Picture-in-Picture, AirPlay, offline downloads, and performance. For tvOS-specific playback patterns see `tvos-patterns.md`.
+Comprehensive guide to media playback on Apple platforms. Covers AVPlayer, AVKit integration with SwiftUI and UIKit, audio session management, Picture-in-Picture, AirPlay, offline downloads, and performance. For tvOS-specific playback patterns see `references/tvos-patterns.md`.
+
+## Contents
+- Architecture Overview
+- AVKit — Standard Playback (VideoPlayer (SwiftUI), AVPlayerViewController (UIKit / UIViewControllerRepresentable))
+- AVFoundation — Playback Engine (AVPlayer & AVPlayerItem, Time Observation, AVQueuePlayer, Custom Player UI with AVPlayerLayer)
+- AVAudioSession (Categories, Setup, Background Audio, Interruption Handling, Route Change Handling)
+- Picture-in-Picture (PiP) (With AVPlayerViewController (Simplest), With Custom Player (AVPictureInPictureController), PiP Requirements)
+- AirPlay & External Display (Enabling AirPlay, Route Detection, Route Picker (Custom UI))
+- Offline Downloads (HLS) (Download Setup, Starting a Download, Aggregate Download (Multiple Variants), Delegate Callbacks, Playing Downloaded Content, Storage Management)
+- Media Selection (Subtitles & Audio Tracks)
+- Now Playing & Remote Controls (MPNowPlayingInfoCenter, MPRemoteCommandCenter)
+- Asset Loading
+- Performance & Best Practices (Memory Management, Preloading, Error Handling)
+- Common Pitfalls
 
 ## Architecture Overview
 
@@ -18,7 +32,6 @@ Comprehensive guide to media playback on Apple platforms. Covers AVPlayer, AVKit
 ## AVKit — Standard Playback
 
 ### VideoPlayer (SwiftUI)
----
 
 The simplest way to add video playback. Provides native transport controls across all platforms.
 
@@ -51,7 +64,6 @@ struct PlayerView: View {
 `VideoPlayer` is suitable for inline playback. For fullscreen with rich metadata, use `AVPlayerViewController`.
 
 ### AVPlayerViewController (UIKit / UIViewControllerRepresentable)
----
 
 Full-featured player with transport bar, subtitle selection, AirPlay, and PiP support.
 
@@ -109,7 +121,6 @@ struct ContentView: View {
 ## AVFoundation — Playback Engine
 
 ### AVPlayer & AVPlayerItem
----
 
 ```swift
 import AVFoundation
@@ -178,7 +189,6 @@ let statusObservation = item.observe(\.status) { item, _ in
 ```
 
 ### Time Observation
----
 
 #### Periodic Time Observer
 
@@ -211,7 +221,6 @@ let observer = player.addBoundaryTimeObserver(forTimes: times, queue: .main) {
 ```
 
 ### AVQueuePlayer
----
 
 Sequential playback of multiple items:
 
@@ -243,7 +252,6 @@ print("Loop count: \(looper.loopCount)")
 ```
 
 ### Custom Player UI with AVPlayerLayer
----
 
 When `VideoPlayer` and `AVPlayerViewController` don't fit your design, render video with `AVPlayerLayer`:
 
@@ -286,7 +294,6 @@ struct CustomVideoView: UIViewRepresentable {
 
 
 ## AVAudioSession
----
 
 Configure how your app interacts with the system audio. **Must be set up before playback begins.**
 
@@ -372,7 +379,6 @@ NotificationCenter.default.addObserver(
 
 
 ## Picture-in-Picture (PiP)
----
 
 ### With AVPlayerViewController (Simplest)
 
@@ -429,7 +435,6 @@ extension PlayerManager: AVPictureInPictureControllerDelegate {
 
 
 ## AirPlay & External Display
----
 
 ### Enabling AirPlay
 
@@ -462,7 +467,6 @@ view.addSubview(routePicker)
 
 
 ## Offline Downloads (HLS)
----
 
 Download HTTP Live Streaming content for offline playback using `AVAssetDownloadURLSession`.
 
@@ -561,7 +565,6 @@ manager.setStorageManagementPolicy(policy, for: localURL)
 
 
 ## Media Selection (Subtitles & Audio Tracks)
----
 
 ```swift
 // Discover available options
@@ -595,7 +598,6 @@ player.setMediaSelectionCriteria(criteria, forMediaCharacteristic: .legible)
 
 
 ## Now Playing & Remote Controls
----
 
 Enable lock screen and Control Center controls for media apps.
 
@@ -659,7 +661,6 @@ func setupRemoteCommands() {
 
 
 ## Asset Loading
----
 
 Load asset properties asynchronously before playback:
 

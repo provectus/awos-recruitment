@@ -2,11 +2,23 @@
 
 Deep-dive companion to the main `SKILL.md`. Covers view composition, property wrappers, navigation, state management, lists, forms, custom modifiers, animations, presentation, environment/DI, SwiftData integration, and performance. Targets Swift 6+ and iOS 17+ unless noted otherwise.
 
+## Contents
+- View Composition (Extracting Subviews, ViewBuilder, Custom Containers, Generic Helper Views, Custom Container APIs (iOS 18+))
+- Property Wrappers (Quick Reference Table, @State, @Binding, @Observable (iOS 17+), @Environment, @AppStorage, …)
+- Navigation (NavigationStack, Typed Destinations, Programmatic Navigation, NavigationSplitView, Deep Linking)
+- State Management (@Observable Macro (iOS 17+), Observation Tracking, @Bindable, Sharing Observable State)
+- Lists and Grids (List, Sections in Lists, LazyVStack with ScrollView, LazyVGrid / LazyHGrid, Performance with Large Data Sets, ScrollView Patterns)
+- Forms and Input (Form Basics, Validation Patterns, @FocusState for Keyboard Management)
+- Custom View Modifiers (ViewModifier Protocol, Conditional Modifiers, Preference Keys)
+- Animations (withAnimation, .animation() Modifier, Matched Geometry Effect, Transitions, Phase Animator (iOS 17+), Keyframe Animator (iOS 17+))
+- Sheets, Alerts, Confirmations (Sheet Presentation, Full-Screen Cover, Dismissing Presented Views, Alerts, Confirmation Dialog)
+- Environment and Dependency Injection (Custom EnvironmentKey, @Observable in the Environment (iOS 17+), Dependency Container Pattern)
+- SwiftData Integration (@Model, ModelContainer Setup, @Query, ModelContext Operations)
+- Performance (Avoiding Unnecessary Redraws, Equatable Conformance, Lazy Containers, .task Lifecycle, Measuring and Debugging, Summary of Performance Rules)
 
 ## View Composition
 
 ### Extracting Subviews
----
 
 Keep `body` under ~30 lines. Extract meaningful subviews as `private` computed properties or dedicated types.
 
@@ -56,7 +68,6 @@ struct OrderDetailView: View {
 When a subview needs its own state or bindings, extract it into a separate `struct`.
 
 ### ViewBuilder
----
 
 Use `@ViewBuilder` to create functions or properties that return opaque view types, and to build custom container views.
 
@@ -84,7 +95,6 @@ Card(title: "Statistics") {
 ```
 
 ### Custom Containers
----
 
 For more complex containers, accept content via `init` with a `@ViewBuilder` closure. Use generics to keep the container agnostic to content type.
 
@@ -113,7 +123,6 @@ struct SectionContainer<Header: View, Content: View>: View {
 ```
 
 ### Generic Helper Views
----
 
 ```swift
 /// Renders content based on a loading state enum.
@@ -139,7 +148,6 @@ struct AsyncContentView<T, Loading: View, Loaded: View, Failed: View>: View {
 ```
 
 ### Custom Container APIs (iOS 18+)
----
 
 iOS 18 introduced `ForEach(subviewOf:)` and `Group(subviews:)` for building custom container views that can introspect and rearrange their children — something previously impossible without workarounds.
 
@@ -165,7 +173,6 @@ These APIs let containers inspect child count, apply per-child styling, and impl
 ## Property Wrappers
 
 ### Quick Reference Table
----
 
 | Wrapper | Scope | Use Case | Min iOS |
 |---|---|---|---|
@@ -180,7 +187,6 @@ These APIs let containers inspect child count, apply per-child styling, and impl
 | `@Query` | SwiftData | Fetch model objects declaratively | 17 |
 
 ### @State
----
 
 Owns simple, view-local state. SwiftUI manages storage; the view re-renders when the value changes.
 
@@ -212,7 +218,6 @@ struct ProfileView: View {
 **Caveat:** Unlike `@StateObject`, `@State` re-evaluates the initializer expression on every view struct recreation (SwiftUI discards the new instance, but `init()` still runs). Avoid side effects in `@Observable` class initializers — use `.task` for deferred setup.
 
 ### @Binding
----
 
 Provides read-write access to state owned by a parent. Does not own storage.
 
@@ -237,7 +242,6 @@ struct SettingsView: View {
 ```
 
 ### @Observable (iOS 17+)
----
 
 Macro that makes a class observable without `ObservableObject` or `@Published`. SwiftUI tracks property access at the per-property level, reducing unnecessary redraws.
 
@@ -273,7 +277,6 @@ struct CouponEntryView: View {
 ```
 
 ### @Environment
----
 
 Reads values from the SwiftUI environment. Used for system-provided values and custom dependencies.
 
@@ -295,7 +298,6 @@ struct DetailView: View {
 With iOS 17+, `@Environment` also works with `@Observable` types directly (see Environment and Dependency Injection section below).
 
 ### @AppStorage
----
 
 Reads and writes to `UserDefaults`. Suitable for small preferences; not for large data.
 
@@ -320,7 +322,6 @@ struct AppearanceSettings: View {
 ```
 
 ### @SceneStorage
----
 
 Persists lightweight per-scene state for scene restoration (e.g., scroll position, selected tab). Data is not shared across scenes or app launches in all cases.
 
@@ -338,7 +339,6 @@ struct ContentView: View {
 ```
 
 ### @FocusState
----
 
 Manages keyboard focus across text fields. See Forms and Input section for detailed patterns.
 
@@ -370,12 +370,10 @@ struct LoginForm: View {
 ```
 
 ### @Query (SwiftData)
----
 
 Declaratively fetches SwiftData models. See SwiftData Integration section below.
 
 ### Legacy Wrappers (Pre-iOS 17)
----
 
 These wrappers are still valid for codebases targeting iOS 16 and earlier. Avoid them in new iOS 17+ code.
 
@@ -410,7 +408,6 @@ struct ChildView: View {
 `NavigationView` is deprecated as of iOS 16. Use `NavigationStack` or `NavigationSplitView`.
 
 ### NavigationStack
----
 
 Stack-based navigation with value-driven destinations. Supports programmatic navigation and deep linking.
 
@@ -438,7 +435,6 @@ struct AppNavigationView: View {
 ```
 
 ### Typed Destinations
----
 
 Use `Hashable` types as navigation values for type-safe, composable routing.
 
@@ -471,7 +467,6 @@ struct RootView: View {
 ```
 
 ### Programmatic Navigation
----
 
 Push, pop, and reset the stack by mutating the path.
 
@@ -496,7 +491,6 @@ struct HomeView: View {
 ```
 
 ### NavigationSplitView
----
 
 Two- or three-column navigation for iPadOS and macOS.
 
@@ -534,7 +528,6 @@ struct MailView: View {
 ```
 
 ### Deep Linking
----
 
 Combine `NavigationPath` with URL/activity parsing to restore navigation state.
 
@@ -567,7 +560,6 @@ class NavigationState {
 ## State Management
 
 ### @Observable Macro (iOS 17+)
----
 
 The `@Observable` macro generates observation tracking at the per-property level. SwiftUI views only re-render when a property they actually read changes, unlike `ObservableObject` which triggers on any `@Published` change.
 
@@ -592,7 +584,6 @@ class UserSession {
 ```
 
 ### Observation Tracking
----
 
 The `@Observable` macro instruments property getters. SwiftUI's `withObservationTracking` records which properties are read during `body` evaluation, then invalidates only when those specific properties change.
 
@@ -606,7 +597,6 @@ Key differences from `ObservableObject`:
 | `@StateObject` / `@ObservedObject` in views | `@State` for owned, direct reference for non-owned |
 
 ### @Bindable
----
 
 Creates bindings to properties on an `@Observable` object. Required when you need `$` binding syntax.
 
@@ -641,7 +631,6 @@ struct DocumentView: View {
 ```
 
 ### Sharing Observable State
----
 
 Pass `@Observable` objects through the environment for app-wide state:
 
@@ -675,7 +664,6 @@ struct ProfileView: View {
 ## Lists and Grids
 
 ### List
----
 
 Use `List` for standard scrollable lists with built-in styling, swipe actions, and selection.
 
@@ -716,7 +704,6 @@ struct TaskListView: View {
 ```
 
 ### Sections in Lists
----
 
 ```swift
 List {
@@ -735,7 +722,6 @@ List {
 ```
 
 ### LazyVStack with ScrollView
----
 
 Use `LazyVStack` inside a `ScrollView` when you need more layout control than `List` provides, or when working with large datasets.
 
@@ -758,7 +744,6 @@ struct FeedView: View {
 ```
 
 ### LazyVGrid / LazyHGrid
----
 
 Grid layouts with flexible, fixed, or adaptive columns.
 
@@ -802,7 +787,6 @@ private let columns = [
 ```
 
 ### Performance with Large Data Sets
----
 
 - Prefer `LazyVStack` / `LazyVGrid` over `VStack` / `VGrid` for collections larger than ~50 items.
 - Ensure `ForEach` items conform to `Identifiable` with stable IDs. Avoid using array indices as IDs.
@@ -828,7 +812,6 @@ struct PaginatedListView: View {
 ```
 
 ### ScrollView Patterns
----
 
 ```swift
 ScrollView {
@@ -874,7 +857,6 @@ struct ScrollableList: View {
 ## Forms and Input
 
 ### Form Basics
----
 
 `Form` provides platform-appropriate styling for settings and data entry screens.
 
@@ -918,7 +900,6 @@ struct ProfileEditView: View {
 ```
 
 ### Validation Patterns
----
 
 Combine computed properties for validation state with visual feedback:
 
@@ -973,7 +954,6 @@ struct RegistrationView: View {
 ```
 
 ### @FocusState for Keyboard Management
----
 
 Control focus programmatically for multi-field forms:
 
@@ -1038,7 +1018,6 @@ struct AddressForm: View {
 ## Custom View Modifiers
 
 ### ViewModifier Protocol
----
 
 Encapsulate reusable styling or behavior in a `ViewModifier` and expose it via a `View` extension.
 
@@ -1066,7 +1045,6 @@ Text("Hello")
 ```
 
 ### Conditional Modifiers
----
 
 Avoid `if/else` in modifier chains (it changes view identity). Use a dedicated modifier or `opacity`/`disabled` instead.
 
@@ -1092,7 +1070,6 @@ extension View {
 If you truly need conditional application, wrap it with `@ViewBuilder` in a dedicated function as shown above, and understand the identity implications.
 
 ### Preference Keys
----
 
 Use `PreferenceKey` to pass data up the view hierarchy (child to parent).
 
@@ -1148,7 +1125,6 @@ struct DynamicHeader: View {
 ## Animations
 
 ### withAnimation
----
 
 Wrap state changes in `withAnimation` to animate all resulting view updates.
 
@@ -1174,7 +1150,6 @@ struct ExpandableCard: View {
 ```
 
 ### .animation() Modifier
----
 
 Applies animation to a view whenever a specific value changes. Prefer explicit `withAnimation` for clarity; use `.animation(_:value:)` for local, continuous changes.
 
@@ -1196,7 +1171,6 @@ struct ProgressBar: View {
 ```
 
 ### Matched Geometry Effect
----
 
 Animates a shared element between two views using `@Namespace`.
 
@@ -1237,7 +1211,6 @@ struct HeroAnimationView: View {
 ```
 
 ### Transitions
----
 
 Control how views appear and disappear.
 
@@ -1265,7 +1238,6 @@ struct NotificationBanner: View {
 ```
 
 ### Phase Animator (iOS 17+)
----
 
 Cycles through a sequence of phases, applying changes at each step.
 
@@ -1327,7 +1299,6 @@ struct BouncingIcon: View {
 ```
 
 ### Keyframe Animator (iOS 17+)
----
 
 For multi-property animations with independent timing:
 
@@ -1368,7 +1339,6 @@ struct AnimationValues {
 ## Sheets, Alerts, Confirmations
 
 ### Sheet Presentation
----
 
 Use `.sheet(item:)` over `.sheet(isPresented:)` when the presented content depends on data.
 
@@ -1401,7 +1371,6 @@ struct ItemListView: View {
 ```
 
 ### Full-Screen Cover
----
 
 ```swift
 .fullScreenCover(item: $selectedPhoto) { photo in
@@ -1410,7 +1379,6 @@ struct ItemListView: View {
 ```
 
 ### Dismissing Presented Views
----
 
 ```swift
 struct NewItemView: View {
@@ -1443,7 +1411,6 @@ struct NewItemView: View {
 ```
 
 ### Alerts
----
 
 ```swift
 struct DangerZoneView: View {
@@ -1481,7 +1448,6 @@ struct DangerZoneView: View {
 ```
 
 ### Confirmation Dialog
----
 
 ```swift
 struct PhotoActionView: View {
@@ -1506,7 +1472,6 @@ struct PhotoActionView: View {
 ## Environment and Dependency Injection
 
 ### Custom EnvironmentKey
----
 
 Define a custom key to inject dependencies through the SwiftUI view hierarchy.
 
@@ -1564,7 +1529,6 @@ struct UserListView: View {
 ```
 
 ### @Observable in the Environment (iOS 17+)
----
 
 With iOS 17+, you can place `@Observable` objects directly in the environment without needing a custom `EnvironmentKey`.
 
@@ -1592,7 +1556,6 @@ struct ThemedButton: View {
 ```
 
 ### Dependency Container Pattern
----
 
 For larger apps, group related dependencies:
 
@@ -1643,7 +1606,6 @@ struct MyApp: App {
 SwiftData is Apple's persistence framework (iOS 17+), built on top of Core Data with a Swift-native API. This section covers the essentials for SwiftUI integration. For a complete SwiftData guide, see dedicated resources.
 
 ### @Model
----
 
 Mark your model classes with `@Model` to make them persistable.
 
@@ -1677,7 +1639,6 @@ class Receipt {
 ```
 
 ### ModelContainer Setup
----
 
 ```swift
 @main
@@ -1704,7 +1665,6 @@ let container = try ModelContainer(
 ```
 
 ### @Query
----
 
 Declaratively fetch and filter SwiftData models. The view automatically updates when data changes.
 
@@ -1769,7 +1729,6 @@ struct ExpenseResults: View {
 ```
 
 ### ModelContext Operations
----
 
 ```swift
 struct AddExpenseView: View {
@@ -1799,7 +1758,6 @@ struct AddExpenseView: View {
 ## Performance
 
 ### Avoiding Unnecessary Redraws
----
 
 SwiftUI re-evaluates `body` when observed state changes. Minimize the blast radius:
 
@@ -1844,7 +1802,6 @@ struct HeaderView: View {
 ```
 
 ### Equatable Conformance
----
 
 For views with complex inputs, conform to `Equatable` to give SwiftUI a fast equality check and skip unnecessary `body` evaluations.
 
@@ -1880,14 +1837,12 @@ struct ExpensiveRow: View, Equatable {
 ```
 
 ### Lazy Containers
----
 
 - Use `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` for large collections. They create child views on demand.
 - Regular `VStack` / `HStack` create all children immediately, which is fine for small, fixed sets.
 - `List` is inherently lazy.
 
 ### .task Lifecycle
----
 
 `.task` is the preferred way to tie async work to a view's lifecycle. It starts when the view appears and cancels automatically when the view disappears.
 
@@ -1913,7 +1868,6 @@ struct UserProfileView: View {
 ```
 
 ### Measuring and Debugging
----
 
 - Use Instruments (SwiftUI template) to profile view body evaluations.
 - Add `Self._printChanges()` inside `body` during development to see what triggers re-renders:

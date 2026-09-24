@@ -2,6 +2,17 @@
 
 Patterns for bridging UIKit and SwiftUI. Use UIKit only when SwiftUI lacks the capability. Target: Swift 6+ / iOS 17+.
 
+## Contents
+- UIViewRepresentable (Lifecycle, Basic Example, Coordinator Pattern, Key Rules, Sizing)
+- UIViewControllerRepresentable (Camera (UIImagePickerController), Document Picker, Mail Compose, Key Rules)
+- Hosting SwiftUI in UIKit (Presenting a SwiftUI View, Embedding as a Child View Controller, Sizing Considerations, In UITableView / UICollectionView Cells)
+- Navigation Interop (Mixing UINavigationController with SwiftUI, Passing Data Between UIKit and SwiftUI, Coordinator Pattern for Mixed Navigation, Key Rules)
+- When to Use UIKit (Decision Guide, SwiftUI Gaps by SDK Release)
+- Migration Strategy (Incremental Migration from UIKit to SwiftUI, Shared ViewModel Layer, Screen-by-Screen Approach, Key Rules)
+- AppKit Interop (macOS) (NSViewRepresentable, NSViewControllerRepresentable, NSHostingController / NSHostingView, Platform Mapping)
+- Swift 6 Concurrency and Representables
+- Common Pitfalls (Memory Management, Update Cycles, Keyboard Handling, Safe Area Differences, Other Common Issues)
+
 ## UIViewRepresentable
 
 Wraps a UIKit `UIView` for use inside SwiftUI.
@@ -453,26 +464,34 @@ class AppCoordinator: Coordinator {
 | Need | Recommendation |
 |------|---------------|
 | Standard UI (lists, forms, navigation) | SwiftUI |
-| Rich text editing (`NSAttributedString`, text attachments) | UIKit (`UITextView`) |
+| Rich text editing (`NSAttributedString`, text attachments) | UIKit (`UITextView`) below iOS 26; SwiftUI `TextEditor` + `AttributedString` on iOS 26+ |
 | Complex collection layouts (compositional, self-sizing cells with many edge cases) | UIKit (`UICollectionViewCompositionalLayout`) |
 | Camera / barcode scanning | UIKit (`AVCaptureSession`, `UIImagePickerController`) |
 | Custom gesture recognizer subclasses | UIKit |
 | Drag-and-drop with fine-grained control | UIKit |
 | MapKit with heavy annotation customization | UIKit (`MKMapView`) |
-| WebView with navigation delegates | UIKit (`WKWebView`) |
+| WebView with navigation delegates | UIKit (`WKWebView`) below iOS 26; SwiftUI `WebView` + `WebPage` on iOS 26+ |
 | Existing large UIKit codebase | Keep UIKit, migrate incrementally |
 | PDF rendering and annotation | UIKit (`PDFKit`) |
 | In-app mail / message compose | UIKit (`MFMailComposeViewController`) |
 | Complex keyboard management (input accessories, custom inputs) | UIKit |
 | Accessibility requiring `UIAccessibilityCustomAction` fine-tuning | UIKit |
 
-### Capabilities SwiftUI Still Lacks or Has Limited Support For (as of iOS 17/18)
+### SwiftUI Gaps by SDK Release
 
-- **`UITextView` equivalent with full attributed string support** -- SwiftUI `TextEditor` is basic; no inline images, no link taps, no custom `NSTextStorage`.
+Anchor "SwiftUI can't do X" to the SDK that closed the gap, then check the project's deployment target — a gap only matters if the app must run on an OS that predates the fix.
+
+**Closed in iOS 26:**
+
+- **Rich text editing** -- `TextEditor` binds to `AttributedString` (with `AttributedTextSelection`) and supports formatting, links, and Markdown. Targets below iOS 26 still need `UITextView`.
+- **Web content** -- `WebView` renders HTML/CSS/JS and pairs with `WebPage` (an `@Observable` class) for navigation control. Targets below iOS 26 still need `WKWebView` via `UIViewRepresentable`.
+
+**Not covered by SwiftUI through the iOS 26 SDK** (verify against newer SDK release notes before relying on this):
+
 - **First responder management** -- `@FocusState` covers common cases but does not support programmatic first responder resignation in all contexts.
 - **Custom input views and input accessory views** -- no SwiftUI API for replacing the keyboard with a custom view.
-- **Fine-grained scroll view control** -- `ScrollViewReader` lacks scroll deceleration rate, content inset, and pull-to-refresh customization at the UIKit level.
-- **`UICollectionView` compositional layout** -- SwiftUI `Grid` and `LazyVGrid`/`LazyHGrid` do not match the power of `NSCollectionLayoutSection` with orthogonal scrolling, estimated dimensions, and supplementary views.
+- **Fine-grained scroll view control** -- `scrollTargetBehavior` (iOS 17) and `onScrollGeometryChange` (iOS 18) cover snapping and position, but deceleration rate, content inset, and pull-to-refresh internals remain UIKit-level.
+- **`UICollectionView` compositional layout** -- SwiftUI `Grid` and `LazyVGrid`/`LazyHGrid` do not match `NSCollectionLayoutSection` with orthogonal scrolling, estimated dimensions, and supplementary views.
 - **Subclassing views or view controllers** for advanced lifecycle hooks.
 
 

@@ -1129,11 +1129,11 @@ To configure push-based widget updates:
 
 WidgetKit push updates are budgeted and delivered opportunistically — they supplement the system's refresh budget rather than bypassing it, so they aren't guaranteed to be immediate.
 
-### Platform Availability Update
+### Platform Availability (visionOS 26, iOS 26)
 
-> **visionOS 26**: WidgetKit is now supported on visionOS, allowing widgets to appear in the Home View alongside app icons. Existing iOS widgets can run with minimal adaptation — ensure your widget supports appropriate families and test with the visionOS simulator.
+> **Introduced in visionOS 26**: WidgetKit support on visionOS, allowing widgets to appear in the Home View alongside app icons. Existing iOS widgets can run with minimal adaptation — ensure your widget supports appropriate families and test with the visionOS simulator.
 >
-> **CarPlay (iOS 26)**: CarPlay widgets are being introduced, enabling glanceable information on the CarPlay dashboard. CarPlay widgets use a constrained set of families and emphasize large, readable text with minimal interactivity for driver safety. Adopt `.systemSmall` as the primary family for CarPlay and follow the CarPlay Human Interface Guidelines for layout.
+> **Introduced in iOS 26**: CarPlay widgets, enabling glanceable information on the CarPlay dashboard. CarPlay widgets use a constrained set of families and emphasize large, readable text with minimal interactivity for driver safety. Adopt `.systemSmall` as the primary family for CarPlay and follow the CarPlay Human Interface Guidelines for layout.
 
 ### Common Pitfalls
 
