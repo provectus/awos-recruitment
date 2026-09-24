@@ -17,15 +17,46 @@ description: >-
 This skill covers how to build production-grade agentic workflows using
 LangGraph and deploy them on AWS Bedrock AgentCore.
 
+## New Agent Workflow
+
+Building an agent on AgentCore is a sequence, not a menu. The interrupt/resume
+test and the Cedar `LOG_ONLY` shadow phase are cheap before deployment and
+expensive after, so they earn their place in the order below. Copy this
+checklist into your response and tick items off as you go.
+
+- [ ] **Define the state** — typed `TypedDict`, with a reducer on every key a
+      parallel node writes (see below).
+- [ ] **Write the nodes** — one responsibility each, provenance attached to
+      every AI-produced value (`references/production-patterns.md`, *Evidence
+      Traceability*).
+- [ ] **Place the HITL gates** — pick async / blocking / deferred per gate and
+      route to them on confidence, not on node success.
+- [ ] **Attach a durable checkpointer** — before the first `interrupt()`, not
+      after. An interrupt with an in-memory saver loses the run.
+- [ ] **Move model tiers into configuration** — node→tier mapping and model IDs
+      in deployment config, with a fallback chain per tier.
+- [ ] **Deploy the Cedar policies in `LOG_ONLY`** — analyse the DENY decisions
+      before flipping to `ENFORCE` (`references/agentcore-deployment.md`,
+      *AgentCore Policy*).
+- [ ] **Run the interrupt/resume test** — assert the graph stops at the gate and
+      completes after `Command(resume=...)`
+      (`references/production-patterns.md`, *Testing Strategies*).
+- [ ] **Deploy** — `BedrockAgentCoreApp` entrypoint, then canary
+      (`references/agentcore-deployment.md`, *AgentCore Runtime*).
+
 ## StateGraph Design Principles
 
-### Graph Structure
+### State Shape
 
-Every workflow is a `StateGraph` with typed state, nodes, and edges:
+`StateGraph`, `add_node`/`add_edge` wiring and `START`/`END` behave exactly as
+the LangGraph docs describe. What is worth deciding deliberately is what goes
+*into* the state: carry confidence, review decisions and the current stage
+explicitly, so an interrupted run can be resumed and audited from the
+checkpoint alone.
 
 ```python
-from langgraph.graph import StateGraph, START, END
-from typing import TypedDict, Annotated
+from operator import add
+from typing import Annotated, TypedDict
 
 class PipelineState(TypedDict):
     task_id: str
@@ -35,19 +66,11 @@ class PipelineState(TypedDict):
     review_decisions: list[dict]
     status: str
     current_stage: str
-
-graph = StateGraph(PipelineState)
-graph.add_node("parse", parse_node)
-graph.add_node("transform", transform_node)
-graph.add_node("validate", validate_node)
-graph.add_node("output", output_node)
-
-graph.add_edge(START, "parse")
-graph.add_edge("parse", "transform")
-graph.add_edge("transform", "validate")
-graph.add_edge("validate", "output")
-graph.add_edge("output", END)
 ```
+
+The reducer is what makes fan-out safe. Without `Annotated[..., add]`, two
+parallel nodes writing `processed_results` in the same superstep raise
+`InvalidUpdateError` instead of merging.
 
 ### Node Design Rules
 
@@ -61,19 +84,21 @@ graph.add_edge("output", END)
    references linking to source data (document ID, page, coordinates). This
    enables replay, debugging, and auditability.
 
-### Conditional Routing
+### Confidence Routing
 
-Use `add_conditional_edges` for decision points:
+The branch that matters is the one taken on confidence: it decides which of the
+three HITL patterns below a result lands in. Keep the band boundaries in
+configuration (see *Per-Field Thresholds*) rather than in the router.
 
 ```python
 def route_by_confidence(state: PipelineState) -> str:
-    confidence = state["confidence_scores"].get("overall", 0)
+    """Map overall confidence onto an auto / review / escalate branch."""
+    confidence = state["confidence_scores"].get("overall", 0.0)
     if confidence >= 0.85:
         return "auto_proceed"
-    elif confidence >= 0.60:
+    if confidence >= 0.60:
         return "human_review"
-    else:
-        return "escalated_review"
+    return "escalated_review"
 
 graph.add_conditional_edges(
     "assess_confidence",
@@ -88,10 +113,11 @@ graph.add_conditional_edges(
 
 ### Parallel Execution (Fan-Out / Fan-In)
 
-Use `Send` for parallel node execution:
+Return `Send` objects from a conditional edge to fan out. Every target writes
+back into the same state, so each key they touch needs a reducer.
 
 ```python
-from langgraph.constants import Send
+from langgraph.types import Send  # not langgraph.constants — deprecated in v1.0
 
 def fan_out_enrichment(state: PipelineState) -> list[Send]:
     """Run data sources in parallel."""
@@ -102,7 +128,6 @@ def fan_out_enrichment(state: PipelineState) -> list[Send]:
     ]
 
 graph.add_conditional_edges("processing_done", fan_out_enrichment)
-# All parallel nodes write to state; use a reducer to merge results
 ```
 
 ## Human-in-the-Loop with interrupt()
@@ -162,44 +187,42 @@ result = graph.invoke(
 
 ## Checkpointing for Long-Running Workflows
 
-AgentCore supports sessions up to 8 hours. For workflows spanning days
-(e.g., waiting for external input), use checkpoint persistence.
+An AgentCore session is bounded — check the current session, request-timeout
+and async-job limits in the [AgentCore quotas][quotas] before assuming a
+workflow fits inside one. The design rule does not depend on the number:
+**anything that may outlive a session — a HITL gate waiting on a human, a
+multi-day approval — must checkpoint to durable storage**, so a fresh session
+resumes from the checkpoint instead of re-running the graph.
+
+[quotas]: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html
 
 ### Setup
 
 ```python
 from langgraph.checkpoint.postgres import PostgresSaver
 
-# Use PostgreSQL for durable checkpoints
-checkpointer = PostgresSaver.from_conn_string(db_url)
+# from_conn_string is a context manager — it owns the psycopg connection,
+# so compile and invoke inside the `with` block.
+with PostgresSaver.from_conn_string(db_url) as checkpointer:
+    checkpointer.setup()  # creates the checkpoint tables; idempotent
 
-app = graph.compile(checkpointer=checkpointer)
+    app = graph.compile(checkpointer=checkpointer)
 
-# Each workflow gets its own thread
-config = {"configurable": {"thread_id": f"workflow-{task_id}"}}
-result = app.invoke(initial_state, config)
+    # Each workflow gets its own thread
+    config = {"configurable": {"thread_id": f"workflow-{task_id}"}}
+    result = app.invoke(initial_state, config)
 ```
 
-### State Recovery
+### Recovery and Replay
+
+`app.get_state(config).next` is non-empty exactly when the thread is parked at
+an interrupt — that is the resume check, and `app.get_state_history(config)`
+walks every prior snapshot for audit and debugging.
 
 ```python
 # Resume a previously interrupted workflow
-state = app.get_state(config)
-if state.next:  # There are pending nodes
-    result = app.invoke(
-        Command(resume=human_decision),
-        config
-    )
-```
-
-### Replay and Debugging
-
-```python
-# Walk through all state transitions for a case
-for state_snapshot in app.get_state_history(config):
-    print(f"Step: {state_snapshot.next}")
-    print(f"State: {state_snapshot.values}")
-    print(f"Created: {state_snapshot.created_at}")
+if app.get_state(config).next:  # There are pending nodes
+    result = app.invoke(Command(resume=human_decision), config)
 ```
 
 ## 3-Tier Model Routing
@@ -214,30 +237,59 @@ Use different model tiers based on task complexity to optimise cost:
 
 ### Implementation
 
-```python
-from enum import Enum
+Model IDs belong in configuration, never in a router literal. A Bedrock model ID
+carries a version and date suffix, and a cross-region inference profile adds a
+geography prefix (`us.`, `eu.`, `apac.`); both change with every model release,
+and a stale literal fails at runtime with `ValidationException`. Resolve the IDs
+your account can actually call with `bedrock.list_inference_profiles()` /
+`list_foundation_models()` and pin the result in config, so a model retirement
+is a config change rather than a code change.
 
-class ModelTier(Enum):
+```python
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import StrEnum
+
+class ModelTier(StrEnum):
     FAST = "fast"
     BALANCED = "balanced"
     PREMIUM = "premium"
 
-MODEL_MAP = {
-    ModelTier.FAST: "anthropic.claude-haiku",
-    ModelTier.BALANCED: "anthropic.claude-sonnet",
-    ModelTier.PREMIUM: "anthropic.claude-opus",
-}
+class NoModelAvailable(RuntimeError):
+    """Every model in a tier's chain was unavailable."""
 
-def get_model(tier: ModelTier, config: dict) -> str:
-    """Resolve model ID with fallback chain."""
-    primary = MODEL_MAP[tier]
-    fallbacks = config.get("fallbacks", {}).get(tier, [])
-    return primary  # Actual implementation checks availability
+@dataclass(frozen=True, slots=True)
+class RouterConfig:
+    """Bedrock model IDs per tier, loaded from deployment config."""
+
+    primary: dict[ModelTier, str]
+    fallbacks: dict[ModelTier, list[str]] = field(default_factory=dict)
+
+def get_model(
+    tier: ModelTier,
+    config: RouterConfig,
+    is_available: Callable[[str], bool],
+) -> str:
+    """Return the first available model ID for *tier*.
+
+    ``is_available`` is the circuit breaker from
+    ``references/production-patterns.md`` — pass the real one, so a throttled
+    model is skipped rather than retried into the same failure.
+
+    Raises:
+        NoModelAvailable: neither the primary nor any fallback was available.
+    """
+    chain = [config.primary[tier], *config.fallbacks.get(tier, [])]
+    for model_id in chain:
+        if is_available(model_id):
+            return model_id
+    raise NoModelAvailable(f"no model available for tier {tier}; tried {chain}")
 ```
 
 ### Fallback Chain
 
-When a model is unavailable (throttled, outage), fall through:
+Order the per-tier `fallbacks` list so that, when a model is unavailable
+(throttled, outage), the router falls through:
 
 1. Primary model in primary region
 2. Same model via cross-region inference
@@ -269,31 +321,45 @@ pipeline_nodes:
 
 ### Two-Stage Hybrid
 
+Stage 2 fans out real model calls, so the whole function is `async` — a sync
+node here serialises the samples and blocks the event loop.
+
 ```python
-def estimate_confidence(field: dict, config: dict) -> dict:
+from dataclasses import dataclass
+
+@dataclass(frozen=True, slots=True)
+class ConfidenceConfig:
+    """Self-consistency sampling parameters, from the field catalog config."""
+
+    sample_count: int = 5
+    temperature: float = 0.7
+
+async def estimate_confidence(field: dict, config: ConfidenceConfig) -> dict:
     """Two-stage confidence estimation."""
 
     # Stage 1: Business rules (deterministic, ~0ms)
-    rule_result = apply_business_rules(field, config)
-    if rule_result.tier == "high":
-        return {"band": "high", "stage": "business_rule", "rules": rule_result.rules}
-    if rule_result.tier == "low":
-        return {"band": "low", "stage": "business_rule", "rules": rule_result.rules}
+    rule_result = apply_business_rules(field)
+    if rule_result.tier in ("high", "low"):
+        return {
+            "band": rule_result.tier,
+            "stage": "business_rule",
+            "rules": rule_result.rules,
+        }
 
     # Stage 2: Self-consistency (statistical, ~2-5s)
     # Only for medium-confidence outputs
     samples = await run_parallel_extractions(
         prompt=field["prompt"],
-        n=config.sample_count,  # default 5
-        temperature=config.temperature,  # default 0.7
+        n=config.sample_count,
+        temperature=config.temperature,
     )
     agreement = compute_agreement(samples)
 
     band = (
-        "high" if agreement >= 0.80 else
-        "medium" if agreement >= 0.60 else
-        "low" if agreement >= 0.40 else
-        "very_low"
+        "high" if agreement >= 0.80
+        else "medium" if agreement >= 0.60
+        else "low" if agreement >= 0.40
+        else "very_low"
     )
 
     return {
@@ -414,21 +480,10 @@ def cost_aware_node(state: PipelineState) -> dict:
 
 ### LangSmith Tracing
 
-Instrument every agent with LangSmith for full prompt/response capture:
-
-```python
-import os
-os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_PROJECT"] = "my-agent-pipeline"
-
-# All LangGraph executions are automatically traced
-# Each node execution becomes a span with:
-# - Input state
-# - Output state
-# - Model invocations (prompt, response, tokens, latency)
-# - Tool calls
-# - Errors
-```
+Set `LANGSMITH_TRACING=true` and `LANGSMITH_PROJECT` in the runtime environment,
+not in code, and every node execution becomes a span carrying its input state,
+output state, model calls and tool calls. What matters here is what you pull off
+those spans:
 
 ### Key Metrics
 
@@ -452,7 +507,23 @@ These integrate with CloudWatch for dashboards and alerting.
 
 ## Reference Files
 
-- `references/agentcore-deployment.md` — AgentCore Runtime, Gateway, Policy,
-  Memory, and Identity setup. CDK patterns. CI/CD for agents.
-- `references/production-patterns.md` — Evidence traceability, error handling,
-  idempotency, testing strategies, and Bedrock Guardrails configuration.
+Both bundle several independent topics and open with a contents list — read the
+section you need, not the file.
+
+`references/agentcore-deployment.md` — **Runtime** when writing the deployment
+entrypoint or sizing sessions; **Gateway** when exposing a Lambda or REST API as
+a tool; **Policy** when authoring Cedar policies or rolling them `LOG_ONLY` →
+`ENFORCE`; **Memory** for context across sessions; **Identity** for workload
+identity and outbound auth; **CDK Deployment Patterns** for stack layout and
+agent CI/CD; **Bedrock Foundation Models** when resolving model IDs or
+cross-region inference; **Bedrock Guardrails** when configuring guardrails.
+
+`references/production-patterns.md` — **Evidence Traceability** when designing
+what a node returns; **Error Handling** when implementing the fallback chain or
+circuit breaker; **Idempotency** when wiring retries or external writes;
+**Testing Strategies** for the interrupt/resume check in the workflow above;
+**Semantic Caching** when prompts repeat; **Bedrock Guardrails Configuration**
+when hardening against prompt injection.
+
+`references/evals.md` — behaviour checks for this skill. Read when changing the
+skill, not when using it.
