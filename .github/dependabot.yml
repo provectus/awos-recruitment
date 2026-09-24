@@ -1,10 +1,21 @@
-# Dependabot keeps three dependency surfaces current and opens PRs for
-# security advisories. Without it, 24 advisories (5 critical) sat unnoticed
-# on main until the Image Scan went red on 2026-09-24 (anyio CVE-2026-63374).
+# Dependabot version updates for the three dependency surfaces in this repo.
 #
-# Cooldown mirrors the server's uv policy (`exclude-newer = "7 days"` in
-# server/pyproject.toml): a release must be public for a week before a bump
-# PR is opened. Security updates ignore the cooldown by design.
+# What this file does: opens weekly, grouped PRs when a newer version of a
+# dependency exists. `allow: dependency-type: all` makes the npm and uv
+# entries cover transitive (lock-only) packages too — anyio, which turned the
+# Image Scan red on 2026-09-24 (CVE-2026-63374), is not in pyproject.toml,
+# only in uv.lock.
+#
+# What this file cannot do: enable Dependabot *security* updates. That is a
+# repository setting (Settings > Code security > Dependabot security updates),
+# enabled separately on 2026-09-24. Security PRs skip the cooldown below, but
+# for the uv surface they still run through `uv lock --upgrade-package`, so
+# the server's own `exclude-newer = "7 days"` (server/pyproject.toml) applies:
+# a fix uploaded less than a week ago needs a manual `exclude-newer-package`
+# exemption before a PR can be produced.
+#
+# Cooldown mirrors that uv policy: a release must be public for 7 days before
+# a version-update PR is opened.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -25,13 +36,15 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    allow:
+      - dependency-type: all
     cooldown:
       default-days: 7
     groups:
-      cli-dev:
-        dependency-type: development
       cli-runtime:
         dependency-type: production
+      cli-dev:
+        dependency-type: development
     commit-message:
       prefix: "chore(deps)"
 
@@ -40,6 +53,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    allow:
+      - dependency-type: all
     cooldown:
       default-days: 7
     groups:

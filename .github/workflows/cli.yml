@@ -13,13 +13,16 @@ on:
     branches: [main]
     paths:
       - "cli/**"
+      - ".github/workflows/cli.yml"
 
 permissions:
   contents: read
 
 concurrency:
   group: cli-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs, but never a run on main: every main commit
+  # should keep its own pass/fail record.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -47,3 +50,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check the published tarball contains no test files
+        run: |
+          set -euo pipefail
+          files=$(npm pack --dry-run --json | node -e 'const p=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(p[0].files.map(f=>f.path).join("\n"))')
+          echo "$files"
+          if echo "$files" | grep -q "__tests__"; then
+            echo "::error::dist/ contains test files; check tsconfig.build.json excludes"
+            exit 1
+          fi

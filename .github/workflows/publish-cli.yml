@@ -19,10 +19,34 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  # One lint+test pass gates both npm scopes, so a runner flake cannot publish
+  # one scope and not the other.
+  check:
     if: |
       (github.event.pull_request.merged == true &&
        contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  publish:
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -50,9 +74,6 @@ jobs:
           cache-dependency-path: cli/package-lock.json
 
       - run: npm ci
-
-      - name: Type-check and test before publishing
-        run: npm run lint && npm test
 
       - name: Read version from package.json
         id: pkg

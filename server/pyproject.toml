@@ -31,22 +31,14 @@ build-backend = "hatchling.build"
 # 7 days of public scrutiny before we'll pick it up).
 exclude-newer = "7 days"
 
-# Per-package cooldown exemptions. Each one trades a few days of the window for
-# a known, published CVE fix, and pins a fixed cutoff so the exemption admits
-# exactly the release it was opened for. Cutoffs are written as explicit UTC
-# timestamps: a bare date is resolved against the locking machine's local
-# timezone, so it produces a different lock depending on who runs `uv lock`.
-#
-# starlette 1.3.1 (published 2026-06-12) is the only release that patches HIGH
-# CVE-2026-54283 (form-limit DoS), but it landed 1 day inside the 7-day window.
-# The known, published CVE outweighs the marginal supply-chain risk of a 6-day-old
-# release from a reputable maintainer (Encode).
-#
-# cryptography 50.0.0 (published 2026-07-31) is the first release that patches
-# HIGH CVE-2026-69247 (PKCS#7 EnvelopedData Bleichenbacher oracle); it also
-# carries the CVE-2026-69249 path-building fix from 49.0.0. It landed 5 days
-# inside the window, and the maintainer is PyCA.
-exclude-newer-package = { starlette = "2026-06-13T22:00:00Z", cryptography = "2026-08-01T00:00:00Z" }
+# Per-package cooldown exemptions (`exclude-newer-package = { pkg = "<UTC timestamp>" }`)
+# trade a few days of the window for a known, published CVE fix. Each one is a
+# fixed ceiling for that package, so remove it once the release it admitted is
+# older than the window — otherwise Dependabot and `uv lock --upgrade` can never
+# move the package past it. Write cutoffs as explicit UTC timestamps: a bare
+# date resolves against the locking machine's timezone. None are active today
+# (the starlette 1.3.1 and cryptography 50.0.0 exemptions expired and were
+# dropped on 2026-09-24).
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/awos_recruitment_mcp"]
