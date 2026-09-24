@@ -1,5 +1,14 @@
 # Metrics and Alarms
 
+## Contents
+
+- Built-in Lambda Metrics
+- Recommended Alarms
+- Embedded Metric Format (EMF)
+- Structured Logging
+- AWS X-Ray
+- Cost Anomaly Detection
+
 ## Built-in Lambda Metrics
 
 Lambda publishes these metrics to CloudWatch automatically (no instrumentation required):

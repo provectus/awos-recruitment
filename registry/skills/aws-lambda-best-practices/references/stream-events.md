@@ -1,5 +1,16 @@
 # Working with Streams
 
+## Contents
+
+- Event Source Mapping Basics
+- Batch Tuning
+- Partial Batch Response
+- Kinesis Scaling
+- IteratorAge Monitoring
+- DynamoDB Streams
+- SQS Integration
+- Idempotency for Streams
+
 ## Event Source Mapping Basics
 
 Lambda uses **event source mappings** to poll streams and queues and invoke your function with batches of records. Lambda manages the polling infrastructure -- you configure batch size, batching window, and error handling.
@@ -202,4 +213,4 @@ Configure a DLQ on the SQS queue (not on the Lambda function) for SQS sources:
 - SQS: visibility timeout expiry causes redelivery (FIFO included -- queue-level deduplication does not make Lambda delivery exactly-once)
 - Partial batch response: successfully processed records in a failed batch may be re-delivered depending on checkpoint behavior
 
-See `function-design.md` for idempotency implementation patterns and key selection by event source.
+See `references/function-design.md` for idempotency implementation patterns and key selection by event source.
