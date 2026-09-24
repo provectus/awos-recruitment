@@ -514,6 +514,10 @@ variable "backup_retention" {
 
 **Use write-only arguments or external secret management for every secret.**
 
+Read the secret through an `ephemeral` resource rather than a `data` source:
+Terraform writes data-source results to state, and `password_wo` protects only
+the resource attribute.
+
 Each resource also needs a provider version that implements the argument —
 `aws_db_instance.password_wo` landed in AWS provider 5.88.0. The canonical pins
 below (`= 1.14.8`, `= 6.41.0`) clear both floors, so this example applies as
@@ -522,13 +526,9 @@ written; check the pins in `versions.tf` first, and see
 versions.
 
 ```hcl
-# GOOD - External secret with write-only argument
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - External secret, ephemeral lookup, write-only argument
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
@@ -538,6 +538,16 @@ resource "aws_db_instance" "this" {
 
   # write-only: Terraform sends to AWS then forgets it (not in state).
   # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
+}
+
+# BAD - Data source puts the secret in state before password_wo sees it
+data "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
+}
+
+resource "aws_db_instance" "this" {
   password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
   password_wo_version = 1
 }
@@ -773,13 +783,9 @@ resource "aws_db_instance" "this" {
 **Option 1: Write-only arguments (Terraform 1.11+)**
 
 ```hcl
-# GOOD - Fetch from AWS Secrets Manager
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - Ephemeral fetch from AWS Secrets Manager (never lands in state)
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
@@ -788,7 +794,7 @@ resource "aws_db_instance" "this" {
 
   # write-only: Sent to AWS, not stored in state.
   # password_wo_version is required alongside password_wo; bump it to rotate.
-  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
   password_wo_version = 1
 }
 ```
@@ -812,7 +818,7 @@ an application needs its ARN.
 **Migration steps:**
 
 1. Create secret in AWS Secrets Manager (outside Terraform)
-2. Update Terraform to use data sources
+2. Read the secret with an `ephemeral` lookup (not a `data` source)
 3. Use write-only argument (if Terraform 1.11+)
 4. Remove `random_password` resource or variable
 5. Run `terraform apply` to update

@@ -509,7 +509,7 @@ git commit -m "Update provider versions"
 # Step 1: Create secret in AWS Secrets Manager (outside Terraform)
 aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 
-# Step 2: Update Terraform to use data sources
+# Step 2: Read it with an ephemeral lookup, not a data source (data is state)
 # Step 3: Use write-only argument (Terraform 1.11+)
 # Step 4: Remove random_password resource or variable
 # Step 5: Apply and verify secret not in state

@@ -97,13 +97,12 @@ variable "database_password" {
 ### ✅ DO: Read a Pre-existing Secret Into a Write-only Argument
 
 ```hcl
-# Good: Reference a secret created outside Terraform, pass it write-only
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod/database/password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# Good: Reference a secret created outside Terraform, pass it write-only.
+# The lookup is `ephemeral`, not `data`: Terraform persists data-source results
+# to state, so a `data "aws_secretsmanager_secret_version"` would write the
+# password to state even though `password_wo` keeps it out of the resource.
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod/database/password"
 }
 
 resource "aws_db_instance" "this" {
@@ -114,13 +113,14 @@ resource "aws_db_instance" "this" {
   # password_wo is sent to AWS and never written to state.
   # password_wo_version is required whenever password_wo is set - bump it to
   # make Terraform push a rotated secret.
-  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
   password_wo_version = 1
 }
 ```
 
 Plain `password = ...` is what puts the secret in state, so it stays a DON'T
-even when the value comes from Secrets Manager. See
+even when the value comes from Secrets Manager — and so does reading the secret
+through a `data` source, whose result is state either way. See
 [Secrets Management](#secrets-management) for the version requirements and the
 fallback for older pins.
 
@@ -274,15 +274,13 @@ bucket. So the secret value should never pass through a regular argument.
 ### Default: Pre-existing Secret + Write-only Argument
 
 Create the secret outside Terraform (console, CLI, or a separate
-bootstrap process), then read it and pass it as a write-only argument:
+bootstrap process), then read it through an **ephemeral** lookup and pass it as
+a write-only argument. Both halves are needed: the ephemeral resource keeps the
+fetched value out of state, `password_wo` keeps it out of the resource.
 
 ```hcl
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod/database/password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod/database/password"
 }
 
 resource "aws_db_instance" "this" {
@@ -290,16 +288,23 @@ resource "aws_db_instance" "this" {
   instance_class = "db.t3.micro"
   username       = "admin"
 
-  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
   password_wo_version = 1
 }
 ```
 
+**Why not a data source:** Terraform records data-source results in state, so
+`data "aws_secretsmanager_secret_version"` puts the password in state before it
+ever reaches `password_wo`. The write-only argument protects the resource
+attribute, not the lookup.
+
 **Requirements:** write-only arguments need Terraform 1.11+, and each resource
 needs a provider version that implements them — `aws_db_instance.password_wo`
-landed in AWS provider 5.88.0. Check the pins in `versions.tf` before
-generating this pattern; under older pins Terraform rejects the argument with
-"An argument named `password_wo` is not expected here."
+landed in AWS provider 5.88.0. Ephemeral resources need Terraform 1.10+, and
+`ephemeral "aws_secretsmanager_secret_version"` landed in AWS provider 5.77.0,
+so the write-only floor is the binding one. Check the pins in `versions.tf`
+before generating this pattern; under older pins Terraform rejects the argument
+with "An argument named `password_wo` is not expected here."
 `password_wo_version` is required whenever `password_wo` is set; increment it
 to push a rotated value.
 
