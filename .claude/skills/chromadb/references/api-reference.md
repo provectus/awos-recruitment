@@ -323,15 +323,43 @@ Default for `get()`: `["documents", "metadatas"]`
 
 Chroma provides built-in wrappers for common embedding providers:
 
-| Function | Import | Requires |
-|---|---|---|
-| SentenceTransformer | `SentenceTransformerEmbeddingFunction` | `sentence-transformers` package |
-| OpenAI | `OpenAIEmbeddingFunction` | `OPENAI_API_KEY` env var |
-| Cohere | `CohereEmbeddingFunction` | `COHERE_API_KEY` env var |
-| HuggingFace | `HuggingFaceEmbeddingFunction` | `HUGGINGFACE_API_KEY` env var |
-| Default (ONNX) | (none — used automatically) | Built-in, no setup |
+| Function | Import | Package | Default key env var |
+|---|---|---|---|
+| SentenceTransformer | `SentenceTransformerEmbeddingFunction` | `sentence-transformers` | (none — runs locally) |
+| OpenAI | `OpenAIEmbeddingFunction` | `openai` | `CHROMA_OPENAI_API_KEY` |
+| Cohere | `CohereEmbeddingFunction` | `cohere`, `pillow` | `CHROMA_COHERE_API_KEY` |
+| HuggingFace | `HuggingFaceEmbeddingFunction` | `httpx` | `CHROMA_HUGGINGFACE_API_KEY` |
+| Default (ONNX) | (none — used automatically) | Built-in | (none) |
 
 All embedding functions are in `chromadb.utils.embedding_functions`.
+
+### API keys
+
+Each hosted provider wrapper takes an `api_key_env_var` argument naming the
+variable to read, and it defaults to the `CHROMA_`-prefixed form in the table
+above. Two things are easy to get wrong:
+
+- The unprefixed legacy variable (`OPENAI_API_KEY`, `COHERE_API_KEY`,
+  `HUGGINGFACE_API_KEY`) is still honoured, and when it is set it **overrides**
+  `api_key_env_var` — including a value you passed explicitly. If both are set,
+  the unprefixed one wins.
+- `api_key="sk-…"` passed inline raises a `DeprecationWarning` and is not
+  written to the collection configuration ("Direct api_key configuration will
+  not be persisted"), so reopening the collection in a new process cannot
+  recover it.
+
+```python
+# Reads MY_OPENAI_KEY; the variable name is persisted with the collection.
+ef = OpenAIEmbeddingFunction(
+    model_name="text-embedding-3-small",
+    api_key_env_var="MY_OPENAI_KEY",
+)
+```
+
+If no key is found, construction fails with
+`ValueError: The <VAR> environment variable is not set.` — the message names
+whichever variable the function settled on, which is the quickest way to see
+which one it is actually looking at.
 
 ### Custom embedding function
 

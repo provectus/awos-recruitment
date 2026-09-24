@@ -225,7 +225,23 @@ ef = OpenAIEmbeddingFunction(model_name="text-embedding-3-small")
 collection = client.create_collection("my_col", embedding_function=ef)
 ```
 
-Requires the `OPENAI_API_KEY` environment variable.
+Requires the `openai` package and an API key. The key is read from
+`CHROMA_OPENAI_API_KEY` — note the `CHROMA_` prefix, which is the default for
+every hosted provider wrapper (`CHROMA_COHERE_API_KEY`,
+`CHROMA_HUGGINGFACE_API_KEY`, …). The unprefixed `OPENAI_API_KEY` is still
+honoured and takes precedence when set, even over an explicit
+`api_key_env_var`. To read from somewhere else:
+
+```python
+ef = OpenAIEmbeddingFunction(
+    model_name="text-embedding-3-small",
+    api_key_env_var="MY_OPENAI_KEY",   # persisted with the collection
+)
+```
+
+Passing `api_key="sk-…"` inline also works but raises a `DeprecationWarning`
+and is deliberately **not** stored in the collection configuration, so the key
+is lost the next time the collection is opened. Prefer an environment variable.
 
 ### Default embedding function
 
