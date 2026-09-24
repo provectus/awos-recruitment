@@ -43,7 +43,7 @@ Connects to a standalone Chroma server. Use for production deployments.
 collection = client.get_or_create_collection(
     name="my_collection",
     embedding_function=embedding_fn,
-    metadata={"hnsw:space": "cosine"}
+    configuration={"hnsw": {"space": "cosine"}},
 )
 ```
 
@@ -251,7 +251,7 @@ If no `embedding_function` is specified, Chroma uses its built-in default (all-M
 
 ### Distance metrics
 
-Set via the `hnsw:space` metadata key at creation time:
+Set via the `space` key of the `configuration` argument at creation time:
 
 | Metric | Value | Use case |
 |---|---|---|
@@ -262,9 +262,13 @@ Set via the `hnsw:space` metadata key at creation time:
 ```python
 collection = client.create_collection(
     name="my_col",
-    metadata={"hnsw:space": "cosine"},
+    configuration={"hnsw": {"space": "cosine"}},
 )
 ```
+
+The pre-1.x form `metadata={"hnsw:space": "cosine"}` still works and produces
+the same configuration. The metric cannot be changed afterwards — `modify`
+rejects it, so switching metrics means recreating the collection.
 
 For HNSW tuning parameters and advanced configuration, consult `references/patterns.md`.
 

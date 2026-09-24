@@ -90,28 +90,40 @@ results = collection.query(
 
 ## HNSW Configuration
 
-HNSW (Hierarchical Navigable Small World) is the underlying index algorithm. Tuning parameters are set via collection metadata at creation time.
+HNSW (Hierarchical Navigable Small World) is the underlying index algorithm.
+Tuning parameters are set through the `configuration` argument at creation
+time.
 
 ### Available parameters
 
 | Parameter | Default | Description |
 |---|---|---|
-| `hnsw:space` | `"l2"` | Distance metric: `"l2"`, `"cosine"`, or `"ip"` |
-| `hnsw:construction_ef` | `100` | Controls index build quality. Higher = better recall, slower build |
-| `hnsw:search_ef` | `10` | Controls search quality. Higher = better recall, slower query |
-| `hnsw:M` | `16` | Max connections per node. Higher = better recall, more memory |
-| `hnsw:num_threads` | `4` | Threads for index operations |
+| `space` | `"l2"` | Distance metric: `"l2"`, `"cosine"`, or `"ip"` |
+| `ef_construction` | `100` | Index build quality. Higher = better recall, slower build |
+| `ef_search` | `100` | Search breadth. Higher = better recall, slower query |
+| `max_neighbors` | `16` | Max connections per node. Higher = better recall, more memory |
+| `resize_factor` | `1.2` | Growth factor when the index is resized |
+| `sync_threshold` | `1000` | Records buffered before the index is flushed to disk |
+
+Read the effective values back with `collection.configuration["hnsw"]` — that
+is the authoritative answer for a given build, and the fastest way to confirm a
+setting was accepted.
+
+`num_threads` and `batch_size` are accepted by the type but are not part of the
+persisted configuration, so setting them has no durable effect.
 
 ### Example: optimized for recall
 
 ```python
 collection = client.create_collection(
     name="high_recall",
-    metadata={
-        "hnsw:space": "cosine",
-        "hnsw:construction_ef": 200,
-        "hnsw:search_ef": 100,
-        "hnsw:M": 32,
+    configuration={
+        "hnsw": {
+            "space": "cosine",
+            "ef_construction": 200,
+            "ef_search": 200,
+            "max_neighbors": 32,
+        }
     },
 )
 ```
@@ -121,14 +133,44 @@ collection = client.create_collection(
 ```python
 collection = client.create_collection(
     name="fast_search",
-    metadata={
-        "hnsw:space": "cosine",
-        "hnsw:construction_ef": 100,
-        "hnsw:search_ef": 10,
-        "hnsw:M": 16,
+    configuration={
+        "hnsw": {
+            "space": "cosine",
+            "ef_construction": 100,
+            "ef_search": 50,
+            "max_neighbors": 16,
+        }
     },
 )
 ```
+
+### The older `hnsw:*` metadata form
+
+Pre-1.x code sets the same knobs through collection metadata, and Chroma still
+accepts it without warning — `metadata={"hnsw:space": "cosine",
+"hnsw:construction_ef": 200, "hnsw:search_ef": 50, "hnsw:M": 32}` produces the
+same configuration as the `configuration` block above. Two reasons to prefer
+the new form in new code: the key names differ from what the configuration
+actually stores (`hnsw:M` → `max_neighbors`, `hnsw:construction_ef` →
+`ef_construction`), and unrecognised keys such as `hnsw:num_threads` are kept
+verbatim in `collection.metadata` while doing nothing, which reads as if they
+took effect.
+
+### Changing parameters after creation
+
+`space` and `ef_construction` are baked in at build time — `modify` rejects
+them with `InvalidArgumentError: unknown field ...`, and changing the metric
+means recreating the collection. Search-time breadth is adjustable, which makes
+`ef_search` the one knob worth tuning against a live index:
+
+```python
+collection.modify(configuration={"hnsw": {"ef_search": 200}})
+```
+
+Re-read `collection.configuration["hnsw"]` afterwards. `modify` accepts
+`max_neighbors` without error but does not apply it to an existing index, so
+the returned configuration — not the absence of an exception — is what tells
+you whether a change landed.
 
 ### Choosing a distance metric
 
@@ -148,7 +190,7 @@ client.delete_collection("my_collection")
 collection = client.create_collection(
     name="my_collection",
     embedding_function=ef,
-    metadata={"hnsw:space": "cosine"},
+    configuration={"hnsw": {"space": "cosine"}},
 )
 # Re-add all data...
 ```

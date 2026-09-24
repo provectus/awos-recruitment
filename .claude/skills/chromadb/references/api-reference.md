@@ -35,8 +35,9 @@ client = chromadb.HttpClient(host="localhost", port=8000)
 # Create — raises if exists
 collection = client.create_collection(
     name="my_collection",
-    embedding_function=ef,           # optional
-    metadata={"hnsw:space": "cosine"},  # optional
+    embedding_function=ef,                           # optional
+    configuration={"hnsw": {"space": "cosine"}},     # optional; index tuning
+    metadata={"team": "search"},                     # optional; free-form labels
 )
 
 # Get — raises if not found
@@ -49,7 +50,7 @@ collection = client.get_collection(
 collection = client.get_or_create_collection(
     name="my_collection",
     embedding_function=ef,
-    metadata={"hnsw:space": "cosine"},
+    configuration={"hnsw": {"space": "cosine"}},
 )
 
 # List all collections
