@@ -331,7 +331,7 @@ if (!process.env.REQUIRED_VAR) {
 
 ## Testing CLI Commands
 
-### Integration test with execa
+### Integration test via `execFile`
 
 ```typescript
 import { execFile } from "node:child_process";
