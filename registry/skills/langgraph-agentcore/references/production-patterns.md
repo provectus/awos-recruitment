@@ -84,6 +84,11 @@ trace every fact back through the complete chain.
 
 ### Retry with Exponential Backoff
 
+Retrying is only half of it: the breaker below has to see the outcome, or its
+counters never move and the router keeps handing back a model that is
+throttled. Take the `ModelCircuitBreaker` instance whose `is_available` you
+passed to `get_model` and record against it on every path.
+
 ```python
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -91,18 +96,22 @@ from tenacity import retry, stop_after_attempt, wait_exponential
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
 )
-async def invoke_model_with_retry(prompt, model_id):
-    """Invoke Bedrock model with retry on throttling."""
+async def invoke_model_with_retry(prompt, model_id, breaker):
+    """Invoke a Bedrock model, recording the outcome on *breaker*."""
     try:
-        return await bedrock.invoke_model(
+        response = await bedrock.invoke_model(
             modelId=model_id,
             body=prompt,
         )
     except ThrottlingException:
+        breaker.record_failure(model_id)
         raise  # Let tenacity retry
     except ModelNotAvailableException:
+        breaker.record_failure(model_id)
         # Fall through to next model in fallback chain
         return await invoke_fallback_model(prompt, model_id)
+    breaker.record_success(model_id)
+    return response
 ```
 
 ### Circuit Breaker for Model Routing
