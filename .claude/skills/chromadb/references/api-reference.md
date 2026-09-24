@@ -1,5 +1,14 @@
 # ChromaDB Python API Reference
 
+## Contents
+
+- [Client Types](#client-types) — ephemeral, persistent, HTTP
+- [Client Methods](#client-methods) — create / get / list / delete collections, and what is stored with them
+- [Collection Methods](#collection-methods) — `add`, `query`, `get`, `update`, `upsert`, `delete`, `count`, `peek`, with return shapes
+- [Filter Operators (Complete Reference)](#filter-operators-complete-reference) — every `where` operator, logical nesting, and the `where_document` operators including `$regex`
+- [Include Parameter](#include-parameter) — which fields come back from `query` and `get`
+- [Embedding Functions](#embedding-functions) — built-in wrappers, API-key environment variables, and writing a custom function that survives `get_collection`
+
 ## Client Types
 
 ### chromadb.Client()

@@ -1,5 +1,15 @@
 # ChromaDB Common Patterns
 
+## Contents
+
+- [Batch Ingestion](#batch-ingestion) — chunking large writes, and why `add` is the wrong verb for a re-index
+- [Metadata Schema Design](#metadata-schema-design) — flat typed values, flattening nested data, designing for the queries you will run
+- [HNSW Configuration](#hnsw-configuration) — parameters and defaults, the `configuration=` argument, the legacy `hnsw:*` keys, what `modify` can change
+- [Collection Lifecycle](#collection-lifecycle) — full re-index vs incremental upsert
+- [Common Query Patterns](#common-query-patterns) — metadata pre-filters, keyword + semantic, date ranges, minimal responses
+- [Error Handling](#error-handling) — the failures that are silent, and the embedding function on `get`
+- [ID Generation Strategies](#id-generation-strategies) — deterministic, UUID, prefixed
+
 ## Batch Ingestion
 
 ChromaDB has a maximum batch size limit. For large datasets, split into chunks:
