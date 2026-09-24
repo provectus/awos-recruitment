@@ -42,7 +42,7 @@ collection = client.create_collection(
 # Get — raises if not found
 collection = client.get_collection(
     name="my_collection",
-    embedding_function=ef,           # must match the one used at creation
+    embedding_function=ef,           # optional; overrides the stored configuration
 )
 
 # Get or create — idempotent
@@ -59,7 +59,9 @@ collections = client.list_collections()
 client.delete_collection("my_collection")
 ```
 
-**Important:** When using `get_collection` or `get_or_create_collection`, always pass the same `embedding_function` that was used at creation. Chroma does not store the embedding function — it must be provided on every access.
+**Important:** Chroma stores the embedding function's *configuration* with the collection, so `get_collection` and `get_or_create_collection` rebuild it for you. Passing `embedding_function` again is optional — and when you do pass one, it overrides whatever was stored, so passing a *different* function silently produces vectors the index cannot compare.
+
+The exception is a custom function that implements only `__call__`: it is stored as `{"type": "legacy"}` and cannot be rebuilt, so it must be passed on every access. See "Custom embedding function" below.
 
 ### Utility
 
@@ -363,13 +365,64 @@ which one it is actually looking at.
 
 ### Custom embedding function
 
-Implement the `EmbeddingFunction` protocol:
+A class with only `__call__` still runs, but Chroma emits two
+`DeprecationWarning`s ("does not implement `__init__`", "does not implement
+`name()`") and stores it as `{"type": "legacy"}`. A legacy function cannot be
+rebuilt from the collection configuration, so reopening the collection falls
+back to the default 384-dimension ONNX model and the next `add` fails with
+`Collection expecting embedding with dimension of N, got 384`.
+
+Implement the full protocol instead, so the function is stored as `known` and
+survives `get_collection`:
 
 ```python
-from chromadb import EmbeddingFunction, Documents, Embeddings
+from typing import Any
 
+import numpy as np
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings, Space
+from chromadb.utils.embedding_functions import register_embedding_function
+
+
+@register_embedding_function
 class MyEmbeddingFunction(EmbeddingFunction[Documents]):
+    """Embeddings from a locally hosted model."""
+
+    def __init__(self, endpoint: str, dimensions: int = 768) -> None:
+        self._endpoint = endpoint
+        self._dimensions = dimensions
+
     def __call__(self, input: Documents) -> Embeddings:
-        # input is list[str], return list[list[float]]
-        return [embed(doc) for doc in input]
+        # input is list[str]; return one vector per document.
+        return [np.asarray(embed(doc, self._endpoint), dtype=np.float32) for doc in input]
+
+    @staticmethod
+    def name() -> str:
+        # Stable registry key. Changing it orphans existing collections.
+        return "my_embedding_function"
+
+    def get_config(self) -> dict[str, Any]:
+        # Serialised into the collection configuration — keep it JSON-safe and
+        # never put a secret here.
+        return {"endpoint": self._endpoint, "dimensions": self._dimensions}
+
+    @staticmethod
+    def build_from_config(config: dict[str, Any]) -> "MyEmbeddingFunction":
+        return MyEmbeddingFunction(endpoint=config["endpoint"], dimensions=config["dimensions"])
+
+    def default_space(self) -> Space:
+        # Optional; without it Chroma defaults the collection to "l2".
+        return "cosine"
 ```
+
+Two details that bite:
+
+- `@register_embedding_function` matters for *reading*, not writing. Chroma
+  registers the class automatically when the collection is created, so a
+  round-trip inside one process works either way. A different process that
+  opens the collection only has the stored name, and without the decorator (and
+  an import of the module that defines the class) `get_collection` raises
+  `ValueError: Embedding function my_embedding_function not found. Add
+  @register_embedding_function decorator to the class definition.`
+- `get_config()` output is stored in plain text alongside the collection. Pass
+  credentials by environment-variable *name*, the way the built-in wrappers do
+  with `api_key_env_var`, rather than by value.

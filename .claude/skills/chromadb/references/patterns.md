@@ -239,15 +239,26 @@ results = collection.query(
 | Dimension mismatch | Embedding size doesn't match collection | Ensure all embeddings use the same model/dimension |
 | Collection not found | `get_collection` on missing name | Use `get_or_create_collection` instead |
 
-### Handling missing embedding function on get
+### Embedding function on get
+
+Chroma persists the embedding function's configuration with the collection, so
+a built-in wrapper is rebuilt automatically:
 
 ```python
-# Always pass the embedding function when getting an existing collection
-ef = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-collection = client.get_collection("my_col", embedding_function=ef)
+# The SentenceTransformer config was stored at creation — nothing to pass.
+collection = client.get_collection("my_col")
 ```
 
-Chroma does not persist the embedding function. Forgetting to pass it when getting a collection means `query(query_texts=...)` will use the default ONNX model, producing wrong results.
+Passing one explicitly is still allowed and overrides the stored config, which
+is the failure mode worth guarding against: passing a *different* function than
+the collection was built with produces vectors the index cannot compare, with
+no error.
+
+The one case that genuinely requires passing it every time is a legacy custom
+function — one implementing only `__call__`, stored as `{"type": "legacy"}`.
+Reopening that collection falls back to the default ONNX model and
+`query(query_texts=...)` returns wrong results. See "Custom embedding function"
+in `api-reference.md` for the full protocol that avoids this.
 
 ## ID Generation Strategies
 

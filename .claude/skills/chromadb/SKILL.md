@@ -300,14 +300,28 @@ Useful for inspecting collection contents during development.
 
 ## Common Errors
 
-| Error | Cause | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
 | `ValueError` on `add` | Duplicate ID | Use `upsert` instead |
 | Dimension mismatch | Embedding size differs from collection | Ensure consistent embedding model |
-| Wrong results after `get_collection` | Missing `embedding_function` | Always pass the same `embedding_function` used at creation |
 | `ValueError` on `delete` | No criteria given | Provide `ids`, `where`, or `where_document` |
+| `ValueError: Embedding function <name> not found` on `get_collection` | A custom embedding function's class is not registered in this process | Import the module that defines it and decorate the class with `@register_embedding_function` |
+| `Collection expecting embedding with dimension of N, got 384` after reopening | Collection was created with a *legacy* custom embedding function, so Chroma fell back to the default ONNX model | Give the function `name()` / `get_config()` / `build_from_config()`, or pass it to `get_collection` every time |
 
-Chroma does not persist the embedding function. Omitting it when calling `get_collection` causes `query(query_texts=...)` to silently use the default ONNX model, producing incorrect results.
+### Embedding function persistence
+
+Chroma stores the *configuration* of the embedding function with the
+collection, so `get_collection` rebuilds it automatically and passing
+`embedding_function` again is optional. This works for the built-in wrappers
+(OpenAI, SentenceTransformer, Cohere, …) and for custom functions that
+implement `name()`, `get_config()` and `build_from_config()` — those are saved
+as `{"type": "known", "name": …, "config": {…}}`.
+
+A custom function that implements only `__call__` is saved as
+`{"type": "legacy"}` and cannot be rebuilt. Reopening that collection silently
+falls back to the default ONNX model, which is where the wrong-results and
+dimension-mismatch failures come from. Either upgrade the function (see
+`references/api-reference.md`) or pass it on every `get_collection` call.
 
 ## Additional Resources
 
