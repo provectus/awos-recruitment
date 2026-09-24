@@ -9,7 +9,21 @@ tags: bundle, conditional-loading, lazy-loading
 
 Load large data or modules only when a feature is activated.
 
-**Example (lazy-load animation frames):**
+**Incorrect (ships the payload to everyone):**
+
+```tsx
+// A static import is resolved at build time, so `animation-frames.js` lands in the
+// entry chunk and every visitor downloads and parses it — even those who never
+// enable the animation.
+import { frames } from './animation-frames.js'
+
+function AnimationPlayer({ enabled }: { enabled: boolean }) {
+  if (!enabled) return null
+  return <Canvas frames={frames} />
+}
+```
+
+**Correct (lazy-load animation frames):**
 
 ```tsx
 function AnimationPlayer({ enabled, setEnabled }: { enabled: boolean; setEnabled: React.Dispatch<React.SetStateAction<boolean>> }) {

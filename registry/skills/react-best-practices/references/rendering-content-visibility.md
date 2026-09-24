@@ -9,16 +9,37 @@ tags: rendering, css, content-visibility, long-lists
 
 Apply `content-visibility: auto` to defer off-screen rendering.
 
-**CSS:**
+**Incorrect (every row is laid out and painted up front):**
+
+```tsx
+function MessageList({ messages }: { messages: Message[] }) {
+  return (
+    <div className="overflow-y-auto h-screen">
+      {messages.map(msg => (
+        // No containment hint, so the browser does layout and paint work for all
+        // 1000 rows on first render even though ~10 are on screen.
+        <div key={msg.id}>
+          <Avatar user={msg.author} />
+          <div>{msg.content}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+**Correct — CSS:**
 
 ```css
 .message-item {
   content-visibility: auto;
+  /* Placeholder size for skipped rows; without it the scrollbar jumps as rows
+     come into view and get their real height. */
   contain-intrinsic-size: 0 80px;
 }
 ```
 
-**Example:**
+**Correct — component:**
 
 ```tsx
 function MessageList({ messages }: { messages: Message[] }) {
