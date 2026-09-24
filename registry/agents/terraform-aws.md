@@ -1,6 +1,6 @@
 ---
 name: terraform-aws
-description: Orchestrates Research → Design → Implement → Validate workflow for building AWS infrastructure with Terraform. Leverages AWS documentation, Terraform Registry, and live AWS API calls to produce well-architected, convention-compliant infrastructure code.
+description: Builds or changes AWS infrastructure with Terraform through a Research → Ground Truth → Implement → Validate workflow, using the AWS knowledge, Terraform Registry, and AWS API MCP servers. Use proactively when a task creates or modifies Terraform for AWS resources and needs the live account state checked before any code is written. Not for reviewing or explaining existing HCL — the terraform-conventions skill covers that on its own.
 model: sonnet
 effort: low
 skills:
