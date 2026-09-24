@@ -330,11 +330,9 @@ module "vpc" {
   enable_nat_gateway   = true
   single_nat_gateway   = false  # HA for production
 
-  tags = {
-    Environment = "production"
-    ManagedBy   = "Terraform"
-    CostCenter  = "engineering"
-  }
+  tags = merge(local.required_tags, {
+    CostCenter = "engineering"
+  })
 }
 
 module "rds" {
@@ -348,11 +346,13 @@ module "rds" {
   vpc_id               = module.vpc.vpc_id
   subnet_ids           = module.vpc.private_subnet_ids
 
-  tags = {
-    Environment = "production"
-  }
+  tags = local.required_tags
 }
 ```
+
+`local.required_tags` carries the four tags every taggable resource needs
+(`Environment`, `Project`, `Owner`, `ManagedBy`); see the main skill file for
+the definition. Merge extra tags on top of it rather than replacing it.
 
 ---
 
@@ -404,9 +404,18 @@ For public modules, always include a LICENSE file:
 
 ### Terraform vs OpenTofu Preference
 
-**Before generating any module or configuration:**
+**Before generating any module or configuration, work out which binary the
+repo uses:**
 
-1. **Ask the user:** "Will this be for Terraform or OpenTofu? (Both are supported equally)"
+1. **Detect it from the repo.** In order: the binary actually invoked in CI
+   config (`.github/workflows/`, `.gitlab-ci.yml`, `atlantis.yaml`);
+   `tofu`/`terraform` in the README or Makefile; `*.tofu` files, which only
+   OpenTofu reads; the registry host inside `.terraform.lock.hcl` —
+   `registry.opentofu.org/...` means OpenTofu, `registry.terraform.io/...`
+   means Terraform. That a `.terraform.lock.hcl` or `.terraform/` **exists**
+   proves nothing: both tools write those same paths. Default to Terraform when
+   nothing indicates otherwise, and ask only when the repo references both
+   binaries.
 
 2. **Use the preference throughout:**
    - Command examples: `terraform` vs `tofu`
@@ -421,9 +430,13 @@ For public modules, always include a LICENSE file:
 
    | Name | Version |
    |------|---------|
-   | [terraform/tofu] | >= 1.7.0 |
-   | aws | >= 6.0 |
+   | [terraform/tofu] | = 1.14.8 |
+   | aws | = 6.41.0 |
    ```
+
+   Record the exact versions the module is pinned to in `versions.tf` — the
+   README is where consumers look first, so a range here would advertise
+   flexibility the module does not actually have.
 
 4. **Example command variations:**
    ```bash
@@ -438,12 +451,7 @@ For public modules, always include a LICENSE file:
    tofu plan
    ```
 
-**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical.
-
-**Default behavior:**
-- If user doesn't specify: Ask explicitly
-- If project already exists: Detect from existing files (`.terraform/` or `.tofu/`)
-- If still unclear: Default to showing both options in documentation
+**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical, so a wrong guess costs a find-and-replace, not a rewrite.
 
 ---
 
@@ -593,19 +601,18 @@ modules/webapp/
 
 ```hcl
 locals {
-  common_tags = merge(
-    var.tags,
-    {
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
-  )
+  required_tags = {
+    Environment = var.environment
+    Project     = var.project
+    Owner       = var.owner
+    ManagedBy   = "terraform"
+  }
 
   instance_name = "${var.project}-${var.environment}-instance"
 }
 
 resource "aws_instance" "app" {
-  tags = local.common_tags
+  tags = merge(local.required_tags, var.tags)
   # ...
 }
 ```
@@ -616,7 +623,7 @@ resource "aws_instance" "app" {
 # In consuming code
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"  # Pin to major version
+  version = "5.1.2"  # Pin exact version
 
   # module inputs...
 }
@@ -759,12 +766,14 @@ acme-terraform-aws-rds
 
 ## Testing Your Modules
 
-For testing guidance, see [testing-frameworks.md](testing-frameworks.md).
+Testing guidance lives in the Testing Frameworks reference listed in SKILL.md.
 
 Quick checklist:
 
-- [ ] Ask: Terraform or OpenTofu?
-- [ ] Ask: Public or private module?
+- [ ] Terraform or OpenTofu, detected from the repo (default: Terraform)
+- [ ] Public or private module — private unless it is headed for the Terraform
+      Registry or a public repo, which is what decides the LICENSE file and the
+      `terraform-<PROVIDER>-<NAME>` naming
 - [ ] Include `examples/` directory
 - [ ] Write tests (native or Terratest)
 - [ ] Document inputs and outputs in README.md
@@ -784,7 +793,7 @@ When creating new modules, always include pre-commit hooks for automated validat
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0  # Use latest version from releases
+    rev: v1.109.1
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
@@ -873,7 +882,9 @@ Additional resources:
 # Local .terraform directories
 **/.terraform/*
 
-.terraform.lock.hcl
+# .terraform.lock.hcl is deliberately NOT ignored - commit it.
+# It records the provider checksums that make exact version pinning
+# reproducible across machines and CI.
 
 # .tfstate files - NEVER commit state files
 *.tfstate
@@ -1097,11 +1108,10 @@ AFTER_COUNT=$(terraform state list | wc -l)
 
 2. **Tag test resources for tracking**
    ```hcl
-   tags = {
+   tags = merge(local.required_tags, {
      Environment = "test"
      TTL         = "2h"
-     ManagedBy   = "terraform-test"
-   }
+   })
    ```
 
 3. **Run integration tests only on main branch**
@@ -1119,7 +1129,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
    - Run destroy in CI/CD after tests complete
    - Use terraform-compliance to enforce TTL tags
 
-**For testing framework details, see:** [Testing Frameworks Guide](testing-frameworks.md)
+For testing framework details, see the Testing Frameworks reference listed in SKILL.md.
 
 ---
 
