@@ -62,11 +62,13 @@ Use these production-ready pipelines instead of building from scratch:
 | nf-core/mag | Metagenome analysis |
 | nf-core/methylseq | Bisulfite sequencing |
 
-Example nf-core usage:
+Example nf-core usage — the `--tools` values mirror the defaults above (DeepVariant for germline calling, VEP for annotation):
 ```bash
 nextflow run nf-core/sarek \
     -profile docker \
     --input samplesheet.csv \
     --genome GRCh38 \
-    --tools haplotypecaller,snpeff
+    --tools deepvariant,vep
 ```
+
+Escape hatch: `--tools haplotypecaller,snpeff` when the GATK ecosystem is mandated or a lightweight annotator is enough. For somatic work, `--tools mutect2,manta,vep` on a tumor/normal samplesheet.
