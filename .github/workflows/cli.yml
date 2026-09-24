@@ -1,0 +1,49 @@
+name: CLI
+
+# Lint, test, and build the npm CLI. Until this workflow existed the CLI's
+# vitest suite never ran in CI and publish-cli shipped untested code.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
