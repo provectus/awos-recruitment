@@ -421,9 +421,13 @@ For public modules, always include a LICENSE file:
 
    | Name | Version |
    |------|---------|
-   | [terraform/tofu] | >= 1.7.0 |
-   | aws | >= 6.0 |
+   | [terraform/tofu] | = 1.9.8 |
+   | aws | = 5.82.2 |
    ```
+
+   Record the exact versions the module is pinned to in `versions.tf` — the
+   README is where consumers look first, so a range here would advertise
+   flexibility the module does not actually have.
 
 4. **Example command variations:**
    ```bash
@@ -873,7 +877,9 @@ Additional resources:
 # Local .terraform directories
 **/.terraform/*
 
-.terraform.lock.hcl
+# .terraform.lock.hcl is deliberately NOT ignored - commit it.
+# It records the provider checksums that make exact version pinning
+# reproducible across machines and CI.
 
 # .tfstate files - NEVER commit state files
 *.tfstate

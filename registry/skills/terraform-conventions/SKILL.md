@@ -486,13 +486,14 @@ version = "5.1.2"        # Exact (alternative syntax for modules)
 ### Update Workflow
 
 ```bash
-# Lock versions initially
-terraform init              # Creates .terraform.lock.hcl
+# Step 1: Lock versions initially
+terraform init              # Creates .terraform.lock.hcl — commit this file
 
-# Update to latest within constraints
-terraform init -upgrade     # Updates providers
+# Step 2: To update, change the exact version in versions.tf first,
+#         then re-resolve the lock file
+terraform init -upgrade
 
-# Review and test
+# Step 3: Review and test
 terraform plan
 ```
 

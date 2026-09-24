@@ -149,7 +149,8 @@ variables:
   TF_ROOT: ${CI_PROJECT_DIR}
 
 .terraform_template:
-  image: hashicorp/terraform:latest
+  # Pin the image tag to the same version as required_version in versions.tf
+  image: hashicorp/terraform:1.9.8
   before_script:
     - cd ${TF_ROOT}
     - terraform init
@@ -408,7 +409,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: v1.6.0
+    terraform_version: v1.9.8  # Same version as required_version in versions.tf
     workflow: custom
 
 workflows:

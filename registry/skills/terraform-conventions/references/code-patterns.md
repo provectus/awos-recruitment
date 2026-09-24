@@ -231,29 +231,55 @@ resource "aws_subnet" "private" {
 ```
 
 **Creating multiple named resources:**
+
+A resource can set `count` or `for_each`, never both — Terraform rejects the
+configuration with "Invalid combination of `count` and `for_each`". When each
+key needs more than one instance, flatten the input into one map entry per
+instance first, so every instance keeps its own stable address.
+
 ```hcl
 variable "environments" {
+  description = "Per-environment instance settings, keyed by environment name"
+  type = map(object({
+    instance_type  = string
+    instance_count = number
+  }))
+
   default = {
     dev = {
-      instance_type = "t3.micro"
+      instance_type  = "t3.micro"
       instance_count = 1
     }
     prod = {
-      instance_type = "t3.large"
+      instance_type  = "t3.large"
       instance_count = 3
     }
   }
 }
 
+locals {
+  # One entry per instance: { "dev-0" = {...}, "prod-0" = {...}, ... }
+  app_instances = merge([
+    for environment, config in var.environments : {
+      for index in range(config.instance_count) :
+      "${environment}-${index}" => {
+        environment   = environment
+        instance_type = config.instance_type
+      }
+    }
+  ]...)
+}
+
 resource "aws_instance" "app" {
-  for_each = var.environments
+  for_each = local.app_instances
 
+  ami           = var.ami_id
   instance_type = each.value.instance_type
-  count         = each.value.instance_count
 
-  tags = {
-    Environment = each.key  # "dev" or "prod"
-  }
+  tags = merge(local.required_tags, {
+    Name        = "app-${each.key}"
+    Environment = each.value.environment
+  })
 }
 ```
 
