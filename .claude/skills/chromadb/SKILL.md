@@ -47,7 +47,7 @@ collection = client.get_or_create_collection(
 )
 ```
 
-- `get_or_create_collection` — idempotent; creates if absent, returns existing if present.
+- `get_or_create_collection` — idempotent; creates if absent, returns existing if present. `configuration` applies **only on creation**: against an existing collection it is ignored silently, so the returned collection keeps whatever `space` it was built with. Read `collection.configuration["hnsw"]` back if the metric matters, and recreate the collection to change it.
 - `create_collection` — raises if the collection already exists.
 - `get_collection` — raises if the collection does not exist.
 

@@ -59,7 +59,7 @@ collection = client.get_collection(
 collection = client.get_or_create_collection(
     name="my_collection",
     embedding_function=ef,
-    configuration={"hnsw": {"space": "cosine"}},
+    configuration={"hnsw": {"space": "cosine"}},  # applied only on creation
 )
 
 # List all collections
@@ -77,6 +77,8 @@ client.delete_collection("my_collection")
 So the override to guard against is the *silent* one: same registry name, different configuration.
 
 The exception is a custom function that implements only `__call__`: it is stored as `{"type": "legacy"}` and cannot be rebuilt, so it must be passed on every access. See "Custom embedding function" below.
+
+`configuration` behaves the same way on `get_or_create_collection`: it is applied when the collection is created and **ignored without warning** when an existing one is returned. Asking for `{"hnsw": {"space": "cosine"}}` against a collection already built with `l2` gives you back the `l2` collection and no error, so treat `collection.configuration["hnsw"]` as the answer rather than the argument you passed. Changing the metric means recreating the collection.
 
 ### Utility
 
