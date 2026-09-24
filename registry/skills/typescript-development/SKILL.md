@@ -166,7 +166,9 @@ const Status = {
 type Status = (typeof Status)[keyof typeof Status];
 ```
 
-**Why:** No runtime code emitted, better tree-shaking, interoperates with plain strings.
+**Why:** `as const` is erased, but the object literal still emits — as plain data a bundler
+can tree-shake, not the self-invoking function an `enum` compiles to. Values stay ordinary
+strings, so they interoperate with plain strings and JSON.
 
 ## Async Code
 

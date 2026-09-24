@@ -364,8 +364,11 @@ enum StatusEnum {
 }
 ```
 
-**Why the const object wins:** it produces no runtime code, so bundlers can tree-shake it;
-its values are ordinary strings, so they interoperate with plain string literals and JSON;
+**Why the const object wins:** both forms emit runtime code — the `as const` assertion is
+erased, but the object literal itself survives — so the difference is in *what* they emit.
+An enum compiles to a self-invoking function that fills a mutable binding, which a bundler
+cannot prove is unused; a const object compiles to a plain object literal it can tree-shake.
+Its values are ordinary strings, so they interoperate with plain string literals and JSON;
 and it avoids the reverse-mapping quirk of numeric enums, where `StatusEnum[0]` is a
 legal lookup that yields a key name. Enums also behave inconsistently across `const enum`,
 `declare enum`, and `isolatedModules`, which const objects never do.
