@@ -1,5 +1,18 @@
 # Production Patterns
 
+## Contents
+
+- [Evidence Traceability](#evidence-traceability) — evidence coordinates, the
+  provenance chain through the pipeline
+- [Error Handling and Resilience](#error-handling-and-resilience) — retries,
+  the circuit breaker behind `get_model`, graceful degradation
+- [Idempotency](#idempotency) — workflow-, node- and write-level
+- [Testing Strategies](#testing-strategies) — node unit tests, the
+  interrupt/resume test, shadow mode, Cedar policy tests
+- [Semantic Caching](#semantic-caching) — and when not to cache
+- [Bedrock Guardrails Configuration](#bedrock-guardrails-configuration) —
+  layered defence against prompt injection
+
 ## Evidence Traceability
 
 Every AI-produced output must link to its source. This is non-negotiable
@@ -8,6 +21,8 @@ in regulated environments and best practice everywhere.
 ### Evidence Coordinate Schema
 
 ```python
+from typing import Any
+
 from pydantic import BaseModel
 
 class EvidenceCoordinate(BaseModel):
@@ -92,7 +107,13 @@ async def invoke_model_with_retry(prompt, model_id):
 
 ### Circuit Breaker for Model Routing
 
+`is_available` is the callable `get_model` in SKILL.md takes — pass the bound
+method, so a throttled model is skipped rather than retried into the same
+failure.
+
 ```python
+import time
+
 class ModelCircuitBreaker:
     """Track model availability and skip unavailable models."""
 
@@ -111,11 +132,11 @@ class ModelCircuitBreaker:
             self.failures[model_id] = 0
         return True
 
-    def record_failure(self, model_id: str):
+    def record_failure(self, model_id: str) -> None:
         self.failures[model_id] = self.failures.get(model_id, 0) + 1
         self.last_failure[model_id] = time.time()
 
-    def record_success(self, model_id: str):
+    def record_success(self, model_id: str) -> None:
         self.failures[model_id] = 0
 ```
 
