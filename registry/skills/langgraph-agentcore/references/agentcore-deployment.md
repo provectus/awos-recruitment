@@ -56,8 +56,11 @@ validate the payload and pick the `thread_id` first.
 ```python
 # agent.py — Entry point for AgentCore Runtime.
 # Requires: bedrock-agentcore (verified against 1.23; pin a compatible range)
-from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from uuid import uuid4
+
+from bedrock_agentcore.runtime import BedrockAgentCoreApp, RequestContext
 from langgraph.graph import StateGraph
+from starlette.responses import JSONResponse
 
 app = BedrockAgentCoreApp()
 
@@ -67,15 +70,24 @@ compiled = graph.compile(checkpointer=your_checkpointer)
 
 
 @app.entrypoint
-async def invoke(payload: dict) -> dict:
+async def invoke(payload: dict, context: RequestContext) -> dict | JSONResponse:
     """Handle one AgentCore invocation.
 
+    The second parameter has to be named `context` — that literal name is how
+    the SDK decides to pass the RequestContext. The runtime session ID lives
+    there, not in the payload, and it is None when the caller omits the
+    session header, so fall back rather than key a checkpoint on None.
+
     The payload arrives from InvokeAgentRuntime unchanged, so validate it here
-    before it reaches the graph. Declare a second `context` parameter to also
-    receive the RequestContext (session ID, forwarded headers).
+    before it reaches the graph. Returning a JSONResponse gives the caller a
+    400 instead of the 500 an uncaught KeyError would produce.
     """
-    config = {"configurable": {"thread_id": payload["session_id"]}}
-    return await compiled.ainvoke(payload["input"], config)
+    agent_input = payload.get("input")
+    if not isinstance(agent_input, dict):
+        return JSONResponse({"error": "'input' must be an object"}, status_code=400)
+
+    thread_id = context.session_id or f"session-{uuid4()}"
+    return await compiled.ainvoke(agent_input, {"configurable": {"thread_id": thread_id}})
 
 
 if __name__ == "__main__":
