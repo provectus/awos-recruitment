@@ -1,5 +1,14 @@
 # Parametrization Reference
 
+## Contents
+- Basic Parametrize
+- Descriptive Test IDs (`pytest.param(..., id=...)`)
+- Stacking Decorators (cartesian product)
+- Parametrized Fixtures (`@pytest.fixture(params=...)`)
+- Edge-case Parameter Sets
+- Skipping Parameter Combinations (`marks=`)
+- Indirect Parametrization
+
 <basic_parametrize>
 
 Run the same test with different inputs:
