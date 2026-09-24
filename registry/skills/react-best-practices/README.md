@@ -24,7 +24,12 @@ The rules cover:
 
 ## Usage
 
-Once installed, the skill activates automatically when Claude Code detects React-related tasks — writing components, reviewing performance, refactoring code, or optimizing bundles.
+Once installed, the skill activates when performance is the concern — slow or janky
+renders, unnecessary re-renders, memoization, lazy loading, bundle size, request
+waterfalls, or a request to review or profile React code for speed. It is not a
+general React authoring guide: folder and layer structure belongs to
+`react-feature-sliced-design`, language and typing questions to
+`typescript-development`.
 
 Each rule is a standalone `.md` file in `references/`:
 
@@ -39,14 +44,27 @@ Every rule file contains:
 - Correct code example
 - Additional context and references
 
+### Why one file per rule
+
+The rules are vendored from upstream and stay one-to-one with the upstream files, so
+a rule can be re-synced, diffed, or dropped on its own. The cost is granularity:
+reviewing a whole category means reading up to 12 files instead of one. `SKILL.md`
+absorbs most of that — it indexes every rule with its impact and a one-line summary,
+which is usually enough to decide whether a rule applies before opening its file.
+Consolidating per category would halve the reads but would make upstream syncs a
+merge rather than a copy, so the split is deliberate.
+
 ## Rule Categories
+
+`Impact` is the range of the per-rule `impact:` values in that category; `Priority`
+is the suggested review order. See `SKILL.md` for the impact of each individual rule.
 
 | Priority | Category | Impact | Rules |
 |----------|----------|--------|-------|
-| 1 | Eliminating Waterfalls | CRITICAL | 2 |
-| 2 | Bundle Size Optimization | CRITICAL | 4 |
-| 3 | Client-Side Data Fetching | MEDIUM-HIGH | 4 |
-| 4 | Re-render Optimization | MEDIUM | 7 |
-| 5 | Rendering Performance | MEDIUM | 6 |
-| 6 | JavaScript Performance | LOW-MEDIUM | 12 |
+| 1 | Eliminating Waterfalls | HIGH–CRITICAL | 2 |
+| 2 | Bundle Size Optimization | MEDIUM–CRITICAL | 4 |
+| 3 | Client-Side Data Fetching | LOW–MEDIUM-HIGH | 4 |
+| 4 | Re-render Optimization | LOW–MEDIUM | 7 |
+| 5 | Rendering Performance | LOW–HIGH | 6 |
+| 6 | JavaScript Performance | LOW–MEDIUM-HIGH | 12 |
 | 7 | Advanced Patterns | LOW | 2 |
