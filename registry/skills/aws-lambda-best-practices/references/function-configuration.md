@@ -90,6 +90,8 @@ If your Lambda function needs to run longer, prefer restructuring over a timeout
 
 ## Quotas Reference
 
+Quotas change. Treat the numbers below as a planning baseline and confirm the current values for your account in the Service Quotas console or on the [Lambda quotas page](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html) before committing to a capacity plan.
+
 ### Hard limits (cannot be increased)
 
 | Resource | Limit |
@@ -101,6 +103,7 @@ If your Lambda function needs to run longer, prefer restructuring over a timeout
 | Deployment package (zipped) | 50 MB via API (use S3 for larger) |
 | Deployment package (unzipped) | 250 MB (including layers) |
 | Container image | 10 GB |
+| Lambda-managed code storage | 300 GB unzipped, across every function and layer version. Not increasable -- switch to self-managed S3 code storage to go beyond it |
 | Environment variables | 4 KB total |
 | Layers | 5 per function |
 | File descriptors | 1,024 |
@@ -111,8 +114,7 @@ If your Lambda function needs to run longer, prefer restructuring over a timeout
 | Resource | Default | Typical increase |
 | --- | --- | --- |
 | Concurrent executions | 1,000 | Tens of thousands |
-| Function code storage | 75 GB | Terabytes |
-| ENIs per VPC | 250 | Thousands |
+| ENIs per VPC | 3,000 | Thousands -- shared with other services in the same VPC (e.g. EFS) |
 
 ### New accounts
 
@@ -147,7 +149,7 @@ New AWS accounts start with **reduced** concurrency and memory quotas. AWS raise
 
 ### Cleanup
 
-- **Delete unused functions** -- they count against your code storage quota (75 GB default)
+- **Delete unused functions** -- they count against your Lambda-managed code storage quota (300 GB unzipped, not increasable)
 - **Remove old versions** -- each published version consumes storage
 - **Prune unused layers** -- layer versions also count against storage
 - **Archive** -- if you need to retain code, store it in S3 or a code repository, not as deployed Lambda functions
