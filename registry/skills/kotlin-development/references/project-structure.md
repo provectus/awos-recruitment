@@ -10,11 +10,13 @@
 
 ## `build.gradle.kts` Essentials
 
+`<latest>` below marks a version to look up on Maven Central or the Gradle Plugin Portal before writing the file — it is a placeholder, not valid Gradle syntax. Keep every version in the catalog so there is one place to refresh.
+
 ### Minimal single-module setup
 
 ```kotlin
 plugins {
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "<latest>" // 2.1 or newer
 }
 
 group = "com.example"
@@ -41,10 +43,10 @@ tasks.test {
 
 ```toml
 [versions]
-kotlin = "2.1.0"
-coroutines = "1.9.0"
-serialization = "1.7.3"
-junit = "5.11.0"
+kotlin = "<latest>"        # 2.1 or newer
+coroutines = "<latest>"
+serialization = "<latest>"
+junit = "<latest>"
 
 [libraries]
 coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -248,11 +250,13 @@ fun createUser(name: String) = User(name)
 
 ### Dependencies
 
+Versions come from the catalog defined above.
+
 ```kotlin
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:<latest>")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:<latest>")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.coroutines.test)
 }
 
 tasks.test {
