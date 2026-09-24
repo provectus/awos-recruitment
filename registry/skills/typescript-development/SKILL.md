@@ -1,7 +1,6 @@
 ---
 name: typescript-development
-description: This skill should be used when the user asks to "write TypeScript code", "create a TypeScript module", "define TypeScript types", "add type annotations", "use generics", "handle errors in TypeScript", "set up tsconfig", "organize TypeScript project", or when writing any TypeScript code that is not tied to a specific library or framework. Covers type system, strict mode, naming conventions, error handling, async patterns, and project structure.
-version: 0.1.0
+description: Modern TypeScript conventions for library-agnostic code — strict mode, naming, type annotations, the type system (generics, utility types, conditional and mapped types), discriminated unions, error handling, async patterns, immutability, and project structure. Use when the user asks to "write TypeScript code", "create a TypeScript module", "define TypeScript types", "add type annotations", "use generics", "handle errors in TypeScript", "set up tsconfig" or "organize a TypeScript project", or whenever writing any TypeScript that is not tied to a specific library or framework.
 ---
 
 # TypeScript Development
@@ -64,7 +63,7 @@ interface User {
 }
 
 // Use type alias for unions, intersections, mapped types
-type Result<T> = { ok: true; value: T } | { ok: false; error: Error };
+type Status = "active" | "inactive" | "pending";
 type StringKeys<T> = Extract<keyof T, string>;
 ```
 
@@ -121,14 +120,14 @@ function render<T>(state: LoadingState<T>): string {
 
 ### Catch unknown errors
 
+Under `strict`, a catch variable is already `unknown`. Narrow it before touching it:
+
 ```typescript
 try {
   await riskyOperation();
 } catch (error: unknown) {
   if (error instanceof AppError) {
     handleAppError(error);
-  } else if (error instanceof Error) {
-    handleGenericError(error);
   } else {
     handleUnknown(String(error));
   }
@@ -137,18 +136,9 @@ try {
 
 ### Custom error classes
 
-```typescript
-class AppError extends Error {
-  constructor(
-    message: string,
-    readonly code: string,
-    readonly statusCode: number = 500,
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-```
+Extend `Error`, carry a machine-readable `code`, and reassign `this.name` so stack traces
+name the subclass rather than `Error`. The full `AppError` / `NotFoundError` /
+`ValidationError` hierarchy is in `references/patterns.md`.
 
 ### Result type over exceptions
 
@@ -159,6 +149,8 @@ type Result<T, E = Error> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 ```
+
+The `ok()` / `err()` constructors and a worked example are in `references/patterns.md`.
 
 ## Const Objects Over Enums
 
@@ -239,8 +231,9 @@ import { helper } from "./utils";      // Wrong — fails at runtime
 
 ### Reference Files
 
-For detailed type system features and advanced patterns, consult:
-- **`references/type-system.md`** — Generics, utility types, conditional types, mapped types, template literal types, type guards, discriminated unions, branded types, satisfies operator, const assertions, declaration merging
-- **`references/patterns.md`** — Immutability patterns, error handling (Result type, custom errors), async patterns (generators, concurrency), builder pattern, type-safe event emitter, overloaded functions, module patterns, enum alternatives, assertion functions, narrowing patterns
-- **`references/type-inference.md`** — Variable inference, function return inference, generic inference, contextual typing, satisfies operator, infer keyword, control flow analysis, type guards, narrowing patterns, best practices for when to annotate vs let inference work
-- **`references/project-structure.md`** — tsconfig.json essentials (strict mode flags, module config, safety flags), ESM/CJS setup, directory layout, organizing types, barrel exports, declaration files, import organization, path aliases, gitignore
+Each topic lives in exactly one file — open the one that owns it:
+
+- **`references/type-system.md`** — how to *write* a type: generics, built-in utility types, conditional types, mapped types, template literal types, type guards and assertion predicates, discriminated unions and exhaustive matching, branded types, the `satisfies` operator, const assertions, declaration merging.
+- **`references/type-inference.md`** — what TypeScript works out *without* a type: variable, return and generic inference, contextual typing, the `infer` keyword (nested, tuple and template-literal extraction), control-flow narrowing, and when to annotate instead of letting inference work.
+- **`references/patterns.md`** — applied patterns: immutability, the error-class hierarchy and `Result` constructors, async (concurrency, async iterators), builder, typed event emitter, overloads, module and barrel patterns, why const objects beat `enum`, assertion functions, and the `in` / truthiness / `Array.isArray` narrowing idioms.
+- **`references/project-structure.md`** — everything outside the code: tsconfig (strict and extra safety flags), ESM/CJS module config, directory layout, organizing types, barrel exports, declaration files, import order, path aliases, gitignore.
