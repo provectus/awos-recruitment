@@ -55,6 +55,16 @@ tests/
 | `mocker.patch()` | Mock dependencies |
 | `conftest.py` | Share fixtures across modules |
 
+**Built-in fixtures** — reach for these before writing your own; pytest already
+isolates and reverts them per test.
+
+| Fixture | Use Case |
+|---------|----------|
+| `tmp_path` | Per-test temporary directory (`pathlib.Path`) |
+| `monkeypatch` | Env vars, attributes, `sys.path`, cwd — auto-reverted |
+| `capsys` | Assert on captured stdout/stderr |
+| `caplog` | Assert on captured log records |
+
 **Common Commands**
 ```bash
 pytest -v                    # Verbose
@@ -63,6 +73,7 @@ pytest --lf                  # Run last failed
 pytest -k "pattern"          # Match test names
 pytest -m "marker"           # Run marked tests
 pytest --cov=src             # Coverage report
+pytest -n auto               # Parallel across CPU cores (pytest-xdist)
 ```
 
 </quick_reference>
@@ -73,7 +84,7 @@ Based on what you're doing, read the relevant reference:
 
 | Task | Reference |
 |------|-----------|
-| Setting up fixtures, scopes, factories | `references/fixtures.md` |
+| Setting up fixtures, scopes, factories, built-in fixtures | `references/fixtures.md` |
 | Parametrizing tests, multiple inputs | `references/parametrization.md` |
 | Mocking, patching, faking dependencies | `references/mocking.md` |
 | Markers, exceptions, assertions, async | `references/patterns.md` |
