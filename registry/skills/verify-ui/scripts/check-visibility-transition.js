@@ -4,11 +4,17 @@
 // Stage 2: Agent performs click via Playwright native click (page.locator().click())
 // Stage 3: collectVisibilityTransition() — waits for expected sequence and returns results
 //
-// Usage:
-//   1. Inject script: page.evaluate(scriptContent)
-//   2. Setup:  page.evaluate((opts) => setupVisibilityTransition(opts), { target: '.spinner', scope: '[role="dialog"]', expected: [false, true, false], timeout: 5000 })
-//   3. Click:  page.locator('.submit-button').click()
-//   4. Collect: page.evaluate(() => collectVisibilityTransition())
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines both functions in the page:
+//      code: async (page) => page.evaluate(`<the full text of this file>`)
+//   2. Setup:
+//      code: async (page) => page.evaluate(
+//        (opts) => setupVisibilityTransition(opts),
+//        { target: '.spinner', scope: '[role="dialog"]', expected: [false, true, false], timeout: 5000 })
+//   3. Click:
+//      code: async (page) => page.locator('.submit-button').click()
+//   4. Collect:
+//      code: async (page) => page.evaluate(() => collectVisibilityTransition())
 
 function setupVisibilityTransition({
   target: targetSelector,
@@ -69,6 +75,13 @@ async function collectVisibilityTransition() {
 
   const { observer, sequence, expected, targetSelector, timeout, startTime } = ctx;
 
+  // The MutationObserver records every transition as it happens, so this
+  // interval only controls how soon this function notices the sequence is
+  // already complete — it cannot miss a transition. 100ms keeps the wasted
+  // wait below what a person would notice, at ~10 no-op comparisons per
+  // second, which is nothing next to the multi-second timeout it runs under.
+  const POLL_INTERVAL_MS = 100;
+
   const remaining = Math.max(0, timeout - (Date.now() - startTime));
   const deadline = Date.now() + remaining;
   await new Promise((resolve) => {
@@ -80,7 +93,7 @@ async function collectVisibilityTransition() {
         clearInterval(check);
         resolve();
       }
-    }, 100);
+    }, POLL_INTERVAL_MS);
   });
 
   observer.disconnect();
