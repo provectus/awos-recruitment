@@ -2,6 +2,23 @@
 
 Comprehensive guide to media playback on Android. Covers ExoPlayer (via `androidx.media3`), MediaSession integration, audio focus, Picture-in-Picture, offline downloads, and performance. For platform-specific playback patterns see `tv-patterns.md`, `android-auto-patterns.md`, and `android-automotive-patterns.md`.
 
+## Contents
+- Architecture Overview — Media3 module map
+- Gradle Setup — dependencies
+- ExoPlayer — creating a player, setting media, transport controls, observing state, progress tracking
+- PlayerView — XML layout, in Compose, lifecycle integration, resize modes
+- MediaSession — `MediaSessionService`, `MediaController`, custom commands
+- Audio Focus & Audio Becoming Noisy — automatic focus, headphone disconnect, `AudioAttributes`
+- Picture-in-Picture — Activity configuration, entering PiP, custom actions, mode changes, PiP in Compose
+- Track Selection — discovering tracks, setting subtitle/audio preferences
+- Offline Downloads — setup, `DownloadService`, starting, playing, monitoring
+- DRM (Widevine)
+- Notifications & Now Playing — customizing the notification, Now Playing metadata
+- Streaming Formats — adaptive bitrate configuration
+- Caching (Streaming)
+- Performance & Best Practices — memory, preloading, threading, analytics
+- Common Pitfalls
+
 ## Architecture Overview
 
 | Layer | Library | Purpose |

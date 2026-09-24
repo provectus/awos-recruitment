@@ -3,6 +3,18 @@
 This reference covers Amazon Fire Tablet-specific concerns when adapting Android apps for the Fire Tablet lineup. General Android tablet patterns (adaptive layouts, WindowSizeClass, multi-window, input support) are documented in `tablet-patterns.md` and are not repeated here. Amazon ecosystem fundamentals (IAP, ADM, missing GMS, Login with Amazon, feature detection) are documented in `fire-tv-patterns.md` and are not repeated here.
 
 
+## Contents
+- Overview — AOSP base, Fire OS, no GMS
+- Device Lineup — hardware comparison, performance tiers, density buckets
+- Amazon Appstore for Tablets — publishing, device targeting, compatibility testing
+- UI Adaptation — screen sizes and density, orientation, Show Mode, notch handling
+- Amazon Services Integration — Login with Amazon, ADM, Alexa on tablet
+- Kindle Integration — reading/content apps, low-end display considerations
+- Kids Edition and Amazon Kids+ — parental controls, detecting a kid profile, Kids+ integration
+- Ads and Lockscreen (Special Offers) — ad-supported devices, implications, Amazon Mobile Ads SDK
+- Testing — ADB, emulator availability, App Testing Service, checklist
+- Common Pitfalls — Fire 7 performance, memory, missing sensors, GMS detection, WebView, Alexa, Silk
+
 ## Overview
 
 Fire Tablets are AOSP-based Android tablets manufactured by Amazon. They run standard Android APKs but diverge from mainstream Android tablets in several ways:
