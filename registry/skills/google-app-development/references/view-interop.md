@@ -1,8 +1,19 @@
 # View Interop Reference
 
-Target: Compose BOM `2025.05.00+` (Compose UI 1.8+, Navigation 2.9+)
+Target: latest stable Compose BOM. Where an API needs a minimum library version it is noted inline.
 
 ---
+
+## Contents
+- AndroidView — hosting a View in Compose, key parameters, notes
+- AndroidViewBinding — ViewBinding layouts in Compose
+- ComposeView — in an Activity, in a Fragment, `ViewCompositionStrategy`
+- AbstractComposeView — custom Compose-backed Views
+- Navigation Interop — mixing Fragment navigation and Compose Navigation
+- When to Use Views — decision guide, general rule
+- Migration Strategy — screen-by-screen, shared ViewModels, bottom-up
+- RecyclerView Interop — `LazyColumn` vs `RecyclerView`, Compose items inside `RecyclerView`
+- Common Pitfalls — memory leaks, theme bridging, IME, focus/accessibility, lifecycle, state sync
 
 ## AndroidView
 
@@ -183,12 +194,13 @@ Use `composable()` for new screens and `fragment<MyFragment>(route)` for legacy 
 // build.gradle.kts
 implementation("androidx.navigation:navigation-fragment-compose:<latest>")
 
-// In Compose
-NavHost(navController, startDestination = "home") {
-    composable("home") { HomeScreen() }
-    fragment<LegacyDetailFragment>("detail/{id}") {
-        argument("id") { type = NavType.StringType }
-    }
+// In Compose — type-safe routes, same as the rest of the app
+@Serializable data object Home
+@Serializable data class Detail(val id: String)
+
+NavHost(navController, startDestination = Home) {
+    composable<Home> { HomeScreen() }
+    fragment<LegacyDetailFragment, Detail>()   // the Fragment reads `id` from its arguments Bundle
 }
 ```
 
@@ -326,16 +338,23 @@ override fun onBindViewHolder(holder: ComposeItemViewHolder, position: Int) {
 
 ### Theme Bridging
 ---
-- Compose `MaterialTheme` and View `Theme.Material3` are independent. Use `MdcTheme` or `Mdc3Theme` from `com.google.android.material:compose-theme-adapter-3` to bridge XML theme attributes into Compose.
-- Alternatively, define a shared design token layer and apply it to both systems.
+- Compose `MaterialTheme` and View `Theme.Material3` are independent. The durable fix is a **shared design token layer**: define colors, typography and shapes once in Kotlin, feed them to `AppTheme` (Compose) and generate/mirror them into the XML theme (`colors.xml`, `styles.xml`) so both systems read the same values.
+- The old bridging libraries (`compose-theme-adapter` / `Mdc3Theme`, later Accompanist `themeadapter-*`) have been retired; if a legacy codebase still depends on one, plan to replace it with the token layer rather than adding new usages.
 - Watch for color mismatches: View `?attr/colorPrimary` and Compose `MaterialTheme.colorScheme.primary` may differ if not synchronized.
 
 ```kotlin
-// Bridge the XML theme into Compose
-Mdc3Theme {
-    // MaterialTheme values now match the Activity's XML theme
-    MyComposeScreen()
+// One source of truth, consumed by both UI systems
+object AppColors {
+    val primary = Color(0xFF6750A4)
+    // ...
 }
+
+// Compose side
+val AppLightColorScheme = lightColorScheme(primary = AppColors.primary /* ... */)
+
+// View side: keep res/values/colors.xml in sync (generate it in a Gradle task
+// or from the design tool export) and reference it from the XML theme:
+// <item name="colorPrimary">@color/primary</item>
 ```
 
 ### Keyboard (IME) Handling

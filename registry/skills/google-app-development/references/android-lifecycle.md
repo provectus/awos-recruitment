@@ -1,6 +1,17 @@
 # Android Lifecycle Reference (Compose-First)
 
->[toc]
+## Contents
+- Activity Lifecycle — callback sequence, thin Activities in Compose-first apps
+- Fragment Lifecycle — Fragment vs View lifecycle, when Fragments are still justified
+- ViewModel — creation and scoping, `SavedStateHandle`, `CreationExtras`, scoping strategies
+- Configuration Changes — triggers, what survives, handling in Compose, overriding sparingly
+- Process Death — `SavedStateHandle`, `rememberSaveable`, testing process death
+- Navigation Component — NavController lifecycle, type-safe `NavHost`, back stack management, result sharing
+- Lifecycle-Aware Components — `DefaultLifecycleObserver`, `LifecycleEventEffect`, `DisposableEffect`, `collectAsStateWithLifecycle`
+- App Startup — Application class, `ProcessLifecycleOwner`, App Startup library, Splash Screen API
+- Multi-Activity vs Single-Activity — decision framework, recommended single-Activity pattern
+- Predictive Back and Edge-to-Edge — `BackHandler`, `PredictiveBackHandler`, `enableEdgeToEdge`
+- Deep Links and Intents — intent filters, custom deep link router, `PendingIntent`, key rules
 
 
 ## Activity Lifecycle
@@ -429,22 +440,24 @@ fun `restores query after process death`() {
 ### Compose NavHost Setup
 
 ```kotlin
+// Routes are @Serializable classes (type-safe navigation) — no string routes or navArgument parsing
+@Serializable data object Home
+@Serializable data class Detail(val itemId: String)
+
 @Composable
 fun MyAppNavHost(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = "home",
+    startDestination: Any = Home,
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable("home") {
+        composable<Home> {
             HomeScreen(onNavigateToDetail = { id ->
-                navController.navigate("detail/$id")
+                navController.navigate(Detail(itemId = id))
             })
         }
-        composable(
-            route = "detail/{itemId}",
-            arguments = listOf(navArgument("itemId") { type = NavType.StringType }),
-        ) {
-            DetailScreen()
+        composable<Detail> { backStackEntry ->
+            val detail: Detail = backStackEntry.toRoute()
+            DetailScreen(itemId = detail.itemId)
         }
     }
 }
@@ -454,23 +467,23 @@ fun MyAppNavHost(
 ---
 
 ```kotlin
-// Navigate and clear back stack up to "home", avoiding duplicate entries
-navController.navigate("settings") {
-    popUpTo("home") { inclusive = false }
+// Navigate and clear back stack up to Home, avoiding duplicate entries
+navController.navigate(Settings) {
+    popUpTo<Home> { inclusive = false }
     launchSingleTop = true
 }
 
 // Navigate and pop the current destination (replace)
-navController.navigate("home") {
-    popUpTo("login") { inclusive = true }
+navController.navigate(Home) {
+    popUpTo<Login> { inclusive = true }
     launchSingleTop = true
 }
 
 // Pop back to a specific destination
-navController.popBackStack("home", inclusive = false)
+navController.popBackStack<Home>(inclusive = false)
 
 // Bottom navigation pattern -- single instance of each tab
-fun NavHostController.navigateToTab(route: String) {
+fun NavHostController.navigateToTab(route: Any) {
     navigate(route) {
         popUpTo(graph.findStartDestination().id) {
             saveState = true
@@ -485,8 +498,8 @@ fun NavHostController.navigateToTab(route: String) {
 
 | Option | Behavior |
 |--------|----------|
-| `popUpTo("route")` | Pops all destinations above `route` before navigating |
-| `inclusive = true` | Also pops the `route` destination itself |
+| `popUpTo<Route>()` | Pops all destinations above `Route` before navigating |
+| `inclusive = true` | Also pops the `Route` destination itself |
 | `launchSingleTop = true` | If destination is already on top of back stack, do not create a new instance |
 | `saveState = true` | Save the state of popped destinations (for bottom nav) |
 | `restoreState = true` | Restore previously saved state when navigating back |
@@ -854,15 +867,15 @@ class MainActivity : ComponentActivity() {
                 ) { padding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "home",
+                        startDestination = Home,
                         modifier = Modifier.padding(padding),
                     ) {
-                        composable("home") { HomeScreen(navController) }
-                        composable("search") { SearchScreen(navController) }
-                        composable("profile") { ProfileScreen(navController) }
-                        navigation(startDestination = "settings/main", route = "settings") {
-                            composable("settings/main") { SettingsScreen(navController) }
-                            composable("settings/notifications") { NotificationsScreen(navController) }
+                        composable<Home> { HomeScreen(navController) }
+                        composable<Search> { SearchScreen(navController) }
+                        composable<Profile> { ProfileScreen(navController) }
+                        navigation<SettingsGraph>(startDestination = SettingsMain) {
+                            composable<SettingsMain> { SettingsScreen(navController) }
+                            composable<SettingsNotifications> { NotificationsScreen(navController) }
                         }
                     }
                 }
@@ -999,6 +1012,12 @@ class MainActivity : ComponentActivity() {
 Centralize all URI → navigation mapping in a single router. This is the place to add auth gates, feature flags, and conditional redirects.
 
 ```kotlin
+// Type-safe routes used by the router (defined alongside the NavHost)
+@Serializable data class Product(val productId: String)
+@Serializable data class User(val userId: String)
+@Serializable data class Login(val redirectUserId: String? = null)
+@Serializable data class NotificationDetail(val notificationId: String)
+
 fun routeDeepLink(intent: Intent, navController: NavController) {
     val uri = intent.data ?: return
 
@@ -1006,7 +1025,7 @@ fun routeDeepLink(intent: Intent, navController: NavController) {
         // https://www.example.com/product/{id} or myapp://open/product/{id}
         uri.pathSegments.firstOrNull() == "product" -> {
             val productId = uri.lastPathSegment ?: return
-            navController.navigate("product/$productId")
+            navController.navigate(Product(productId))
         }
 
         // https://www.example.com/user/{id}
@@ -1014,16 +1033,16 @@ fun routeDeepLink(intent: Intent, navController: NavController) {
             val userId = uri.lastPathSegment ?: return
             // Auth gate: redirect to login if needed, then forward
             if (!isUserLoggedIn()) {
-                navController.navigate("login?redirect=user/$userId")
+                navController.navigate(Login(redirectUserId = userId))
             } else {
-                navController.navigate("user/$userId")
+                navController.navigate(User(userId))
             }
         }
 
         // Custom actions
         intent.action == "com.example.ACTION_SHOW_NOTIFICATION" -> {
             val notificationId = intent.getStringExtra("notification_id") ?: return
-            navController.navigate("notifications/$notificationId")
+            navController.navigate(NotificationDetail(notificationId))
         }
     }
 }
