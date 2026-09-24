@@ -1,51 +1,97 @@
 # TV Patterns Reference (Google TV / Android TV)
 
->[toc]
-
-> **Placeholder convention:** `<latest>` / `<latest-stable-api>` are fill-in markers — replace with the current stable version / API level. The bare `<latest-stable-api>` is not valid Kotlin, so never emit it literally.
+## Contents
+- Compose for TV — `tv-material` components, `LazyRow`/`LazyColumn` with focus restoration, Carousel, cards
+- Focus Management — `FocusRequester`, `focusRestorer()`, D-pad ordering, focus indication
+- Leanback (Legacy) — `BrowseSupportFragment`, migration to Compose for TV
+- Remote / D-Pad Navigation — key events, `Key` constants, back handling
+- Media Playback — Media3 / ExoPlayer, `MediaSession`, background playback, PiP
+- Layout for TV — 1080p baseline, overscan, focus scaling, 10-foot UI guidelines
+- Content Discovery — home channels, Watch Next, Engage SDK
+- Search — voice search, in-app search with suggestions
+- Input Methods — limited text input, voice input, QR / device-code sign-in
+- Google TV vs Android TV — differences, requirements, build configuration
 
 
 ## Compose for TV
 
-Jetpack Compose for TV (library group `androidx.tv`) provides purpose-built composables that understand focus-driven interaction and the 10-foot UI paradigm. Target **androidx.tv:tv-material:1.0+** and **androidx.tv:tv-foundation:1.0+** with Material 3 theming.
+Jetpack Compose for TV (library group `androidx.tv`) adds Material 3 components tuned for focus-driven interaction and the 10-foot UI. Target the stable **`androidx.tv:tv-material`** artifact on top of standard Compose. Lists come from Compose Foundation: the old `TvLazyColumn` / `TvLazyRow` containers in `tv-foundation` were deprecated and then removed once `LazyColumn` / `LazyRow` gained the focus behaviours natively — do not generate them, and do not add `tv-foundation` unless a remaining API from it is genuinely needed.
 
 ### Core Composables
 ---
 
-#### TvLazyColumn / TvLazyRow
-Focus-aware replacements for standard `LazyColumn` / `LazyRow`. They handle focus restoration, scroll-to-focused-item behavior, and D-pad navigation out of the box.
+#### LazyRow / LazyColumn (Compose Foundation)
+Standard lazy lists are the TV browse containers. Three pieces turn them into focus-aware rows:
+
+- `Modifier.focusRestorer()` — returning to the row restores focus to the last focused card instead of the first.
+- `Modifier.focusGroup()` on the row's parent — keeps D-pad traversal inside a logical group (title + row).
+- `LocalBringIntoViewSpec` — replaces the former `pivotOffsets`: decides where the focused item is aligned when the list scrolls to it.
 
 ```kotlin
-TvLazyRow(
-    pivotOffsets = PivotOffsets(parentFraction = 0.0f, childFraction = 0.0f),
-    contentPadding = PaddingValues(horizontal = 48.dp),
-    horizontalArrangement = Arrangement.spacedBy(16.dp)
-) {
-    items(catalog) { item ->
-        TvCard(item)
-    }
-}
-```
+@Composable
+fun CatalogRow(catalog: List<Item>, onItemClick: (Item) -> Unit) {
+    val (rowRequester, firstItem) = remember { FocusRequester.createRefs() }
 
-- Use `pivotOffsets` to control where the focused item aligns on screen.
-- Wrap rows inside a `TvLazyColumn` to build a full browse grid.
-
-#### ImmersiveList
-Displays a large background image or video that updates as the user moves focus across a horizontal row of items.
-
-```kotlin
-ImmersiveList(
-    background = { index, listHasFocus ->
-        AnimatedContent(targetState = index) { idx ->
-            ImmersiveListBackgroundImage(items[idx].backgroundUri)
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 48.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .focusRequester(rowRequester)
+            .focusRestorer { firstItem },   // fallback when the remembered child is gone
+    ) {
+        itemsIndexed(catalog, key = { _, item -> item.id }) { index, item ->
+            CompactCard(
+                onClick = { onItemClick(item) },
+                image = { AsyncImage(model = item.posterUrl, contentDescription = null) },
+                title = { Text(item.title) },
+                modifier = if (index == 0) Modifier.focusRequester(firstItem) else Modifier,
+            )
         }
     }
-) {
-    TvLazyRow { items(items) { item -> FocusableCard(item) } }
 }
 ```
 
-- The `background` lambda receives the currently focused index and whether the list has focus, enabling animated transitions.
+- Nest rows inside a `LazyColumn` to build a full browse screen; wrap each row's `Column` (title + row) in `Modifier.focusGroup()`.
+- To reproduce the old `pivotOffsets(parentFraction, childFraction)` alignment, provide a custom `BringIntoViewSpec` through `CompositionLocalProvider(LocalBringIntoViewSpec provides spec) { ... }` around the lists (Google's TV Material catalog sample does this in `PositionFocusedItemInLazyLayout`). `BringIntoViewSpec` is still `@ExperimentalFoundationApi`.
+
+#### Immersive list (build it yourself)
+The former `ImmersiveList` component was removed from `tv-material` before 1.0. Compose the pattern from primitives: a full-bleed background that reacts to the focused item, with a `LazyRow` on top.
+
+```kotlin
+@Composable
+fun ImmersiveRow(items: List<Item>, onItemClick: (Item) -> Unit) {
+    var focusedIndex by remember { mutableIntStateOf(0) }
+
+    Box(Modifier.fillMaxWidth()) {
+        AnimatedContent(targetState = focusedIndex, label = "background") { idx ->
+            AsyncImage(
+                model = items[idx].backgroundUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+            )
+        }
+        LazyRow(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .focusRestorer(),
+            contentPadding = PaddingValues(horizontal = 48.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                CompactCard(
+                    onClick = { onItemClick(item) },
+                    image = { AsyncImage(model = item.posterUrl, contentDescription = null) },
+                    title = { Text(item.title) },
+                    modifier = Modifier.onFocusChanged { if (it.isFocused) focusedIndex = index },
+                )
+            }
+        }
+    }
+}
+```
+
+- Drive the background from `onFocusChanged` on each card; `AnimatedContent` gives the cross-fade the removed component used to provide.
 
 #### Carousel
 Auto-advances through hero content; pauses on user interaction.
@@ -63,9 +109,9 @@ Carousel(
 ```
 
 - Responds to left/right D-pad for manual navigation.
-- Pair with `ImmersiveList` for a full home-screen experience.
+- Pair with an immersive row (above) for a full home-screen experience.
 
-#### TvCard / WideCardContainer
+#### Cards
 Material 3 card surfaces designed for TV focus states (border glow, scaling).
 
 ```kotlin
@@ -78,7 +124,7 @@ CompactCard(
 )
 ```
 
-Card variants: `Card`, `CompactCard`, `WideCardContainer`, `ClassicCard`. Each accepts `scale`, `border`, `glow`, and `shape` customization through `CardDefaults`.
+Card variants in `tv-material`: `Card`, `ClassicCard`, `CompactCard`, `WideClassicCard`, plus the `StandardCardContainer` / `WideCardContainer` wrappers that place a title below or beside an image. Each accepts `scale`, `border`, `glow`, and `shape` customization through `CardDefaults`.
 
 
 ## Focus Management
@@ -104,10 +150,10 @@ LaunchedEffect(Unit) {
 
 ### focusRestorer()
 ---
-Remembers which child last held focus inside a `TvLazyRow` / `TvLazyColumn` so that returning to the row restores focus to the same item rather than resetting to the first.
+Remembers which child last held focus inside a `LazyRow` / `LazyColumn` so that returning to the row restores focus to the same item rather than resetting to the first.
 
 ```kotlin
-TvLazyRow(
+LazyRow(
     modifier = Modifier.focusRestorer()
 ) {
     items(catalog) { item -> FocusableCard(item) }
@@ -116,6 +162,7 @@ TvLazyRow(
 
 - Apply `focusRestorer()` on every scrollable container to avoid disorienting jumps.
 - Accepts an optional `FocusRequester` lambda for a fallback target when the previously-focused item is gone.
+- Call `focusRequester.saveFocusedChild()` on the row's requester before navigating away (e.g. in the card's `onClick`) so the restore target survives the round trip to a detail screen.
 
 ### D-Pad Navigation Ordering
 ---
@@ -171,12 +218,12 @@ Leanback is deprecated. Migration path:
 
 | Leanback Component | Compose for TV Replacement |
 |---|---|
-| `BrowseSupportFragment` | `TvLazyColumn` + `TvLazyRow` with `ImmersiveList` |
+| `BrowseSupportFragment` | `LazyColumn` of `LazyRow`s with a hand-built immersive background |
 | `DetailsSupportFragment` | Custom Compose detail screen |
 | `SearchSupportFragment` | Custom search with `TextField` + results list |
 | `PlaybackSupportFragment` | Media3 `PlayerView` + custom Compose overlay |
 | `GuidedStepSupportFragment` | Compose dialogs / step-by-step UI |
-| `ListRow` / `Presenter` | `TvLazyRow` + card composables |
+| `ListRow` / `Presenter` | `LazyRow` + `tv-material` card composables |
 
 Migration tips:
 - Migrate screen-by-screen; Leanback fragments and Compose screens can coexist via `NavHostFragment` + Compose destinations.
@@ -443,7 +490,7 @@ fun TvSearchScreen(viewModel: SearchViewModel) {
             placeholder = { Text("Search movies, shows...") }
         )
 
-        TvLazyColumn {
+        LazyColumn(Modifier.focusRestorer()) {
             items(suggestions) { suggestion ->
                 ListItem(
                     selected = false,
@@ -554,8 +601,8 @@ android {
 }
 
 dependencies {
-    // Compose for TV (Material 3)
-    implementation("androidx.tv:tv-foundation:<latest>")  // currently in beta
+    // Compose for TV (Material 3). Lazy lists come from Compose Foundation,
+    // so tv-foundation is not needed.
     implementation("androidx.tv:tv-material:<latest>")
 
     // Media3
