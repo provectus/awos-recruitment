@@ -13,85 +13,94 @@ description: >-
 
 # React Best Practices
 
-Comprehensive performance optimization guide for React applications. Contains 37 rules across 7 categories, prioritized by impact.
+Performance optimization guide for React applications: 37 rules across 7 categories.
+
+Categories are ordered by how much they typically move the needle, so work top-down
+when reviewing. Each rule carries its own `impact:` value in the front matter of its
+file in `references/`, and that per-rule value is what the Quick Reference below
+shows — a lower-priority category can still hold a high-impact rule, which is why
+the category order and the rule impacts are reported separately.
 
 ## Rule Categories by Priority
 
-| Priority | Category                  | Impact      | Prefix       |
-| -------- | ------------------------- | ----------- | ------------ |
-| 1        | Eliminating Waterfalls    | CRITICAL    | `async-`     |
-| 2        | Bundle Size Optimization  | CRITICAL    | `bundle-`    |
-| 3        | Client-Side Data Fetching | MEDIUM-HIGH | `client-`    |
-| 4        | Re-render Optimization    | MEDIUM      | `rerender-`  |
-| 5        | Rendering Performance     | MEDIUM      | `rendering-` |
-| 6        | JavaScript Performance    | LOW-MEDIUM  | `js-`        |
-| 7        | Advanced Patterns         | LOW         | `advanced-`  |
+| Priority | Category                  | Prefix       | Rules |
+| -------- | ------------------------- | ------------ | ----- |
+| 1        | Eliminating Waterfalls    | `async-`     | 2     |
+| 2        | Bundle Size Optimization  | `bundle-`    | 4     |
+| 3        | Client-Side Data Fetching | `client-`    | 4     |
+| 4        | Re-render Optimization    | `rerender-`  | 7     |
+| 5        | Rendering Performance     | `rendering-` | 6     |
+| 6        | JavaScript Performance    | `js-`        | 12    |
+| 7        | Advanced Patterns         | `advanced-`  | 2     |
 
 ## Quick Reference
 
-### 1. Eliminating Waterfalls (CRITICAL)
+Impact labels below are the `impact:` value from each rule file's front matter.
 
-- `async-defer-await` - Move await into branches where actually used
-- `async-parallel` - Use Promise.all()/allSettled() for independent operations
+### 1. Eliminating Waterfalls (`async-`)
 
-### 2. Bundle Size Optimization (CRITICAL)
+- `async-defer-await` (HIGH) - Move await into branches where actually used
+- `async-parallel` (CRITICAL) - Use Promise.all()/allSettled() for independent operations
 
-- `bundle-dynamic-imports` - React.lazy() for heavy components
-- `bundle-defer-third-party` - Load analytics/logging on demand
-- `bundle-conditional` - Load modules only when feature is activated
-- `bundle-preload` - Preload on hover/focus for perceived speed
+### 2. Bundle Size Optimization (`bundle-`)
 
-### 3. Client-Side Data Fetching (MEDIUM-HIGH)
+- `bundle-dynamic-imports` (CRITICAL) - React.lazy() for heavy components
+- `bundle-conditional` (HIGH) - Load modules only when feature is activated
+- `bundle-defer-third-party` (MEDIUM) - Load analytics/logging on demand
+- `bundle-preload` (MEDIUM) - Preload on hover/focus for perceived speed
 
-- `client-query-dedup` - Use TanStack Query for automatic request deduplication
-- `client-event-listeners` - Deduplicate global event listeners
-- `client-passive-event-listeners` - Use passive listeners for scroll performance
-- `client-localstorage-schema` - Version and minimize localStorage data
+### 3. Client-Side Data Fetching (`client-`)
 
-### 4. Re-render Optimization (MEDIUM)
+- `client-query-dedup` (MEDIUM-HIGH) - Use TanStack Query for automatic request deduplication
+- `client-passive-event-listeners` (MEDIUM) - Use passive listeners for scroll performance
+- `client-localstorage-schema` (MEDIUM) - Version and minimize localStorage data
+- `client-event-listeners` (LOW) - Deduplicate global event listeners
 
-- `rerender-defer-reads` - Don't subscribe to state only used in callbacks
-- `rerender-memo` - Extract expensive work into memoized components
-- `rerender-dependencies` - Use primitive dependencies in effects
-- `rerender-derived-state` - Subscribe to derived booleans, not raw values
-- `rerender-functional-setstate` - Use functional setState for stable callbacks
-- `rerender-lazy-state-init` - Pass function to useState for expensive values
-- `rerender-transitions` - Use startTransition for non-urgent updates
+### 4. Re-render Optimization (`rerender-`)
 
-### 5. Rendering Performance (MEDIUM)
+- `rerender-defer-reads` (MEDIUM) - Don't subscribe to state only used in callbacks
+- `rerender-memo` (MEDIUM) - Extract expensive work into memoized components
+- `rerender-derived-state` (MEDIUM) - Subscribe to derived booleans, not raw values
+- `rerender-functional-setstate` (MEDIUM) - Use functional setState for stable callbacks
+- `rerender-lazy-state-init` (MEDIUM) - Pass function to useState for expensive values
+- `rerender-transitions` (MEDIUM) - Use startTransition for non-urgent updates
+- `rerender-dependencies` (LOW) - Use primitive dependencies in effects
 
-- `rendering-animate-svg-wrapper` - Animate div wrapper, not SVG element
-- `rendering-content-visibility` - Use content-visibility for long lists
-- `rendering-hoist-jsx` - Extract static JSX outside components
-- `rendering-svg-precision` - Reduce SVG coordinate precision
-- `rendering-activity` - Use Activity component for show/hide
-- `rendering-conditional-render` - Use ternary, not && for conditionals
+### 5. Rendering Performance (`rendering-`)
 
-### 6. JavaScript Performance (LOW-MEDIUM)
+- `rendering-content-visibility` (HIGH) - Use content-visibility for long lists
+- `rendering-activity` (MEDIUM) - Use Activity component for show/hide
+- `rendering-animate-svg-wrapper` (LOW) - Animate div wrapper, not SVG element
+- `rendering-hoist-jsx` (LOW) - Extract static JSX outside components
+- `rendering-svg-precision` (LOW) - Reduce SVG coordinate precision
+- `rendering-conditional-render` (LOW) - Use ternary, not && for conditionals
+
+### 6. JavaScript Performance (`js-`)
 
 These rules are framework-agnostic JavaScript. They are here because they pay off in
 the hot paths React components run — render bodies, effects, event handlers, and the
 helpers those call. Reach for them when profiling points at a specific loop or
 lookup, not as general style guidance.
 
-- `js-batch-dom-css` - Group CSS changes via classes or cssText
-- `js-index-maps` - Build Map for repeated lookups
-- `js-cache-property-access` - Cache object properties in loops
-- `js-cache-function-results` - Cache function results in module-level Map
-- `js-cache-storage` - Cache localStorage/sessionStorage reads
-- `js-combine-iterations` - Combine multiple filter/map into one loop
-- `js-length-check-first` - Check array length before expensive comparison
-- `js-early-exit` - Return early from functions
-- `js-hoist-regexp` - Hoist RegExp creation outside loops
-- `js-min-max-loop` - Use loop for min/max instead of sort
-- `js-set-map-lookups` - Use Set/Map for O(1) lookups
-- `js-tosorted-immutable` - Use toSorted() for immutability
+- `js-length-check-first` (MEDIUM-HIGH) - Check array length before expensive comparison
+- `js-tosorted-immutable` (MEDIUM-HIGH) - Use toSorted() for immutability
+- `js-batch-dom-css` (MEDIUM) - Group CSS changes via classes or cssText
+- `js-cache-function-results` (MEDIUM) - Cache function results in module-level Map
+- `js-index-maps` (LOW-MEDIUM) - Build Map for repeated lookups
+- `js-cache-property-access` (LOW-MEDIUM) - Cache object properties in loops
+- `js-cache-storage` (LOW-MEDIUM) - Cache localStorage/sessionStorage reads
+- `js-combine-iterations` (LOW-MEDIUM) - Combine multiple filter/map into one loop
+- `js-early-exit` (LOW-MEDIUM) - Return early from functions
+- `js-hoist-regexp` (LOW-MEDIUM) - Hoist RegExp creation outside loops
+- `js-set-map-lookups` (LOW-MEDIUM) - Use Set/Map for O(1) lookups
+- `js-min-max-loop` (LOW) - Use loop for min/max instead of sort
 
-### 7. Advanced Patterns (LOW)
+### 7. Advanced Patterns (`advanced-`)
 
-- `advanced-event-handler-refs` - Store event handlers in refs
-- `advanced-use-latest` - useLatest for stable callback refs
+- `advanced-event-handler-refs` (LOW) - Store event handlers in refs
+- `advanced-use-latest` (LOW) - useLatest for stable callback refs
 
 ## How to Use
 
-Each rule file in `references/` contains: explanation, incorrect/correct code examples, and context. Read individual files as needed.
+Each rule file in `references/` contains: an explanation, an incorrect/correct code
+pair, and context. Read individual files as needed.

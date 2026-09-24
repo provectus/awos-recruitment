@@ -46,12 +46,15 @@ Every rule file contains:
 
 ## Rule Categories
 
+`Impact` is the range of the per-rule `impact:` values in that category; `Priority`
+is the suggested review order. See `SKILL.md` for the impact of each individual rule.
+
 | Priority | Category | Impact | Rules |
 |----------|----------|--------|-------|
-| 1 | Eliminating Waterfalls | CRITICAL | 2 |
-| 2 | Bundle Size Optimization | CRITICAL | 4 |
-| 3 | Client-Side Data Fetching | MEDIUM-HIGH | 4 |
-| 4 | Re-render Optimization | MEDIUM | 7 |
-| 5 | Rendering Performance | MEDIUM | 6 |
-| 6 | JavaScript Performance | LOW-MEDIUM | 12 |
+| 1 | Eliminating Waterfalls | HIGH–CRITICAL | 2 |
+| 2 | Bundle Size Optimization | MEDIUM–CRITICAL | 4 |
+| 3 | Client-Side Data Fetching | LOW–MEDIUM-HIGH | 4 |
+| 4 | Re-render Optimization | LOW–MEDIUM | 7 |
+| 5 | Rendering Performance | LOW–HIGH | 6 |
+| 6 | JavaScript Performance | LOW–MEDIUM-HIGH | 12 |
 | 7 | Advanced Patterns | LOW | 2 |
