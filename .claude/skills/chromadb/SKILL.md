@@ -1,7 +1,6 @@
 ---
-name: ChromaDB
-description: This skill should be used when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Provides up-to-date API patterns, filtering syntax, collection configuration, and embedding function integration.
-version: 0.1.0
+name: chromadb
+description: Provides ChromaDB Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package.
 ---
 
 # ChromaDB Python Skill
