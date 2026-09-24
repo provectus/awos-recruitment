@@ -61,6 +61,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.8  # Terraform is not on the runner image
 
       - name: Run Terraform Tests
         run: terraform test
@@ -82,6 +85,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.8  # Without this the action installs latest
 
       - name: Terraform Init
         run: terraform init
@@ -103,6 +108,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.8  # Must match the version that made the plan
 
       - name: Download Plan
         uses: actions/download-artifact@v8.0.1
