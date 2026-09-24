@@ -78,8 +78,9 @@ the installed package.
 
 - Node→tier mapping lives in configuration, not in Python literals.
 - Model IDs are loaded from config, with an explicit note that Bedrock IDs
-  carry version/date suffixes and cross-region profiles carry a `us.`/`eu.`/
-  `apac.` prefix — no invented ID like `anthropic.claude-sonnet`.
+  carry version/date suffixes and inference profiles carry a prefix — a
+  geography (`us.`/`eu.`/`apac.`) or `global.` — no invented ID like
+  `anthropic.claude-sonnet`.
 - The fallback chain is implemented: it iterates candidates and raises on
   exhaustion. It does not return the primary with a "real implementation
   checks availability" comment.

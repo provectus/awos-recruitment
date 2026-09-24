@@ -459,9 +459,9 @@ stages:
 
 ### Available Models via Bedrock
 
-Families, not IDs. A Bedrock model ID carries a version and date suffix, and a
-cross-region inference profile prefixes it with a geography (`us.`, `eu.`,
-`apac.`). Resolve the concrete IDs available to your account and region with
+Families, not IDs. A Bedrock model ID carries a version and date suffix, and an
+inference profile prefixes it — with a geography (`us.`, `eu.`, `apac.`) or
+with `global.`. Resolve the concrete IDs available to your account and region with
 `bedrock.list_foundation_models()` / `bedrock.list_inference_profiles()`, or
 from the model card pages in the Bedrock user guide, and keep them in
 deployment config — see *3-Tier Model Routing* in SKILL.md.
@@ -477,20 +477,33 @@ deployment config — see *3-Tier Model Routing* in SKILL.md.
 
 ### Cross-Region Inference
 
-Bedrock supports cross-region inference for availability. Invoke a
+Bedrock supports cross-Region inference for availability. Invoke a
 system-defined inference profile instead of the bare model ID and Bedrock
-routes the request to an available destination region when the source region
-is throttled:
+routes the request to an available destination Region when the source Region
+is throttled. There are two kinds, and they are not interchangeable — the
+prefix decides both where a request may run and which policy it needs:
 
 ```python
-# A cross-region inference profile ID is the model ID with a geography prefix
-# (us. / eu. / apac.). Load the concrete value from config — do not hardcode.
+# The profile ID is the model ID with a prefix: a geography (us. / eu. /
+# apac.) routes inside that geography, `global.` routes across commercial
+# Regions worldwide. Load the concrete value from config — do not hardcode.
 model_id = settings.model_id  # e.g. "us.<vendor>.<model>-<version>:<n>"
 ```
 
-Note that destination regions may include opt-in regions, so the SCP and IAM
-policies for every destination region must allow the Bedrock invoke actions —
-otherwise the profile fails even when some regions are permitted.
+**Geographic** (`us.`/`eu.`/`apac.`): destination Regions may include opt-in
+Regions, so the SCP and IAM policies for every destination Region must allow
+the Bedrock invoke actions — otherwise the profile fails even when some
+Regions are permitted.
+
+**Global** (`global.`): routing is worldwide and the IAM shape differs. It
+needs three statements, not a destination-Region list — the source-Region
+profile ARN (`…:inference-profile/global.<model>`), the source-Region
+foundation-model ARN, and the Region-less
+`arn:aws:bedrock:::foundation-model/<model>` under
+`aws:RequestedRegion: unspecified`. Removing any one denies access. See
+[Global cross-Region inference][global-cris].
+
+[global-cris]: https://docs.aws.amazon.com/bedrock/latest/userguide/global-cross-region-inference.html
 
 ### Bedrock Guardrails
 
