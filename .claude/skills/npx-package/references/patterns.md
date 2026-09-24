@@ -1,5 +1,17 @@
 # npx Package Patterns
 
+## Contents
+
+- [Argument Parsing with Commander](#argument-parsing-with-commander) — `commander` setup, subcommands, options table
+- [Interactive Prompts](#interactive-prompts) — confirm and select menus via `node:readline/promises`
+- [Spinner / Progress Indicator](#spinner--progress-indicator) — zero-dependency spinner on stderr
+- [HTTP Requests from CLI](#http-requests-from-cli) — built-in `fetch`, timeouts with `AbortController`
+- [Error Handling Patterns](#error-handling-patterns) — top-level boundary, custom error classes, exit codes
+- [File System Operations](#file-system-operations) — JSON config read/write, resolving paths against cwd
+- [Subprocess Execution](#subprocess-execution) — `execFile` over `exec` to avoid shell injection
+- [Environment Variables](#environment-variables) — defaults and required-variable checks
+- [Testing CLI Commands](#testing-cli-commands) — integration tests via `execFile`, unit tests on handlers
+
 ## Argument Parsing with Commander
 
 For CLIs with multiple commands and flags, use `commander`:
