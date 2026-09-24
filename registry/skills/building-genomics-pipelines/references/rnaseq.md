@@ -274,10 +274,15 @@ cnetplot(go_bp, categorySize = "pvalue")
 
 ### Cell Ranger (10x Genomics)
 
+Download the current human reference from the 10x Genomics support site rather
+than reusing whatever is on disk — the transcriptome build is part of the
+result, so pin it and record it. `refdata-gex-GRCh38-2024-A` is the build this
+example was written against; substitute the release you downloaded.
+
 ```bash
 # Run Cell Ranger count
 cellranger count --id=sample \
-    --transcriptome=/ref/refdata-gex-GRCh38-2024-A \
+    --transcriptome=/ref/refdata-gex-GRCh38-<release> \
     --fastqs=/data/fastqs \
     --sample=sample \
     --localcores=16 \

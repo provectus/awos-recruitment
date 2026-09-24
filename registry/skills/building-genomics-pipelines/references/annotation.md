@@ -20,6 +20,21 @@
 VCF → Normalization → Functional Annotation → Population Frequencies → Clinical Databases → Filtering → Interpretation
 ```
 
+## Versions and Databases
+
+Annotation resources move faster than this file does, so treat every version string below as a placeholder and resolve the current one before running anything. Pin the resolved version in the pipeline (a re-run must reproduce the same calls) and record it in the run manifest.
+
+| Resource | Where to find the current release |
+|----------|-----------------------------------|
+| VEP + cache | `hub.docker.com/r/ensemblorg/ensembl-vep/tags`; cache release must match the VEP version |
+| SnpEff database | `snpEff databases \| grep GRCh38` |
+| ANNOVAR databases | `annotate_variation.pl -buildver hg38 -downdb -webfrom annovar avdblist humandb/` |
+| ClinVar | Re-download monthly — it is the fastest-moving database here |
+| gnomAD | `gnomad.broadinstitute.org` — check for a newer major release |
+| dbNSFP, CADD, SpliceAI, AlphaMissense | The plugin's own release page; the file name encodes the version |
+
+Placeholders used below: `<RELEASE>` (VEP/Ensembl release, e.g. `116.2`), `<YYYYMMDD>` (ClinVar snapshot date), `<NN>` (a database's major/minor version digits).
+
 ## Variant Normalization
 
 Always normalize variants before annotation:
@@ -108,9 +123,9 @@ vep -i input.vcf.gz \
     --plugin SpliceAI,snv=spliceai_scores.masked.snv.hg38.vcf.gz,indel=spliceai_scores.masked.indel.hg38.vcf.gz \
     --plugin AlphaMissense,file=AlphaMissense_hg38.tsv.gz \
     --plugin REVEL,file=revel_scores.tsv.gz \
-    --plugin dbNSFP,dbNSFP4.4a_grch38.gz,ALL \
+    --plugin dbNSFP,dbNSFP<NN>a_grch38.gz,ALL \
     --plugin ClinVar,clinvar.vcf.gz \
-    --plugin gnomADc,gnomad.v4.0.constraint.txt \
+    --plugin gnomADc,gnomad.v<NN>.constraint.txt \
     --plugin LoFtool \
     --plugin MaxEntScan,/path/to/maxentscan \
     --plugin Mastermind,mastermind.vcf.gz
@@ -118,8 +133,10 @@ vep -i input.vcf.gz \
 
 ### VEP Docker
 
+Always pin an explicit `release_*` tag — `:latest` silently changes the transcript set under a running pipeline. Resolve `<RELEASE>` from the tag list in [Versions and Databases](#versions-and-databases).
+
 ```bash
-docker run -v $PWD:/data ensemblorg/ensembl-vep:release_110.1 \
+docker run -v $PWD:/data ensemblorg/ensembl-vep:release_<RELEASE> \
     vep -i /data/input.vcf.gz \
     --cache \
     --dir_cache /data/vep_cache \
@@ -174,12 +191,20 @@ SnpSift filter "(ANN[*].IMPACT = 'HIGH')" annotated.vcf > high_impact.vcf
 
 ### Database Download
 
+ANNOVAR database keywords carry their version in the name, so list what is
+currently published before downloading — a stale keyword fails silently with an
+empty annotation column rather than an error.
+
 ```bash
-# Download databases
+# List every database ANNOVAR currently ships for this build
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar avdblist humandb/
+
+# Download databases (substitute the current keywords from avdblist;
+# clinvar is clinvar_<YYYYMMDD>, dbnsfp is dbnsfp<NN>a academic / dbnsfp<NN>c commercial)
 annotate_variation.pl -buildver hg38 -downdb -webfrom annovar refGene humandb/
-annotate_variation.pl -buildver hg38 -downdb -webfrom annovar clinvar_20230416 humandb/
-annotate_variation.pl -buildver hg38 -downdb -webfrom annovar gnomad40_exome humandb/
-annotate_variation.pl -buildver hg38 -downdb -webfrom annovar dbnsfp42c humandb/
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar clinvar_<YYYYMMDD> humandb/
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar gnomad<NN>_exome humandb/
+annotate_variation.pl -buildver hg38 -downdb -webfrom annovar dbnsfp<NN>a humandb/
 annotate_variation.pl -buildver hg38 -downdb -webfrom annovar cadd humandb/
 ```
 
@@ -194,7 +219,7 @@ table_annovar.pl input.avinput humandb/ \
     -buildver hg38 \
     -out annotated \
     -remove \
-    -protocol refGene,clinvar_20230416,gnomad40_exome,dbnsfp42c \
+    -protocol refGene,clinvar_<YYYYMMDD>,gnomad<NN>_exome,dbnsfp<NN>a \
     -operation g,f,f,f \
     -nastring . \
     -vcfinput \
@@ -208,9 +233,13 @@ annotate_variation.pl -geneanno -dbtype refGene \
 ## Key Annotation Databases
 
 ### Population Frequencies
+Sizes below describe the release named in each row; check for a newer major
+release before choosing a frequency cutoff, since larger callsets shift what
+counts as rare.
+
 | Database | Description | Use |
 |----------|-------------|-----|
-| gnomAD v4 | 807K exomes, 76K genomes | Filter common variants |
+| gnomAD | Largest population callset — v4 covers 730,947 exomes and 76,215 genomes (807,162 individuals) | Filter common variants |
 | 1000 Genomes | 2,504 individuals | Population structure |
 | ExAC | Legacy, use gnomAD | - |
 | TOPMed | 150K+ genomes | Additional filtering |
