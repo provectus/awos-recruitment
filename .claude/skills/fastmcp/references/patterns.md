@@ -1,5 +1,17 @@
 # FastMCP Architecture Patterns
 
+## Contents
+
+- [Server Composition](#server-composition) — mounting sub-servers, name mapping
+- [Lifespan Management](#lifespan-management) — shared HTTP clients, DB pools
+- [Proxy Servers](#proxy-servers) — forwarding to remote or in-process servers
+- [OpenAPI / FastAPI Import](#openapi--fastapi-import) — generating a server from an existing API
+- [Error Handling in Tools](#error-handling-in-tools) — returning vs raising, error logging
+- [Dependencies Management](#dependencies-management) — `fastmcp.json`
+- [Project Structure](#project-structure) — single-file and multi-module layouts
+- [Testing](#testing) — in-process client, testing sub-servers
+- [Transport Selection Guide](#transport-selection-guide) — stdio vs http vs sse
+
 ## Server Composition
 
 Split a large server into logical sub-servers mounted on a main server.
@@ -210,13 +222,20 @@ Place alongside the server script for isolated dependency management:
 
 ```json
 {
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "path": "server.py"
+  },
   "environment": {
+    "type": "uv",
     "dependencies": ["httpx", "pydantic>=2.0"]
   }
 }
 ```
 
-Dependencies are installed in a UV-managed virtual environment before server start.
+`source` points at the server module and is the only required key — omit it and
+the config fails validation. Dependencies are installed in a UV-managed virtual
+environment before server start.
 
 ### When to use
 
