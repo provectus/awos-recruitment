@@ -1,5 +1,26 @@
 # AgentCore Deployment Patterns
 
+## Contents
+
+- [AgentCore Runtime](#agentcore-runtime) — deployment entrypoint, sessions,
+  versioned endpoints
+- [AgentCore Gateway](#agentcore-gateway) — turning Lambdas and APIs into MCP
+  tools
+- [AgentCore Policy (Cedar)](#agentcore-policy-cedar) — deterministic
+  authorization, enforcement modes
+- [AgentCore Memory](#agentcore-memory) — persistent context across sessions
+- [AgentCore Identity](#agentcore-identity) — agent workload identity, outbound
+  auth
+- [CDK Deployment Patterns](#cdk-deployment-patterns) — stack layout,
+  environments, agent CI/CD
+- [Bedrock Foundation Models](#bedrock-foundation-models) — model IDs,
+  cross-region inference
+- [Bedrock Guardrails](#bedrock-guardrails) — content filters, PII, grounding,
+  prompt-attack detection
+
+Every API name below was checked against `bedrock-agentcore` 1.23 and
+`aws-cdk-lib` 2.270. Both move quickly — re-check anything you pin.
+
 ## AgentCore Runtime
 
 AgentCore Runtime provides serverless, session-isolated execution for agents.
@@ -9,39 +30,63 @@ AgentCore Runtime provides serverless, session-isolated execution for agents.
 - **Framework agnostic**: Works with LangGraph, Strands, CrewAI, or custom agents.
 - **Session isolation**: Each session runs in a dedicated microVM with isolated
   CPU, memory, and filesystem. Memory is sanitised after session completion.
-- **Extended execution**: Supports real-time interactions and long-running
-  workloads up to 8 hours.
+- **Extended execution**: Supports both real-time interactions and long-running
+  asynchronous jobs. The synchronous request timeout, the streaming duration
+  and the async job ceiling are three different quotas — look up the current
+  values in [Quotas for Amazon Bedrock AgentCore][quotas] before designing
+  around any of them.
 - **Consumption-based pricing**: Charges only for resources consumed. CPU
   billing aligns with active processing — typically no charges during I/O wait
   (e.g., waiting for LLM responses).
-- **100MB payload support**: Handles large documents, images, and multi-modal content.
+- **Large payloads**: Handles documents, images, and multi-modal content up to
+  the invocation payload quota (see [quotas][quotas]).
 - **Bidirectional streaming**: HTTP API and WebSocket connections for real-time
   interactive applications.
 
+[quotas]: https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html
+
 ### Deploying a LangGraph Agent
 
-```python
-# agent.py — Entry point for AgentCore Runtime
-from langgraph.graph import StateGraph
-from bedrock_agentcore.runtime import AgentCoreApp
+The runtime contract is an HTTP server exposing `/invocations` and `/ping`.
+`BedrockAgentCoreApp` implements it for you: `@app.entrypoint` registers the
+handler and `app.run()` serves it on port 8080. The app does not wrap the
+compiled graph — the handler calls the graph itself, which is what lets you
+validate the payload and pick the `thread_id` first.
 
-# Define your graph
+```python
+# agent.py — Entry point for AgentCore Runtime.
+# Requires: bedrock-agentcore (verified against 1.23; pin a compatible range)
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from langgraph.graph import StateGraph
+
+app = BedrockAgentCoreApp()
+
 graph = StateGraph(YourState)
 # ... add nodes and edges ...
-app = graph.compile(checkpointer=your_checkpointer)
+compiled = graph.compile(checkpointer=your_checkpointer)
 
-# Wrap for AgentCore Runtime
-agentcore_app = AgentCoreApp(app)
+
+@app.entrypoint
+async def invoke(payload: dict) -> dict:
+    """Handle one AgentCore invocation.
+
+    The payload arrives from InvokeAgentRuntime unchanged, so validate it here
+    before it reaches the graph. Declare a second `context` parameter to also
+    receive the RequestContext (session ID, forwarded headers).
+    """
+    config = {"configurable": {"thread_id": payload["session_id"]}}
+    return await compiled.ainvoke(payload["input"], config)
+
 
 if __name__ == "__main__":
-    agentcore_app.serve()
+    app.run()
 ```
 
 ### Session Management
 
 ```python
-# Each workflow gets an isolated session
-# Sessions persist state across multiple invocations within the 8-hour window
+# Each workflow gets an isolated session.
+# Sessions persist state across invocations for the lifetime of the session.
 
 # For multi-day workflows:
 # 1. Agent runs in session, hits interrupt() for HITL
@@ -76,47 +121,66 @@ into MCP-compatible tools.
 
 ### Setting Up a Gateway Target
 
+The CDK module is `aws_cdk.aws_bedrockagentcore` (one word — not
+`aws_bedrock_agentcore`). Each target type has its own `add_*_target` method,
+and every target needs a `tool_schema` — that schema is what the agent sees
+when it discovers the tool, so the descriptions in it are load-bearing.
+
 ```python
-# CDK pattern for Gateway with Lambda target
-from aws_cdk import (
-    aws_bedrock_agentcore as agentcore,
-    aws_lambda as lambda_,
+# CDK pattern for Gateway with Lambda target (aws-cdk-lib 2.270)
+from aws_cdk import aws_bedrockagentcore as agentcore
+
+gateway = agentcore.Gateway(
+    self,
+    "AgentGateway",
+    gateway_name="agent-gateway",
+    authorizer_configuration=agentcore.CustomJwtAuthorizer(
+        discovery_url=cognito_discovery_url,
+        allowed_clients=[cognito_client_id],
+    ),
 )
 
-# Define a Lambda function as a Gateway target
-gateway = agentcore.Gateway(self, "AgentGateway",
-    authorizer=cognito_authorizer,
-)
-
-gateway.add_target("data-store",
-    target_type="lambda",
-    function=data_store_lambda,
+gateway.add_lambda_target(
+    "DataStore",
+    lambda_function=data_store_lambda,
     description="Read and write records in the primary data store",
-)
-
-gateway.add_target("notification-service",
-    target_type="lambda",
-    function=notification_lambda,
-    description="Send notifications via email or messaging channels",
+    tool_schema=agentcore.ToolSchema.from_inline([
+        agentcore.ToolDefinition(
+            name="get_record",
+            description="Fetch one record by its primary identifier.",
+            input_schema=agentcore.SchemaDefinition(
+                type=agentcore.SchemaDefinitionType.OBJECT,
+                properties={
+                    "record_id": agentcore.SchemaDefinition(
+                        type=agentcore.SchemaDefinitionType.STRING,
+                        description="Primary identifier of the record.",
+                    ),
+                },
+                required=["record_id"],
+            ),
+        ),
+    ]),
 )
 ```
 
+Other target types: `add_api_gateway_target`, `add_open_api_target`,
+`add_smithy_target`, `add_mcp_server_target`.
+
 ### MCP Tool Usage in LangGraph
+
+Tools registered in Gateway are reached as MCP tools through the Gateway
+endpoint, and Cedar policies are evaluated on every invocation. On the
+LangChain side, tools are **bound** to the model — `bind_tools` returns a new
+runnable. There is no `tools=` keyword on `invoke`; passing one silently sends
+nothing.
 
 ```python
 from langchain_aws import ChatBedrockConverse
 
-# Tools registered in Gateway are available as MCP tools
-# The agent invokes them through the Gateway endpoint
-# Cedar policies are evaluated on every invocation
-
-def processing_node(state):
-    model = ChatBedrockConverse(
-        model_id="anthropic.claude-sonnet",
-        # Tools bound via Gateway MCP endpoint
-    )
-    result = model.invoke(state["prompt"], tools=gateway_tools)
-    return {"processed_results": result}
+def processing_node(state: dict) -> dict:
+    model = ChatBedrockConverse(model_id=settings.model_id)  # from config
+    result = model.bind_tools(gateway_tools).invoke(state["prompt"])
+    return {"processed_results": [result]}
 ```
 
 ---
@@ -144,15 +208,44 @@ The policy engine:
 
 ### Setting Up Cedar Policies
 
+The policy engine is not attached after the fact — it is passed to the Gateway
+as `policy_engine_configuration`, and that same object carries the enforcement
+mode. That is the knob you flip for the shadow-mode rollout below.
+
 ```python
-# CDK pattern for Policy Engine
-policy_engine = agentcore.PolicyEngine(self, "PolicyEngine")
+# CDK pattern for Policy Engine (aws-cdk-lib 2.270)
+from pathlib import Path
 
-# Attach to Gateway
-gateway.attach_policy_engine(policy_engine)
+from aws_cdk import aws_bedrockagentcore as agentcore
 
-# Cedar policies are deployed via CI/CD from Git
-# Policies are validated against auto-generated schema at deployment time
+policy_engine = agentcore.PolicyEngine(
+    self,
+    "PolicyEngine",
+    # Letters, digits and underscores only — a hyphen here fails at synth time.
+    policy_engine_name="agent_policies",
+)
+
+gateway = agentcore.Gateway(
+    self,
+    "AgentGateway",
+    gateway_name="agent-gateway",
+    policy_engine_configuration=agentcore.GatewayPolicyEngineConfig(
+        policy_engine=policy_engine,
+        mode=agentcore.PolicyEngineMode.LOG_ONLY,  # → ENFORCE after shadow run
+    ),
+)
+
+# Cedar policies stay in Git as .cedar files (see the stack layout below) and
+# are read in at synth time, so the same text the CI step validates is the text
+# that deploys. FAIL_ON_ANY_FINDINGS rejects a policy that does not validate
+# against the Gateway schema.
+policy_engine.add_policy(
+    "AgentToolAccess",
+    statement=agentcore.PolicyStatement.from_cedar(
+        Path("cedar/policies/agent-access.cedar").read_text(encoding="utf-8")
+    ),
+    validation_mode=agentcore.PolicyValidationMode.FAIL_ON_ANY_FINDINGS,
+)
 ```
 
 ### Natural Language Policy Authoring
@@ -196,28 +289,48 @@ Memory provides persistent context across agent interactions.
 
 ### Integration with LangGraph
 
+The SDK client is `MemoryClient`, and it is event-shaped rather than
+document-shaped: you write turns with `create_event` and read the extracted
+long-term records with `retrieve_memories`, addressed by a memory ID and a
+namespace. Reads are namespaced, so pick the namespace deliberately — it is
+what scopes one actor's history from another's.
+
 ```python
-from bedrock_agentcore.memory import AgentCoreMemory
+import json
 
-memory = AgentCoreMemory(agent_id="processing-agent")
+from bedrock_agentcore.memory import MemoryClient
 
-def lookup_node(state):
+memory = MemoryClient(region_name="us-west-2")
+
+def lookup_node(state: dict) -> dict:
     # Retrieve relevant past interactions for this source
-    similar_items = memory.search(
+    similar_items = memory.retrieve_memories(
+        memory_id=MEMORY_ID,
+        namespace=f"/sources/{state['source_name']}",
         query=f"requests from {state['source_name']}",
-        limit=5
+        top_k=5,
     )
 
     # Use historical context to improve processing
     # ...
 
-    # Store this interaction's outcome for future reference
-    memory.store({
-        "task_id": state["task_id"],
-        "source": state["source_name"],
-        "result_type": state["result_type"],
-        "confidence": state["confidence"],
-    })
+    # Store this interaction's outcome for future reference.
+    # messages is a list of (text, role) tuples — text first, role second.
+    memory.create_event(
+        memory_id=MEMORY_ID,
+        actor_id=state["source_name"],
+        session_id=state["task_id"],
+        messages=[(
+            json.dumps({
+                "task_id": state["task_id"],
+                "result_type": state["result_type"],
+                "confidence": state["confidence"],
+            }),
+            "ASSISTANT",
+        )],
+    )
+
+    return {"memory_hits": similar_items}
 ```
 
 ---
@@ -288,7 +401,12 @@ stages:
   - lint-and-test:
       - python linting and type checking
       - unit tests for individual nodes
-      - cedar policy validation (just validate-registry)
+      # cedar validate takes one schema file and one policy file, and exits
+      # non-zero on a validation error — run it per policy file.
+      - cedar validate
+          --schema cedar/schema.cedarschema
+          --policies cedar/policies/agent-access.cedar
+          --deny-warnings
 
   - integration-test:
       - deploy to dev environment
@@ -314,6 +432,13 @@ stages:
 
 ### Available Models via Bedrock
 
+Families, not IDs. A Bedrock model ID carries a version and date suffix, and a
+cross-region inference profile prefixes it with a geography (`us.`, `eu.`,
+`apac.`). Resolve the concrete IDs available to your account and region with
+`bedrock.list_foundation_models()` / `bedrock.list_inference_profiles()`, or
+from the model card pages in the Bedrock user guide, and keep them in
+deployment config — see *3-Tier Model Routing* in SKILL.md.
+
 | Provider | Model | Tier | Strengths |
 |----------|-------|------|-----------|
 | Anthropic | Claude Haiku | Fast | Classification, routing, simple tasks |
@@ -325,20 +450,28 @@ stages:
 
 ### Cross-Region Inference
 
-Bedrock supports cross-region inference for availability:
+Bedrock supports cross-region inference for availability. Invoke a
+system-defined inference profile instead of the bare model ID and Bedrock
+routes the request to an available destination region when the source region
+is throttled:
 
 ```python
-# Configure cross-region inference profile
-model_id = "anthropic.claude-sonnet"
-# Bedrock automatically routes to available region if primary is throttled
+# A cross-region inference profile ID is the model ID with a geography prefix
+# (us. / eu. / apac.). Load the concrete value from config — do not hardcode.
+model_id = settings.model_id  # e.g. "us.<vendor>.<model>-<version>:<n>"
 ```
+
+Note that destination regions may include opt-in regions, so the SCP and IAM
+policies for every destination region must allow the Bedrock invoke actions —
+otherwise the profile fails even when some regions are permitted.
 
 ### Bedrock Guardrails
 
 Configure guardrails for all agent I/O:
 
 1. **Content filters**: Block harmful content (hate, violence, sexual,
-   misconduct). Standard tier supports 60+ languages.
+   misconduct). Check the guardrails docs for the languages your tier covers
+   before relying on a non-English filter.
 2. **Denied topics**: Define topics agents should not discuss.
 3. **Word filters**: Block specific terms.
 4. **PII detection and redaction**: Automatically detect and mask PII
@@ -351,17 +484,21 @@ Configure guardrails for all agent I/O:
 ```python
 # Apply guardrails to model invocations
 response = bedrock.invoke_model(
-    modelId="anthropic.claude-sonnet",
-    guardrailIdentifier="your-guardrail-id",
-    guardrailVersion="1",
+    modelId=settings.model_id,  # from config — see Available Models above
+    guardrailIdentifier=settings.guardrail_id,
+    guardrailVersion=settings.guardrail_version,
     body=request_body,
 )
 ```
 
 ### Automated Reasoning Checks
 
-Bedrock Guardrails includes automated reasoning that validates model
-responses against logical rules with up to 99% accuracy. Use for:
+Bedrock Guardrails includes automated reasoning: you encode domain rules as a
+formal policy and it checks model responses against them, returning a verdict
+with the rules applied rather than a similarity score. Use for:
 - Verifying extracted values against known constraints
 - Checking that decisions are logically consistent
 - Ensuring numerical calculations are correct
+
+The check is only as good as the policy you encode, so treat a `VALID` verdict
+as evidence, not as proof — keep the HITL gate for anything safety-critical.
