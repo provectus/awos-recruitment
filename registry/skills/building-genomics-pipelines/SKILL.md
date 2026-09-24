@@ -1,6 +1,6 @@
 ---
 name: building-genomics-pipelines
-description: This skill should be used when the user asks to "build a genomics pipeline", "call variants", "analyze RNA-seq", "run ChIP-seq analysis", "annotate variants", "QC sequencing data", "detect CNVs", or when writing any bioinformatics pipeline code involving NGS data. Provides expert guidance on pipeline frameworks (Nextflow, Snakemake, WDL), alignment, variant calling, and production-ready nf-core workflows.
+description: This skill should be used when the user asks to "build a genomics pipeline", "pick an nf-core pipeline", "which aligner/variant caller should I use", "analyze RNA-seq", "analyze single-cell RNA-seq", "annotate variants", "interpret variants with ACMG criteria", "detect CNVs", "call structural variants", or when choosing tools, file formats, and QC thresholds for NGS data. Provides opinionated tool defaults (aligners, variant callers, annotators), genomics file-format and reproducibility conventions, an nf-core pipeline selection table, and detailed references for RNA-seq (bulk and single-cell), variant annotation with clinical interpretation, and CNV/SV analysis. It does not teach Nextflow DSL2, Snakemake, or WDL authoring — for writing workflow code by hand, use those frameworks' own documentation.
 ---
 
 # Genomics Pipeline Skill
@@ -45,6 +45,8 @@ Determine which workflow type is needed and consult the corresponding reference:
 1. **RNA-seq Analysis** — see [references/rnaseq.md](references/rnaseq.md)
 2. **Variant Annotation** — see [references/annotation.md](references/annotation.md)
 3. **CNV & Structural Variants** — see [references/cnv.md](references/cnv.md)
+
+Everything else — ChIP-seq, ATAC-seq, germline and somatic SNV calling, methylation, metagenomics — is covered by the defaults above plus the nf-core table below: reach for the community pipeline rather than assembling the steps by hand, because those pipelines already wire up the tools this skill recommends and carry their own QC. Hand-writing Nextflow DSL2 processes, Snakemake rules, or WDL tasks is outside this skill; consult the framework's own documentation for syntax.
 
 ## nf-core Pipelines
 
