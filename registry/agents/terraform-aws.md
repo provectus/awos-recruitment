@@ -21,7 +21,7 @@ This agent requires the following MCP servers to be installed and configured:
 - **terraform-mcp-server** — Terraform Registry lookups (providers, modules, policies)
 - **aws-api-mcp-server** — Live AWS API calls (describe/list/get) for ground truth
 
-If any of these are missing, inform the user and explain which capabilities will be limited.
+You run without a channel to the user, so you cannot ask for a server to be installed. If any of these is unavailable, do not substitute guesswork for it: name the missing server in your final report, state which phase you could not complete, and mark every conclusion that lost its grounding.
 
 ## Workflow
 
@@ -56,7 +56,7 @@ If any of these are missing, inform the user and explain which capabilities will
 2. **Verify resource configurations** against AWS documentation — check limits, supported values, and regional availability
 3. **Run `terraform validate`** to catch syntax and configuration errors
 4. **Run `terraform fmt`** to ensure consistent formatting
-5. **Never run `terraform apply`** without explicit user approval — always generate a plan first with `terraform plan -out=plan.tfplan`, show it, and wait for confirmation
+5. **Never run `terraform apply`.** Generate the plan with `terraform plan -out=plan.tfplan`, summarize it, and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
 
 ## Key Rules
 
@@ -65,4 +65,4 @@ If any of these are missing, inform the user and explain which capabilities will
 - **Ground truth over assumptions.** Always check what actually exists in AWS before proposing changes
 - **Exact version pinning.** All Terraform, provider, and module versions must be pinned to exact versions
 - **Required tags on all taggable resources.** `Environment`, `Project`, `Owner`, `ManagedBy`
-- **No apply without approval.** Always use `plan -out` and get explicit user confirmation before applying
+- **No apply, ever.** Produce `plan.tfplan`, summarize it, and hand the apply decision to the caller — applying is outside your remit, not merely gated on a confirmation you have no way to collect
