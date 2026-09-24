@@ -259,8 +259,10 @@ sample = collection.peek(limit=5)  # default limit=10
 | `$nin` | Value not in list | `{"tag": {"$nin": ["spam"]}}` |
 | `$contains` | Array contains value | `{"tags": {"$contains": "python"}}` |
 | `$not_contains` | Array does not contain | `{"tags": {"$not_contains": "draft"}}` |
-| `$regex` | Regex match (string) | `{"name": {"$regex": "^test.*"}}` |
-| `$not_regex` | Regex does not match | `{"name": {"$not_regex": "^draft"}}` |
+
+These ten are the complete set. Anything else — `$regex` included — is rejected
+with `ValueError: Expected where operator to be one of $gt, $gte, $lt, $lte,
+$ne, $eq, $in, $nin, $contains, $not_contains, got <op>`.
 
 ### Logical operators
 
@@ -297,6 +299,18 @@ where={
 |---|---|---|
 | `$contains` | Document contains substring | `{"$contains": "search term"}` |
 | `$not_contains` | Document does not contain | `{"$not_contains": "excluded"}` |
+| `$regex` | Document matches regex | `{"$regex": "gradient\\s+descent"}` |
+| `$not_regex` | Document does not match regex | `{"$not_regex": "^draft"}` |
+
+Regex matching is a `where_document` feature only — it operates on document
+text, not on metadata values. Applying `$regex` to a metadata key in `where`
+raises the ValueError shown above; the substring you want to match on a
+metadata field usually belongs in its own metadata key instead.
+
+```python
+# Documents mentioning gradient descent, however it is spaced.
+results = collection.get(where_document={"$regex": r"gradient\s+descent"})
+```
 
 ### Combining metadata and document filters
 
