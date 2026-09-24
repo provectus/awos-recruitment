@@ -330,11 +330,9 @@ module "vpc" {
   enable_nat_gateway   = true
   single_nat_gateway   = false  # HA for production
 
-  tags = {
-    Environment = "production"
-    ManagedBy   = "Terraform"
-    CostCenter  = "engineering"
-  }
+  tags = merge(local.required_tags, {
+    CostCenter = "engineering"
+  })
 }
 
 module "rds" {
@@ -348,11 +346,13 @@ module "rds" {
   vpc_id               = module.vpc.vpc_id
   subnet_ids           = module.vpc.private_subnet_ids
 
-  tags = {
-    Environment = "production"
-  }
+  tags = local.required_tags
 }
 ```
+
+`local.required_tags` carries the four tags every taggable resource needs
+(`Environment`, `Project`, `Owner`, `ManagedBy`); see the main skill file for
+the definition. Merge extra tags on top of it rather than replacing it.
 
 ---
 
@@ -597,19 +597,18 @@ modules/webapp/
 
 ```hcl
 locals {
-  common_tags = merge(
-    var.tags,
-    {
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
-  )
+  required_tags = {
+    Environment = var.environment
+    Project     = var.project
+    Owner       = var.owner
+    ManagedBy   = "terraform"
+  }
 
   instance_name = "${var.project}-${var.environment}-instance"
 }
 
 resource "aws_instance" "app" {
-  tags = local.common_tags
+  tags = merge(local.required_tags, var.tags)
   # ...
 }
 ```
@@ -1103,11 +1102,10 @@ AFTER_COUNT=$(terraform state list | wc -l)
 
 2. **Tag test resources for tracking**
    ```hcl
-   tags = {
+   tags = merge(local.required_tags, {
      Environment = "test"
      TTL         = "2h"
-     ManagedBy   = "terraform-test"
-   }
+   })
    ```
 
 3. **Run integration tests only on main branch**
