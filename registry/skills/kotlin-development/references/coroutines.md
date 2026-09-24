@@ -32,7 +32,7 @@ val result = numbers().filter { it % 2 != 0 }.map { it * 10 }.take(2).toList()
 | Type | Hot/Cold | Replays | Use for |
 |---|---|---|---|
 | `Flow` | Cold | No | One-shot data streams, transformations |
-| `StateFlow` | Hot | Last value (always) | Observable state (replaces `LiveData`) |
+| `StateFlow` | Hot | Last value (always) | Observable state — current value always readable via `.value` |
 | `SharedFlow` | Hot | Configurable | Events, broadcasts to multiple collectors |
 
 ```kotlin
@@ -42,10 +42,13 @@ class UserViewModel {
 
     suspend fun loadUser(id: String) {
         _state.value = UiState.Loading
-        _state.value = runCatching { repository.findById(id) }.fold(
-            onSuccess = { UiState.Success(it) },
-            onFailure = { UiState.Error(it.message ?: "Unknown error") },
-        )
+        _state.value = try {
+            UiState.Success(repository.findById(id))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            UiState.Error(e.message ?: "Unknown error")
+        }
     }
 }
 ```
@@ -106,7 +109,16 @@ suspend fun loadAll() = coroutineScope {
 suspend fun loadBestEffort() = supervisorScope {
     val user = async { fetchUser() }
     val orders = async { fetchOrders() }
-    Dashboard(runCatching { user.await() }.getOrNull(), runCatching { orders.await() }.getOrNull())
+    Dashboard(user.awaitOrNull(), orders.awaitOrNull())
+}
+
+// Not runCatching: it would also swallow the cancellation of this scope.
+private suspend fun <T> Deferred<T>.awaitOrNull(): T? = try {
+    await()
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    null
 }
 ```
 
@@ -143,20 +155,20 @@ suspend fun processItems(items: List<Item>) = coroutineScope {
 }
 ```
 
-### Never swallow `CancellationException`
+### Rethrowing `CancellationException`
 
 ```kotlin
 // Bad — swallows CancellationException, breaks structured concurrency
 try { suspendingOperation() }
 catch (e: Exception) { logger.error("Failed", e) }
 
-// Good — rethrow CancellationException
+// Good — rethrow CancellationException before handling anything else
 try { suspendingOperation() }
 catch (e: CancellationException) { throw e }
 catch (e: Exception) { logger.error("Failed", e) }
 ```
 
-Note: `runCatching` also catches `CancellationException`. In coroutines, prefer explicit try/catch.
+`runCatching` catches `Throwable`, so it has the same problem as the bad example above. Keep it out of `suspend` code and use the explicit `try/catch` shape instead.
 
 ### `NonCancellable` — cleanup that must complete
 
@@ -262,9 +274,7 @@ fun `emits loading then success`() = runTest {
 
 | Pitfall | Fix |
 |---|---|
-| `GlobalScope.launch` | Use structured scopes: `coroutineScope`, lifecycle-bound scopes |
 | Blocking in coroutine (`Thread.sleep`) | Use `withContext(Dispatchers.IO)` for blocking, `Default` for CPU |
-| Catching `CancellationException` | Always rethrow it, or catch specific exception types |
 | `async` without `await` | Exceptions silently dropped — always await or use `launch` |
 | `runBlocking` in production | Only in `main()` or tests — never inside other coroutines |
 | Mutable shared state | Use `Mutex`, `StateFlow`, or `Channel` for concurrent access |
