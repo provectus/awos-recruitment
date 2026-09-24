@@ -19,10 +19,16 @@ class UserCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=128)
     username: str = Field(min_length=1, max_length=128, pattern="^[A-Za-z0-9-_]+$")
     email: EmailStr
-    age: int = Field(ge=18, default=None)
+    age: int | None = Field(None, ge=18)
     favorite_band: MusicBand | None = None
     website: AnyUrl | None = None
 ```
+
+An optional field must say so in its annotation. Pydantic does not validate defaults
+unless you ask it to, so `age: int = Field(ge=18, default=None)` is accepted at import
+time and then publishes a contradictory OpenAPI schema — `{"type": "integer", "default":
+null}`. Writing `age: int | None = Field(None, ge=18)` keeps the `ge` constraint and
+produces the correct `anyOf` schema, so generated clients see a nullable integer.
 
 ## Custom Base Model
 
@@ -30,10 +36,16 @@ Create a project-wide base model for consistent serialization:
 
 ```python
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    SerializerFunctionWrapHandler,
+    field_serializer,
+)
 
 
 def datetime_to_gmt_str(dt: datetime) -> str:
@@ -43,21 +55,43 @@ def datetime_to_gmt_str(dt: datetime) -> str:
 
 
 class CustomModel(BaseModel):
-    model_config = ConfigDict(
-        json_encoders={datetime: datetime_to_gmt_str},
-        populate_by_name=True,
-    )
+    model_config = ConfigDict(populate_by_name=True)
 
-    def serializable_dict(self, **kwargs):
+    @field_serializer("*", mode="wrap", when_used="json")
+    def serialize_datetimes(
+        self,
+        value: Any,
+        handler: SerializerFunctionWrapHandler,
+    ) -> Any:
+        """Render datetimes as GMT strings; leave every other field alone."""
+        if isinstance(value, datetime):
+            return datetime_to_gmt_str(value)
+        return handler(value)
+
+    def serializable_dict(self, **kwargs: Any) -> dict[str, Any]:
         """Return a dict with only serializable fields."""
-        default_dict = self.model_dump()
-        return jsonable_encoder(default_dict)
+        return jsonable_encoder(self.model_dump(**kwargs))
 ```
 
 Benefits:
 - Consistent datetime formatting across all responses
 - Single place to add shared serialization logic
 - All domain schemas inherit shared behavior
+
+`ConfigDict(json_encoders=...)` is the v1 way of doing this. It still runs in v2, but
+Pydantic documents it as deprecated and slated for removal, so new code should use
+serializers instead.
+
+Two details make the wildcard serializer safe to put on a base class:
+- `mode="wrap"` delegates to `handler(value)` for everything that is not a datetime, so
+  UUIDs, enums, and nested models keep Pydantic's own encoding instead of being passed
+  through raw.
+- `when_used="json"` scopes it to JSON output. `model_dump()` still returns real
+  `datetime` objects, which is what internal callers and service-layer code want.
+
+The serializer applies to the fields of the model that declares it, not recursively — a
+nested model needs to inherit `CustomModel` too if its datetimes should be formatted the
+same way.
 
 ## Split BaseSettings by Domain
 
