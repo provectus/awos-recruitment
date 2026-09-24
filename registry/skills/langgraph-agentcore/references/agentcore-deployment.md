@@ -70,7 +70,9 @@ compiled = graph.compile(checkpointer=your_checkpointer)
 
 
 @app.entrypoint
-async def invoke(payload: dict, context: RequestContext) -> dict | JSONResponse:
+async def invoke(
+    payload: dict, context: RequestContext
+) -> dict | JSONResponse:
     """Handle one AgentCore invocation.
 
     The second parameter has to be named `context` — that literal name is how
@@ -84,10 +86,13 @@ async def invoke(payload: dict, context: RequestContext) -> dict | JSONResponse:
     """
     agent_input = payload.get("input")
     if not isinstance(agent_input, dict):
-        return JSONResponse({"error": "'input' must be an object"}, status_code=400)
+        return JSONResponse(
+            {"error": "'input' must be an object"}, status_code=400
+        )
 
     thread_id = context.session_id or f"session-{uuid4()}"
-    return await compiled.ainvoke(agent_input, {"configurable": {"thread_id": thread_id}})
+    config = {"configurable": {"thread_id": thread_id}}
+    return await compiled.ainvoke(agent_input, config)
 
 
 if __name__ == "__main__":
@@ -461,9 +466,9 @@ stages:
 
 Families, not IDs. A Bedrock model ID carries a version and date suffix, and an
 inference profile prefixes it — with a geography (`us.`, `eu.`, `apac.`) or
-with `global.`. Resolve the concrete IDs available to your account and region with
-`bedrock.list_foundation_models()` / `bedrock.list_inference_profiles()`, or
-from the model card pages in the Bedrock user guide, and keep them in
+with `global.`. Resolve the concrete IDs available to your account and region
+with `bedrock.list_foundation_models()` / `bedrock.list_inference_profiles()`,
+or from the model card pages in the Bedrock user guide, and keep them in
 deployment config — see *3-Tier Model Routing* in SKILL.md.
 
 | Provider | Model | Tier | Strengths |

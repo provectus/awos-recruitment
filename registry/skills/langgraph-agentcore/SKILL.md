@@ -222,7 +222,7 @@ resume with `app.invoke(None, config)`. `app.get_state_history(config)` walks
 every prior snapshot for audit and debugging.
 
 ```python
-# A resume normally runs in a fresh session, so re-enter the context manager —
+# A resume normally runs in a fresh session, so re-enter the context manager:
 # the checkpointer owns the psycopg connection the calls below go through.
 with PostgresSaver.from_conn_string(db_url) as checkpointer:
     app = graph.compile(checkpointer=checkpointer)
