@@ -1,5 +1,16 @@
 # Working with Streams
 
+## Contents
+
+- Event Source Mapping Basics
+- Batch Tuning
+- Partial Batch Response
+- Kinesis Scaling
+- IteratorAge Monitoring
+- DynamoDB Streams
+- SQS Integration
+- Idempotency for Streams
+
 ## Event Source Mapping Basics
 
 Lambda uses **event source mappings** to poll streams and queues and invoke your function with batches of records. Lambda manages the polling infrastructure -- you configure batch size, batching window, and error handling.

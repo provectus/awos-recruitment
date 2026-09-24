@@ -1,5 +1,14 @@
 # Function Configuration
 
+## Contents
+
+- Memory and CPU Tuning
+- Architecture Selection (x86_64 vs arm64)
+- Timeout Strategy
+- Quotas Reference
+- IAM Execution Role
+- Function Lifecycle Management
+
 ## Memory and CPU Tuning
 
 ### The memory-CPU relationship

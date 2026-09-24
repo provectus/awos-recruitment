@@ -1,5 +1,14 @@
 # Function Design Best Practices
 
+## Contents
+
+- Handler Design Principles
+- Execution Environment Reuse
+- Idempotency
+- Connection Management
+- Recursive Invocations
+- Environment Variables
+
 ## Handler Design Principles
 
 The handler is Lambda's entry point. A well-designed handler is thin, testable, and separates concerns:
