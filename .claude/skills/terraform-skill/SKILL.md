@@ -18,8 +18,8 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 >
 > | Component | Constraint | Example |
 > |-----------|-----------|---------|
-> | **Terraform** | Exact version | `required_version = "= 1.9.8"` |
-> | **Providers** | Exact version | `version = "= 5.82.2"` |
+> | **Terraform** | Exact version | `required_version = "= 1.14.8"` |
+> | **Providers** | Exact version | `version = "= 6.41.0"` |
 > | **Modules (prod)** | Exact version | `version = "5.1.2"` |
 > | **Modules (dev)** | Exact version | `version = "5.1.2"` |
 >
@@ -426,7 +426,7 @@ checkov -d .
 ### Version Constraint Syntax
 
 ```hcl
-version = "= 5.82.2"    # Exact (required by Provectus convention)
+version = "= 6.41.0"    # Exact (required by Provectus convention)
 version = "5.1.2"        # Exact (alternative syntax for modules)
 ```
 
@@ -434,8 +434,8 @@ version = "5.1.2"        # Exact (alternative syntax for modules)
 
 | Component | Strategy | Example |
 |-----------|----------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.9.8"` |
-| **Providers** | Pin exact version | `version = "= 5.82.2"` |
+| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
 | **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
 

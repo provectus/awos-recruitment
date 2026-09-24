@@ -426,8 +426,8 @@ repo uses:**
 
    | Name | Version |
    |------|---------|
-   | [terraform/tofu] | = 1.9.8 |
-   | aws | = 5.82.2 |
+   | [terraform/tofu] | = 1.14.8 |
+   | aws | = 6.41.0 |
    ```
 
    Record the exact versions the module is pinned to in `versions.tf` — the

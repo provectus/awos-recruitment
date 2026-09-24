@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
-          terraform_version: 1.9.8  # Same version as required_version
+          terraform_version: 1.14.8  # Same version as required_version
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -157,7 +157,7 @@ variables:
 
 .terraform_template:
   # Pin the image tag to the same version as required_version in versions.tf
-  image: hashicorp/terraform:1.9.8
+  image: hashicorp/terraform:1.14.8
   before_script:
     - cd ${TF_ROOT}
     - terraform init
@@ -416,7 +416,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: v1.9.8  # Same version as required_version in versions.tf
+    terraform_version: v1.14.8  # Same version as required_version in versions.tf
     workflow: custom
 
 workflows:
@@ -451,12 +451,12 @@ workflows:
 ```hcl
 # versions.tf - Pin exact versions (Provectus convention)
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"
+      version = "= 6.41.0"
     }
   }
 }

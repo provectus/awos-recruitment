@@ -515,9 +515,11 @@ variable "backup_retention" {
 **Use write-only arguments or external secret management for every secret.**
 
 Each resource also needs a provider version that implements the argument —
-`aws_db_instance.password_wo` landed in AWS provider 5.88.0. Check the pins in
-`versions.tf` first; see `references/security-compliance.md` for the fallback
-when the pinned versions are older.
+`aws_db_instance.password_wo` landed in AWS provider 5.88.0. The canonical pins
+below (`= 1.14.8`, `= 6.41.0`) clear both floors, so this example applies as
+written; check the pins in `versions.tf` first, and see
+`references/security-compliance.md` for the fallback when a project pins older
+versions.
 
 ```hcl
 # GOOD - External secret with write-only argument
@@ -565,7 +567,7 @@ resource "aws_db_instance" "this" {
 
 ```hcl
 # Exact version (required by Provectus convention)
-version = "= 5.82.2"
+version = "= 6.41.0"
 
 # For modules (quotes-only syntax also pins exactly)
 version = "5.1.2"
@@ -578,7 +580,7 @@ version = "5.1.2"
 # versions.tf
 terraform {
   # Pin to exact version
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 }
 ```
 
@@ -589,7 +591,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"  # Pin exact version
+      version = "= 6.41.0"  # Pin exact version
     }
     random = {
       source  = "hashicorp/random"
@@ -631,12 +633,12 @@ module "vpc" {
 ```hcl
 # Step 1: Lock versions in versions.tf
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"
+      version = "= 6.41.0"
     }
   }
 }
@@ -657,13 +659,13 @@ terraform plan
 ```hcl
 terraform {
   # Terraform version - pinned exactly
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 
   # Provider versions - pinned exactly
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"
+      version = "= 6.41.0"
     }
     random = {
       source  = "hashicorp/random"

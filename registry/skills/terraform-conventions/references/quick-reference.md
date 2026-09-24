@@ -200,12 +200,12 @@ When creating modules, the binary is detected from the repo (lock file, CI confi
 ```hcl
 # versions.tf - Pin versions exactly (Provectus convention)
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"  # Pin exact version
+      version = "= 6.41.0"  # Pin exact version
     }
   }
 }
@@ -422,15 +422,15 @@ Required documentation for all modules:
 
 | Syntax | Meaning | Provectus Policy |
 |--------|---------|-----------------|
-| `"= 5.82.2"` | Exact version | **Required** |
+| `"= 6.41.0"` | Exact version | **Required** |
 | `"5.1.2"` | Exact version (modules) | **Required** |
 
 ### Strategy by Component
 
 | Component | Recommendation | Example |
 |-----------|----------------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.9.8"` |
-| **Providers** | Pin exact version | `version = "= 5.82.2"` |
+| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
 | **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
 
