@@ -2,6 +2,18 @@
 
 This reference covers Amazon Fire TV-specific concerns when adapting Android TV apps. General TV patterns (focus management, D-pad navigation, media playback architecture) are documented in `tv-patterns.md` and are not repeated here.
 
+## Contents
+- Overview — AOSP base, Fire OS versions, no GMS
+- Amazon Appstore — publishing, device targeting, app compatibility
+- In-App Purchases — Amazon IAP setup, core API, listener callbacks, receipts, subscriptions, multi-platform billing
+- Alexa Integration — voice search, Video Skill API, Alexa for Apps, voice remote differences
+- Missing Google Play Services — what is unavailable, alternatives
+- Media Playback — ExoPlayer on Fire TV, DRM, audio output
+- Device Capabilities — hardware comparison, performance tiers, memory and storage
+- Web App Support — Fire TV web apps, hybrid patterns
+- Testing — ADB, sideloading, emulator limitations, checklist
+- Common Pitfalls — Leanback differences, missing APIs, feature detection, other gotchas
+
 ## Overview
 
 Fire TV runs on AOSP (Android Open Source Project) — not the Google-certified Android TV platform. Fire TV devices run standard Android APKs, but the runtime environment differs in important ways:
@@ -21,7 +33,7 @@ A single codebase can target both Google TV / Android TV and Fire TV with proper
 ### Publishing
 
 - Apps are submitted through the [Amazon Developer Console](https://developer.amazon.com/apps-and-games).
-- You upload a signed APK (or AAB converted to APK — Amazon does not natively accept AAB as of Fire OS 8).
+- You upload a signed APK. If your build produces an AAB, convert it to an APK first (`bundletool`); check the Amazon Appstore docs for current AAB support before relying on it.
 - The Amazon Appstore has its own review process, separate from Google Play. Expect 1-3 business days for review.
 - Fire TV apps must declare the `android.software.leanback` feature (use `android:required="false"` if the app also runs on mobile).
 

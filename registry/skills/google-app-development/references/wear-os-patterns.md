@@ -1,6 +1,16 @@
 # Wear OS Patterns Reference
 
->[toc]
+## Contents
+- Compose for Wear OS — `SwipeDismissableNavHost`, `TransformingLazyColumn`, `ScalingLazyColumn` (legacy), `TimeText`, round vs square
+- Tiles — `TileService`, layout and renderer, Compose for Tiles
+- Complications — `ComplicationDataSourceService`, complication types
+- Health Services — `ExerciseClient`, `PassiveMonitoringClient`, `MeasureClient`
+- Watch Face — Watch Face Format, complication slots, ambient mode
+- Rotary Input — `rotaryScrollable()`
+- Data Layer — `DataClient`, `MessageClient`, phone-watch sync
+- Standalone vs Companion — architecture models, detecting connectivity
+- Notifications — bridged vs local, wearable-specific actions
+- Limitations — battery, memory, screen sizes, general constraints
 
 Target: latest **Wear OS** / **Compose for Wear OS** with Material 3 (`androidx.wear.compose.material3`).
 

@@ -3,7 +3,10 @@
 > Covers Foreground Services, background execution limits, and AlarmManager. For coroutine-based
 > background work (WorkManager, viewModelScope, lifecycleScope), see `concurrency.md`.
 
->[toc]
+## Contents
+- Foreground Services — when to use, service types (API 34+), implementation, starting/stopping, restrictions
+- Background Limits — Doze, App Standby Buckets, background execution limits, design implications
+- AlarmManager — exact vs inexact alarms, permissions (API 31+), receiver pattern, alarms vs WorkManager
 
 
 ## Foreground Services
@@ -21,7 +24,7 @@ Use a Foreground Service for long-running, user-perceptible tasks that must cont
 
 ### Foreground Service types (API 34+)
 
-As of API 34, you must declare a specific foreground service type in `AndroidManifest.xml` and the corresponding permission:
+On API 34 and higher, you must declare a specific foreground service type in `AndroidManifest.xml` and the corresponding permission:
 
 ```xml
 <manifest>

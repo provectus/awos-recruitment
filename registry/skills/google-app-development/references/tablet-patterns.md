@@ -1,6 +1,14 @@
 # Tablet and Foldable Patterns Reference
 
->[toc]
+## Contents
+- WindowSizeClass — breakpoints and classification
+- Adaptive Layouts — `ListDetailPaneScaffold`, `NavigationSuiteScaffold`
+- Multi-Window — split-screen and freeform windows
+- Foldable Devices — `WindowInfoTracker`, fold postures, hinge detection
+- Large Screen Navigation — list-detail pattern, two-pane layouts
+- Input Support — keyboard shortcuts, mouse hover, stylus
+- Desktop Windowing — Chrome OS, desktop mode, minimum sizes
+- Testing Large Screens — device config overrides, foldable emulators
 
 
 ## WindowSizeClass

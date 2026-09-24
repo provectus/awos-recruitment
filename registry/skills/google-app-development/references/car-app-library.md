@@ -2,7 +2,14 @@
 
 > Target: latest stable Car App Library (`androidx.car.app`)
 
->[toc]
+## Contents
+- Architecture — `CarAppService`, `Session`, `Screen`, `ScreenManager`
+- Templates — template catalog, selection guide
+- SurfaceCallback — map rendering
+- Constraints and Limitations — distraction and safety guidelines
+- Lifecycle — `CarAppService` lifecycle, `CarContext`
+- Testing — `TestCarContext`, `SessionController`
+- App Categories — manifest categories
 
 The Car App Library provides a **host-agnostic, template-driven UI framework** for building apps that run on both Android Auto (phone projection) and Android Automotive OS (embedded). Build once with the shared API surface below; see `android-auto-patterns.md` for Auto-specific patterns and `android-automotive-patterns.md` for AAOS-specific patterns.
 
