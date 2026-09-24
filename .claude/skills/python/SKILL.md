@@ -1,6 +1,6 @@
 ---
-name: Modern Python Development
-description: This skill should be used when the user asks to "write Python code", "create a Python module", "set up a Python project", "review Python code", "refactor Python", "add type hints", "fix Python style", or when generating any Python source code. Provides modern Python 3.12+ best practices covering syntax, type hints, error handling, project structure, and idiomatic patterns. Does not cover any specific library or framework.
+name: python
+description: Provides modern Python 3.12+ best practices covering syntax, type hints, error handling, project structure, and idiomatic patterns. Use when the user asks to "write Python code", "create a Python module", "set up a Python project", "review Python code", "refactor Python", "add type hints", "fix Python style", or when generating any Python source code. Does not cover any specific library or framework.
 version: 0.1.0
 ---
 
@@ -64,7 +64,7 @@ type Handler[**P] = Callable[P, Awaitable[None]]
 
 ## Type Hints
 
-Apply type hints to all function signatures, class attributes, and module-level variables. Omit return type only for `__init__`.
+Apply type hints to all function signatures, class attributes, and module-level variables. Annotate every signature, including `__init__(...) -> None` — strict type checkers require the explicit `-> None`.
 
 ```python
 def calculate_total(items: list[float], *, tax_rate: float = 0.0) -> float:
