@@ -243,8 +243,8 @@ Use different model tiers based on task complexity to optimise cost:
 ### Implementation
 
 Model IDs belong in configuration, never in a router literal. A Bedrock model ID
-carries a version and date suffix, and a cross-region inference profile adds a
-geography prefix (`us.`, `eu.`, `apac.`); both change with every model release,
+carries a version and date suffix, and an inference profile adds a prefix — a
+geography (`us.`, `eu.`, `apac.`) or `global.`; both change with every release,
 and a stale literal fails at runtime with `ValidationException`. Resolve the IDs
 your account can actually call with `bedrock.list_inference_profiles()` /
 `list_foundation_models()` and pin the result in config, so a model retirement
@@ -302,8 +302,11 @@ Order the per-tier `fallbacks` list so that, when a model is unavailable
 4. Alternative provider (e.g., direct API)
 5. Degrade to cheaper tier (with data classification check)
 
-**Critical rule**: Never fall back to a less capable tier for high-stakes
-or safety-critical tasks without explicit configuration allowing it.
+**Critical rule**: `get_model` walks only the chain configured for the tier it
+is handed — it applies no task-classification policy of its own. A cheaper
+model therefore reaches a high-stakes task exactly when an operator put it in
+that tier's `fallbacks`, so step 5 is a deliberate config decision, never a
+default. Keep the safety-critical tiers' `fallbacks` same-capability only.
 
 ### Cost Targeting
 
