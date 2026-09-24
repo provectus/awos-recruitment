@@ -1,7 +1,8 @@
 ---
-name: FastMCP Server Development
-description: This skill should be used when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package. Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment.
-version: 0.1.0
+name: fastmcp
+description: Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment. Use when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package.
+metadata:
+  version: "0.1.0"
 ---
 
 # FastMCP Server Development

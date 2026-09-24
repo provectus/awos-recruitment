@@ -1,5 +1,16 @@
 # FastMCP API Reference
 
+## Contents
+
+- [FastMCP Constructor](#fastmcp-constructor) — constructor parameters
+- [Tool Decorator](#tool-decorator) — options, parameter types, sync vs async
+- [Resource Decorator](#resource-decorator) — static URIs, MIME types, templates
+- [Prompt Decorator](#prompt-decorator) — simple, parameterized, multi-message
+- [Context Object](#context-object) — logging, progress reporting, lifespan resources
+- [Authentication](#authentication) — JWT verification, per-tool authorization, OAuth providers
+- [Server Configuration](#server-configuration) — transports, `fastmcp.json`
+- [Client](#client) — connecting, in-process testing, client methods
+
 ## FastMCP Constructor
 
 ```python
@@ -207,7 +218,22 @@ http_client = ctx.lifespan_context["http_client"]
 db = ctx.lifespan_context["db"]
 ```
 
-Access shared resources initialized during server startup (see Lifespan in patterns.md).
+Access shared resources initialized during server startup. The lifespan handler
+that populates this dict is an `asynccontextmanager` passed to the constructor:
+
+```python
+@asynccontextmanager
+async def app_lifespan(server: FastMCP):
+    http_client = httpx.AsyncClient(timeout=30.0)
+    yield {"http_client": http_client}   # becomes ctx.lifespan_context
+    await http_client.aclose()
+
+mcp = FastMCP("MyServer", lifespan=app_lifespan)
+```
+
+For the full pattern — database pools, cleanup ordering, and when to prefer
+lifespan over per-tool connections — use the Lifespan Management reference
+listed in SKILL.md.
 
 ## Authentication
 
