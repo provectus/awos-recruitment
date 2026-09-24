@@ -32,6 +32,7 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 >   environment = "prod"
 >   project     = "my-project"
 >   region      = "us-east-1"
+>   owner       = "platform-team"
 > }
 > ```
 
