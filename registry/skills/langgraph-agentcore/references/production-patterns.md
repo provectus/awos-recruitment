@@ -1,5 +1,18 @@
 # Production Patterns
 
+## Contents
+
+- [Evidence Traceability](#evidence-traceability) — evidence coordinates, the
+  provenance chain through the pipeline
+- [Error Handling and Resilience](#error-handling-and-resilience) — retries,
+  the circuit breaker behind `get_model`, graceful degradation
+- [Idempotency](#idempotency) — workflow-, node- and write-level
+- [Testing Strategies](#testing-strategies) — node unit tests, the
+  interrupt/resume test, shadow mode, Cedar policy tests
+- [Semantic Caching](#semantic-caching) — and when not to cache
+- [Bedrock Guardrails Configuration](#bedrock-guardrails-configuration) —
+  layered defence against prompt injection
+
 ## Evidence Traceability
 
 Every AI-produced output must link to its source. This is non-negotiable
@@ -8,6 +21,8 @@ in regulated environments and best practice everywhere.
 ### Evidence Coordinate Schema
 
 ```python
+from typing import Any
+
 from pydantic import BaseModel
 
 class EvidenceCoordinate(BaseModel):
@@ -69,6 +84,11 @@ trace every fact back through the complete chain.
 
 ### Retry with Exponential Backoff
 
+Retrying is only half of it: the breaker below has to see the outcome, or its
+counters never move and the router keeps handing back a model that is
+throttled. Take the `ModelCircuitBreaker` instance whose `is_available` you
+passed to `get_model` and record against it on every path.
+
 ```python
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -76,23 +96,33 @@ from tenacity import retry, stop_after_attempt, wait_exponential
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
 )
-async def invoke_model_with_retry(prompt, model_id):
-    """Invoke Bedrock model with retry on throttling."""
+async def invoke_model_with_retry(prompt, model_id, breaker):
+    """Invoke a Bedrock model, recording the outcome on *breaker*."""
     try:
-        return await bedrock.invoke_model(
+        response = await bedrock.invoke_model(
             modelId=model_id,
             body=prompt,
         )
     except ThrottlingException:
+        breaker.record_failure(model_id)
         raise  # Let tenacity retry
     except ModelNotAvailableException:
+        breaker.record_failure(model_id)
         # Fall through to next model in fallback chain
         return await invoke_fallback_model(prompt, model_id)
+    breaker.record_success(model_id)
+    return response
 ```
 
 ### Circuit Breaker for Model Routing
 
+`is_available` is the callable `get_model` in SKILL.md takes — pass the bound
+method, so a throttled model is skipped rather than retried into the same
+failure.
+
 ```python
+import time
+
 class ModelCircuitBreaker:
     """Track model availability and skip unavailable models."""
 
@@ -111,11 +141,11 @@ class ModelCircuitBreaker:
             self.failures[model_id] = 0
         return True
 
-    def record_failure(self, model_id: str):
+    def record_failure(self, model_id: str) -> None:
         self.failures[model_id] = self.failures.get(model_id, 0) + 1
         self.last_failure[model_id] = time.time()
 
-    def record_success(self, model_id: str):
+    def record_success(self, model_id: str) -> None:
         self.failures[model_id] = 0
 ```
 
