@@ -19,6 +19,11 @@ This document provides detailed CI/CD workflow templates and optimization strate
 
 ## GitHub Actions Workflow
 
+Action refs are pinned exactly, the same rule that applies to provider
+versions — a floating `@master` or bare major tag changes what CI runs without
+a commit. Bump these deliberately. For production pipelines pin to the commit
+SHA the tag points at, since tags themselves are mutable.
+
 ### Complete Example
 
 ```yaml
@@ -31,8 +36,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.9.8  # Same version as required_version
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -53,14 +60,14 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7.0.1
 
       - name: Run Terraform Tests
         run: terraform test
 
       # Or for Terratest:
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: '1.21'
 
@@ -73,8 +80,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
 
       - name: Terraform Init
         run: terraform init
@@ -83,7 +90,7 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Upload Plan
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: tfplan
           path: tfplan
@@ -94,11 +101,11 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
 
       - name: Download Plan
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8.0.1
         with:
           name: tfplan
 
@@ -113,10 +120,10 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7.0.1
 
       - name: Setup Infracost
-        uses: infracost/actions/setup@v2
+        uses: infracost/actions/setup@v4.2.0
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
@@ -127,7 +134,7 @@ jobs:
             --out-file /tmp/infracost.json
 
       - name: Post Cost Comment
-        uses: infracost/actions/comment@v1
+        uses: infracost/actions/comment@v4.2.0
         with:
           path: /tmp/infracost.json
           behavior: update
@@ -285,10 +292,10 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7.0.1
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -367,7 +374,7 @@ terraform {
 ```yaml
 # GitHub Actions
 - name: Cache Terraform Plugins
-  uses: actions/cache@v3
+  uses: actions/cache@v6.1.0
   with:
     path: |
       ~/.terraform.d/plugin-cache
@@ -380,16 +387,16 @@ terraform {
 security-scan:
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7.0.1
 
     - name: Run Trivy
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         scan-type: 'config'
         scan-ref: '.'
 
     - name: Run Checkov
-      uses: bridgecrewio/checkov-action@master
+      uses: bridgecrewio/checkov-action@v12.1347.0
       with:
         directory: .
         framework: terraform

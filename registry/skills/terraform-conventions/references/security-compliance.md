@@ -42,7 +42,7 @@ brew install trivy
 curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
 # In CI
-- uses: aquasecurity/trivy-action@master
+- uses: aquasecurity/trivy-action@v0.36.0
   with:
     scan-type: 'config'
     scan-ref: '.'

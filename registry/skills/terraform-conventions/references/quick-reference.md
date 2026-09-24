@@ -133,14 +133,14 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform 1.6+ / OpenTofu 1.6+
 
-- NEW: Native `terraform test` / `tofu test`
+- Native `terraform test` / `tofu test` available
 - Consider migrating simple tests from Terratest
 - Keep Terratest for complex integration
 - All Terraform 1.0+ features available
 
 ### Terraform 1.7+ / OpenTofu 1.7+
 
-- NEW: Mock providers for unit testing
+- Mock providers available for unit testing
 - Reduce costs with mocking
 - Use real integration tests for final validation
 - Faster test iteration
@@ -155,7 +155,6 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 |--------|-----------|----------|
 | **Licensing** | Business Source License (BSL) 1.1 | Mozilla Public License 2.0 (MPL 2.0) |
 | **Governance** | HashiCorp (single vendor) | Linux Foundation (community-driven) |
-| **Latest Version** | 1.14+ | 1.11+ |
 | **Native Testing** | 1.6+ | 1.6+ |
 | **Mock Providers** | 1.7+ | 1.7+ |
 | **Feature Parity** | Reference implementation | Compatible fork with some additions |

@@ -787,7 +787,7 @@ When creating new modules, always include pre-commit hooks for automated validat
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0  # Use latest version from releases
+    rev: v1.109.1
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
