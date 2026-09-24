@@ -52,7 +52,7 @@ collection = client.create_collection(
 # Get — raises if not found
 collection = client.get_collection(
     name="my_collection",
-    embedding_function=ef,           # optional; overrides the stored configuration
+    embedding_function=ef,           # optional; name() must match the stored one
 )
 
 # Get or create — idempotent
@@ -69,7 +69,12 @@ collections = client.list_collections()
 client.delete_collection("my_collection")
 ```
 
-**Important:** Chroma stores the embedding function's *configuration* with the collection, so `get_collection` and `get_or_create_collection` rebuild it for you. Passing `embedding_function` again is optional — and when you do pass one, it overrides whatever was stored, so passing a *different* function silently produces vectors the index cannot compare.
+**Important:** Chroma stores the embedding function's *configuration* with the collection, so `get_collection` and `get_or_create_collection` rebuild it for you. Passing `embedding_function` again is optional, and what happens when you do depends on its `name()`:
+
+- **A different `name()` is rejected.** Chroma compares it against the stored one and raises `ValueError: An embedding function already exists in the collection configuration, and a new one is provided. ... Embedding function conflict: new: <new> vs persisted: <persisted>`. This is the safe case — you find out immediately.
+- **The same `name()` with a different config is accepted and overrides the stored one.** The name check passes, so a wrapper pointing at a different model, endpoint or dimension count replaces what was stored. A dimension change surfaces later as `InvalidArgumentError: Collection expecting embedding with dimension of N, got M`; a same-dimension swap produces no error at all, just vectors the index cannot meaningfully compare.
+
+So the override to guard against is the *silent* one: same registry name, different configuration.
 
 The exception is a custom function that implements only `__call__`: it is stored as `{"type": "legacy"}` and cannot be rebuilt, so it must be passed on every access. See "Custom embedding function" below.
 

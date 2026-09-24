@@ -304,10 +304,15 @@ a built-in wrapper is rebuilt automatically:
 collection = client.get_collection("my_col")
 ```
 
-Passing one explicitly is still allowed and overrides the stored config, which
-is the failure mode worth guarding against: passing a *different* function than
-the collection was built with produces vectors the index cannot compare, with
-no error.
+Passing one explicitly is still allowed, and Chroma checks it by `name()`. A
+function whose `name()` differs from the stored one is rejected outright with
+`ValueError: ... Embedding function conflict: new: <new> vs persisted:
+<persisted>`. A function with the *same* `name()` but a different config passes
+that check and overrides the stored one — that is the failure mode worth
+guarding against, because a same-dimension swap (different model or endpoint
+behind the same registry name) produces vectors the index cannot compare with
+no error at all. Only a dimension change is caught, and only on the next
+`add`/`query`.
 
 The one case that genuinely requires passing it every time is a legacy custom
 function — one implementing only `__call__`, stored as `{"type": "legacy"}`.
