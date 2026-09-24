@@ -404,9 +404,14 @@ For public modules, always include a LICENSE file:
 
 ### Terraform vs OpenTofu Preference
 
-**Before generating any module or configuration:**
+**Before generating any module or configuration, work out which binary the
+repo uses:**
 
-1. **Ask the user:** "Will this be for Terraform or OpenTofu? (Both are supported equally)"
+1. **Detect it from the repo.** In order: a `.terraform.lock.hcl` or
+   `.terraform/` directory; the binary named in CI config
+   (`.github/workflows/`, `.gitlab-ci.yml`, `atlantis.yaml`); `tofu`/`terraform`
+   in the README or Makefile. Default to Terraform when nothing indicates
+   otherwise, and ask only when the repo references both binaries.
 
 2. **Use the preference throughout:**
    - Command examples: `terraform` vs `tofu`
@@ -442,12 +447,7 @@ For public modules, always include a LICENSE file:
    tofu plan
    ```
 
-**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical.
-
-**Default behavior:**
-- If user doesn't specify: Ask explicitly
-- If project already exists: Detect from existing files (`.terraform/` or `.tofu/`)
-- If still unclear: Default to showing both options in documentation
+**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical, so a wrong guess costs a find-and-replace, not a rewrite.
 
 ---
 
@@ -762,12 +762,14 @@ acme-terraform-aws-rds
 
 ## Testing Your Modules
 
-For testing guidance, see [testing-frameworks.md](testing-frameworks.md).
+Testing guidance lives in the Testing Frameworks reference listed in SKILL.md.
 
 Quick checklist:
 
-- [ ] Ask: Terraform or OpenTofu?
-- [ ] Ask: Public or private module?
+- [ ] Terraform or OpenTofu, detected from the repo (default: Terraform)
+- [ ] Public or private module — private unless it is headed for the Terraform
+      Registry or a public repo, which is what decides the LICENSE file and the
+      `terraform-<PROVIDER>-<NAME>` naming
 - [ ] Include `examples/` directory
 - [ ] Write tests (native or Terratest)
 - [ ] Document inputs and outputs in README.md
@@ -1123,7 +1125,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
    - Run destroy in CI/CD after tests complete
    - Use terraform-compliance to enforce TTL tags
 
-**For testing framework details, see:** [Testing Frameworks Guide](testing-frameworks.md)
+For testing framework details, see the Testing Frameworks reference listed in SKILL.md.
 
 ---
 

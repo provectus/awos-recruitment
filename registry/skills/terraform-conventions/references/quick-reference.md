@@ -178,7 +178,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 - Version-specific features noted (1.6+, 1.7+, etc.)
 - **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
 
-**When creating modules, Claude will ask your preference** to generate appropriate commands and documentation.
+When creating modules, the binary is detected from the repo (lock file, CI config, README) and defaults to Terraform; specify a preference to override it.
 
 ---
 
@@ -554,7 +554,7 @@ What are you refactoring?
 3. Update documentation
 4. Communicate changes to team
 
-**For detailed refactoring patterns, see:** [Code Patterns: Refactoring Patterns](code-patterns.md#refactoring-patterns)
+For detailed refactoring patterns, see the Refactoring Patterns section of the Code Patterns reference listed in SKILL.md.
 
 ---
 
