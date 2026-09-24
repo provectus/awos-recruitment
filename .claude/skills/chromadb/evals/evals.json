@@ -1,0 +1,88 @@
+{
+  "skill_name": "chromadb",
+  "notes": "Run these against the chromadb pinned in server/uv.lock. See README.md in this directory.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "filter-by-tag-and-recency",
+      "prompt": "I've got a Chroma collection called `articles` where each record has metadata like {\"tags\": \"python,ml\", \"year\": 2024, \"title\": \"...\"}. I need a function `search(query, tag, min_year)` that does a semantic search but only returns articles carrying that tag and published in min_year or later, and gives me back a list of (title, distance) tuples sorted best-first. Write it for me.",
+      "expected_output": "A typed function using collection.query with a `where` filter combining the tag and year conditions under $and, unpacking the nested per-query result lists correctly.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "1a",
+          "text": "Combines the two metadata conditions with $and rather than passing two sibling keys",
+          "rationale": "Chroma rejects a multi-key where clause without an explicit logical operator."
+        },
+        {
+          "id": "1b",
+          "text": "Indexes query() results at [0] before iterating (results['ids'][0], results['distances'][0])",
+          "rationale": "query() returns one inner list per query; treating it as flat is the most common bug and get() genuinely is flat."
+        },
+        {
+          "id": "1c",
+          "text": "Does not use $regex inside `where`",
+          "rationale": "$regex is a where_document operator only; in `where` it raises ValueError listing the ten valid operators."
+        },
+        {
+          "id": "1d",
+          "text": "Code runs against the pinned chromadb and returns the expected records",
+          "rationale": "The whole point of the eval is executing, not reviewing."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "idempotent-reindex",
+      "prompt": "We re-run our docs indexer every night over the same ~40k markdown chunks, and lately people say edits to a page never show up in search. Here's the ingest loop we're using — can you look at it and fix it?\n\n```python\nfor batch in chunked(docs, 500):\n    collection.add(\n        ids=[d.id for d in batch],\n        documents=[d.text for d in batch],\n        metadatas=[d.meta for d in batch],\n    )\n```",
+      "expected_output": "Diagnoses that add() silently drops writes for IDs that already exist (no exception raised) and switches the loop to upsert().",
+      "files": [],
+      "assertions": [
+        {
+          "id": "2a",
+          "text": "Replaces add() with upsert()",
+          "rationale": "This is the actual fix."
+        },
+        {
+          "id": "2b",
+          "text": "States that the duplicate-ID write is dropped silently — does not claim add() raises ValueError or that an exception is being swallowed",
+          "rationale": "On chromadb 1.x a duplicate add raises nothing and warns about nothing; count() does not move and the stored record is unchanged. A fix built around catching an exception would be wrong."
+        },
+        {
+          "id": "2c",
+          "text": "Does not add a try/except around add() as the remedy",
+          "rationale": "Follows from 2b — there is no exception to catch."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "persistent-collection-reopen",
+      "prompt": "Set up a persistent Chroma store at ./index for our support tickets using OpenAI embeddings (text-embedding-3-small) and cosine distance. I need two entry points: one script that builds the index from a list of tickets, and a separate script that a different process runs to query it. Include whatever env vars we need to set in the deployment.",
+      "expected_output": "Two scripts sharing a PersistentClient path; cosine set through the configuration argument; the query script reopens the collection without needing to reconstruct the embedding function; the documented key variable is CHROMA_OPENAI_API_KEY.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "3a",
+          "text": "Names CHROMA_OPENAI_API_KEY as the environment variable to set (mentioning that OPENAI_API_KEY also works is fine)",
+          "rationale": "OpenAIEmbeddingFunction defaults to api_key_env_var='CHROMA_OPENAI_API_KEY'; the unprefixed name still works but is not the documented default."
+        },
+        {
+          "id": "3b",
+          "text": "Does not claim Chroma cannot persist the embedding function, and does not require passing embedding_function to get_collection for a built-in wrapper",
+          "rationale": "Built-in wrappers are stored as {'type':'known',...} in the collection configuration and rebuilt on open."
+        },
+        {
+          "id": "3c",
+          "text": "Sets cosine via configuration={'hnsw': {'space': 'cosine'}} (the legacy metadata={'hnsw:space': ...} form is acceptable but should not be presented as the only way)",
+          "rationale": "configuration= is the first-class 1.x API."
+        },
+        {
+          "id": "3d",
+          "text": "Does not hardcode the API key inline as api_key=...",
+          "rationale": "An inline api_key raises a DeprecationWarning and is deliberately not persisted, so it is lost on reopen — besides being a secret in source."
+        }
+      ]
+    }
+  ]
+}
