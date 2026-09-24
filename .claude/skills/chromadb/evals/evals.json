@@ -5,8 +5,8 @@
     {
       "id": 1,
       "name": "filter-by-tag-and-recency",
-      "prompt": "I've got a Chroma collection called `articles` where each record has metadata like {\"tags\": \"python,ml\", \"year\": 2024, \"title\": \"...\"}. I need a function `search(query, tag, min_year)` that does a semantic search but only returns articles carrying that tag and published in min_year or later, and gives me back a list of (title, distance) tuples sorted best-first. Write it for me.",
-      "expected_output": "A typed function using collection.query with a `where` filter combining the tag and year conditions under $and, unpacking the nested per-query result lists correctly.",
+      "prompt": "I've got a Chroma collection called `articles` where each record has metadata like {\"tags\": [\"python\", \"ml\"], \"year\": 2024, \"title\": \"...\"}. I need a function `search(query, tag, min_year)` that does a semantic search but only returns articles carrying that tag and published in min_year or later, and gives me back a list of (title, distance) tuples sorted best-first. Write it for me.",
+      "expected_output": "A typed function using collection.query with a `where` filter combining the tag and year conditions under $and — $contains for tag membership in the list-valued metadata, $gte for the year — unpacking the nested per-query result lists correctly.",
       "files": [],
       "assertions": [
         {
