@@ -36,8 +36,6 @@ shared     (lowest)   — Infrastructure code
 
 **Can Import**: widgets, features, entities, shared | **Cannot Import**: app, other pages
 
-> See `examples/slice-examples.md` for directory tree and public API.
-
 ---
 
 ## Widgets (`src/widgets/`)
@@ -51,8 +49,6 @@ shared     (lowest)   — Infrastructure code
 **Can Import**: features, entities, shared | **Cannot Import**: app, pages, other widgets
 
 **When to create**: UI block used in 2+ pages, combines multiple entities/features, too complex for a single entity.
-
-> See `examples/slice-examples.md` for directory tree and public API.
 
 ---
 
@@ -80,8 +76,6 @@ shared     (lowest)   — Infrastructure code
 - Reusable across features, widgets, and pages
 
 **Can Import**: shared | **Cannot Import**: app, pages, widgets, features, other entities
-
-> See `examples/slice-examples.md` for directory tree and public API.
 
 ---
 

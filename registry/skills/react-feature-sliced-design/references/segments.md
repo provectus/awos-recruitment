@@ -119,5 +119,3 @@ export * from './model';
 export { useCustomer, useCustomerList } from './model';
 export type { Customer, CustomerStatus } from './model';
 ```
-
-> See `examples/slice-examples.md` for directory trees and public APIs across all layers.
