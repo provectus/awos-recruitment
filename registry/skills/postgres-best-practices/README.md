@@ -34,6 +34,8 @@ references/query-missing-indexes.md
 references/conn-pooling.md
 ```
 
+The one-file-per-rule layout mirrors upstream Supabase so the rules can be re-synced with it and read individually without loading a whole category. The trade-off is that reviewing a full category (up to six files) takes one read per file; batch those reads by prefix (for example `references/query-*.md`) rather than merging the files.
+
 Every rule file contains:
 - Why the pattern matters
 - Incorrect SQL example

@@ -83,4 +83,4 @@ Comprehensive performance optimization guide for Postgres. 31 rules across 8 cat
 
 ## How to Use
 
-Each rule file in `references/` contains: explanation, incorrect/correct SQL examples, EXPLAIN output, and context. Read individual files as needed.
+Each rule file in `references/` contains: explanation, incorrect/correct SQL examples, EXPLAIN output, and context. Read individual files as needed; to review a whole category, read every file sharing its prefix (for example `references/query-*.md`) in one batch rather than one at a time.
