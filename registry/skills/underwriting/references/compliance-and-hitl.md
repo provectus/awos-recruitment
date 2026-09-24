@@ -1,15 +1,30 @@
 # Compliance Gates and HITL Patterns
 
+## Contents
+- Sanctions Screening — 3-Gate Escalation (Gates 1-3, Asset-Level Screening)
+- HITL Gate Inventory (Gate Authorization, Cedar policy example, Service Degradation)
+- Confidence Calibration Details (Two-Stage Hybrid Estimation, ECE Monitoring)
+- Automation Bias Safeguards (Safeguards 1-5)
+- Operating Mode Transitions
+- Firebreak Controls
+
+Regulator names, sanctions lists and compliance roles in this file assume the
+UK/Lloyd's market; substitute the equivalents for the carrier's jurisdiction.
+Numeric thresholds are illustrative starting defaults to tune per LoB via
+policy packs, unless a line says otherwise.
+
 ## Sanctions Screening — 3-Gate Escalation
 
 Sanctions screening is the most compliance-critical check in underwriting.
 Use a cost-tiered escalation to avoid spending $5+ per entity when a $0.01
-check would have cleared them.
+check would have cleared them. Per-gate costs are indicative of the relative
+cost of each tier, not vendor pricing.
 
 ### Gate 1: Basic Watchlist Check (~$0.01/entity)
 
-- Quick lookup against primary sanctions lists (OFAC SDN, EU Consolidated,
-  UK HMT, UN Security Council).
+- Quick lookup against the primary sanctions lists for the jurisdiction (for a
+  UK/Lloyd's-market carrier typically OFAC SDN, EU Consolidated, UK HMT, UN
+  Security Council; use the lists your regulator requires).
 - Exact name match against watchlist entries.
 - **Clear** → proceed to next pipeline step.
 - **Flag** → escalate to Gate 2.
@@ -30,7 +45,8 @@ check would have cleared them.
 - Human sees: entity details, screening results, match details, potential
   aliases, related entities.
 - Human actions: clear (false positive), confirm (true match → reject
-  submission), escalate to MLRO.
+  submission), escalate to the MLRO (Money Laundering Reporting Officer — the
+  UK role; elsewhere, the designated AML/financial-crime officer).
 
 ### Asset-Level Screening
 
@@ -143,6 +159,9 @@ Rules evaluated in priority order:
 2. High Confidence rules second (all conditions must be met)
 3. Medium Confidence is the default (anything not matching Low or High)
 
+The monetary, OCR-quality and accuracy cut-offs below are illustrative
+starting defaults; set them per LoB in the policy pack.
+
 Low Confidence triggers (any one is sufficient):
 - Financial field above monetary threshold (e.g., > $1M coverage)
 - Contract-critical field (named insured, effective/expiry dates)
@@ -190,6 +209,16 @@ async def self_consistency_check(prompt, field_name, config):
     }
 ```
 
+`map_to_band` turns the agreement rate into a confidence band that drives
+routing (default bands; tune per LoB):
+
+| Agreement | Confidence | Routing |
+|-----------|-----------|---------|
+| >= 80% | High | Auto-proceed + audit sample |
+| 60-79% | Medium | Junior reviewer queue |
+| 40-59% | Low | Senior reviewer queue |
+| < 40% | Very Low | Specialist review |
+
 Configuration is per-field-criticality and per-LoB via policy packs:
 - `sample_count`: 3-10 (default 5)
 - `temperature`: 0.5-1.0 (default 0.7)
@@ -203,6 +232,9 @@ Expected Calibration Error measures prediction-accuracy alignment:
 ```
 ECE = SUM over bins( |accuracy_in_bin - midpoint_of_bin| * (cases_in_bin / total) )
 ```
+
+Alert thresholds are illustrative starting defaults, chosen so that a warning
+fires well before calibration drift becomes visible in override rates:
 
 | Metric | Target | Warning | Critical |
 |--------|--------|---------|----------|
@@ -256,10 +288,25 @@ Reveal AI reasoning in stages:
 
 ### Safeguard 5: Rubber-Stamp Detection
 
-Track review time distributions per reviewer:
+Track review time distributions per reviewer. The 10-second floor is an
+illustrative default — calibrate it against the observed time it takes to
+read the evidence for each task type:
 - Reviews under 10 seconds → flagged as potential rubber-stamps
 - Mean review time < 10s over 20-task window → supervisor alert
 - Rubber-stamp rates included in monitoring dashboard
+
+---
+
+## Operating Mode Transitions
+
+Operating modes (Manual → Shadow → Assisted → Selective → Automated, defined
+in SKILL.md) are advanced one step at a time, per workflow type:
+
+- **Manual → Shadow**: Admin approval, agent deployed and tested.
+- **Shadow → Assisted**: N validated shadow outcomes (configurable, default 50)
+  showing AI/human agreement. Dual admin approval.
+- Each transition is recorded in an immutable audit ledger.
+- Firebreak controls (below) can force any workflow back to Manual at any time.
 
 ---
 
