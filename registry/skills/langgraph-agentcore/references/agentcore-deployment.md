@@ -307,8 +307,17 @@ long-term records with `retrieve_memories`, addressed by a memory ID and a
 namespace. Reads are namespaced, so pick the namespace deliberately — it is
 what scopes one actor's history from another's.
 
+A memory write has to be idempotent, because a LangGraph node is not run
+once: a node that interrupts re-runs from the top on resume, and a node with
+a retry policy re-runs on failure. `CreateEvent` takes a `clientToken` for
+exactly this, but the `MemoryClient.create_event` wrapper does not expose it,
+and boto3 auto-fills the field with a fresh UUID per call — so the wrapper
+writes a duplicate event every time. Call the data-plane client underneath it
+with a token derived from the task instead.
+
 ```python
 import json
+from datetime import UTC, datetime
 
 from bedrock_agentcore.memory import MemoryClient
 
@@ -326,20 +335,26 @@ def lookup_node(state: dict) -> dict:
     # Use historical context to improve processing
     # ...
 
-    # Store this interaction's outcome for future reference.
-    # messages is a list of (text, role) tuples — text first, role second.
-    memory.create_event(
-        memory_id=MEMORY_ID,
-        actor_id=state["source_name"],
-        session_id=state["task_id"],
-        messages=[(
-            json.dumps({
-                "task_id": state["task_id"],
-                "result_type": state["result_type"],
-                "confidence": state["confidence"],
-            }),
-            "ASSISTANT",
-        )],
+    # Store this interaction's outcome for future reference. memory.gmdp_client
+    # is the bedrock-agentcore data-plane client; its parameters are camelCase
+    # and payload is the shape create_event() builds from (text, role) tuples.
+    memory.gmdp_client.create_event(
+        memoryId=MEMORY_ID,
+        actorId=state["source_name"],
+        sessionId=state["task_id"],
+        eventTimestamp=datetime.now(tz=UTC),
+        payload=[{
+            "conversational": {
+                "content": {"text": json.dumps({
+                    "task_id": state["task_id"],
+                    "result_type": state["result_type"],
+                    "confidence": state["confidence"],
+                })},
+                "role": "ASSISTANT",
+            },
+        }],
+        # Deterministic: a replayed node writes the same event once.
+        clientToken=f"{state['task_id']}-outcome",
     )
 
     return {"memory_hits": similar_items}
