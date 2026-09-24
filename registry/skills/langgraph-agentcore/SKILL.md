@@ -215,14 +215,19 @@ with PostgresSaver.from_conn_string(db_url) as checkpointer:
 
 ### Recovery and Replay
 
-`app.get_state(config).next` is non-empty exactly when the thread is parked at
-an interrupt — that is the resume check, and `app.get_state_history(config)`
-walks every prior snapshot for audit and debugging.
+`app.get_state(config).interrupts` is non-empty exactly when the thread is
+parked on a dynamic `interrupt()` — that is the resume check. `.next` only
+lists the nodes scheduled next, which a static breakpoint fills too, and those
+resume with `app.invoke(None, config)`. `app.get_state_history(config)` walks
+every prior snapshot for audit and debugging.
 
 ```python
-# Resume a previously interrupted workflow
-if app.get_state(config).next:  # There are pending nodes
-    result = app.invoke(Command(resume=human_decision), config)
+# A resume normally runs in a fresh session, so re-enter the context manager —
+# the checkpointer owns the psycopg connection the calls below go through.
+with PostgresSaver.from_conn_string(db_url) as checkpointer:
+    app = graph.compile(checkpointer=checkpointer)
+    if app.get_state(config).interrupts:  # parked on a human decision
+        result = app.invoke(Command(resume=human_decision), config)
 ```
 
 ## 3-Tier Model Routing
