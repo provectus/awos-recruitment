@@ -2,9 +2,19 @@
 
 Covers Android-specific project organization, Gradle configuration, and build variants. For generic Kotlin/Gradle project structure (single-module layout, version catalog basics, compiler options, testing setup), see the `kotlin-development` skill's `references/project-structure.md`.
 
-> **Placeholder convention:** `<latest>` (inside quoted version strings) and `<latest-stable-api>` (bare, e.g. `compileSdk = <latest-stable-api>`) are fill-in markers, not literal values — replace them with the current stable version / API level. The bare form is not valid Kotlin, so never emit it verbatim.
-
 Targets latest stable **AGP** and **Kotlin 2.x**.
+
+## Contents
+- Multi-Module Architecture — module types, directory layout, dependency graph rules, API/impl split, when (not) to create a module
+- Gradle Setup — `android {}` block, library module, SDK version guidelines, Compose compiler, `settings.gradle.kts`, `gradle.properties`
+- Version Catalog — `libs.versions.toml`, BOM management
+- Convention Plugins — structure, `build-logic`, Android library convention plugin, usage
+- Build Variants — build types, product flavors, source sets, build config fields
+- Signing Configurations — debug and release signing
+- ProGuard / R8 — rules, consumer rules, full mode, debugging
+- Common Gradle Commands
+- Asset and Resource Management — directory structure, qualifiers, vector drawables, resources in Compose
+- Dependencies — common dependency sets, choosing between alternatives
 
 ## Multi-Module Architecture
 
@@ -125,6 +135,8 @@ dependencies {
 
 ```kotlin
 // app/build.gradle.kts
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -152,13 +164,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        jvmTarget = "21"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+// Kotlin 2.x: configure the JVM target through compilerOptions (the old
+// android.kotlinOptions {} block is deprecated)
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 ```
@@ -167,6 +183,8 @@ android {
 
 ```kotlin
 // core/network/build.gradle.kts
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -184,9 +202,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
+}
 
-    kotlinOptions {
-        jvmTarget = "21"
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 ```
@@ -197,8 +217,8 @@ android {
 |---|---|---|
 | `compileSdk` | Latest stable API level | Access newest APIs at compile time |
 | `targetSdk` | Latest stable API level | Required by Play Store annually; opt into latest platform behavior |
-| `minSdk` | 90%+ device coverage (currently 26+) | Adapt to project requirements; if the project already defines a minSdk, confirm before changing |
-| `jvmTarget` | `"21"` (recommended), `"17"` (minimum) | JDK 21 LTS preferred for new projects; JDK 17 is the AGP minimum |
+| `minSdk` | The API level that gives ~90%+ device coverage per the Android distribution dashboard | Adapt to project requirements; if the project already defines a minSdk, confirm before changing |
+| `jvmTarget` | `"21"` (recommended) | JDK 21 LTS preferred for new projects; never go below the minimum JDK the project's AGP version requires (see the AGP release notes) |
 
 ### Compose compiler (Kotlin 2.x)
 
@@ -327,7 +347,7 @@ compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 # Room
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+# room-ktx is not listed: its APIs were merged into room-runtime (Room 2.7+); see local-storage.md
 
 # Hilt
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
@@ -467,8 +487,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             }
 
             // Align the Kotlin JVM target with the Java bytecode level above.
-            // kotlinOptions isn't available on LibraryExtension here, so configure
-            // the compile tasks directly.
+            // The kotlin { compilerOptions {} } DSL isn't reachable from inside
+            // LibraryExtension here, so configure the compile tasks directly.
             tasks.withType<KotlinCompile>().configureEach {
                 compilerOptions {
                     jvmTarget.set(JvmTarget.JVM_21)
@@ -686,7 +706,7 @@ create("release") {
 
 ## ProGuard / R8
 
-AGP 8.x uses R8 by default (drop-in replacement for ProGuard with the same rule format).
+AGP uses R8 as its code shrinker (a drop-in replacement for ProGuard with the same rule format).
 
 ### `proguard-rules.pro` (app module)
 
@@ -763,7 +783,7 @@ android {
 
 ### R8 full mode
 
-AGP 8.x enables R8 full mode by default. Key differences from compatibility mode:
+R8 full mode is the default. Key differences from compatibility mode:
 - More aggressive optimizations and tree shaking.
 - Default rules are stricter — classes are removed unless explicitly kept.
 - Add `-keep` rules for anything accessed via reflection.
@@ -805,7 +825,7 @@ Upload `mapping.txt` to Play Console and Firebase Crashlytics for readable stack
 | Format | Use case |
 |---|---|
 | APK (`.apk`) | Direct install, testing, sideloading, Firebase App Distribution |
-| AAB (`.aab`) | Play Store upload (required since 2021), Google generates optimized APKs per device |
+| AAB (`.aab`) | Play Store upload (the required publishing format), Google generates optimized APKs per device |
 
 
 ## Asset and Resource Management
@@ -926,8 +946,7 @@ dependencies {
     // implementation(libs.ktor.serialization.json)
 
     // Room
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
+    implementation(libs.room.runtime) // includes the former room-ktx coroutine/Flow APIs
     ksp(libs.room.compiler)
 
     // Image loading

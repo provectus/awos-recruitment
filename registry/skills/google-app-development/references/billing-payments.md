@@ -17,14 +17,14 @@ Covers Google Play Billing Library integration for in-app purchases and subscrip
 
 ## Setup
 
-Google Play Billing Library (PBL) is the only supported way to sell digital goods on Google Play. Current major version is **PBL 8** (artifact `com.android.billingclient:billing`). PBL 7 remains supported until August 31, 2026.
+Google Play Billing Library (PBL, artifact `com.android.billingclient:billing`) is the only supported way to sell digital goods on Google Play. Every major version has a two-year deprecation cycle, after which new apps and updates are rejected — so integrate against the latest stable major version and check the Play Billing deprecation schedule before pinning an older one. Version-specific notes below ("PBL 8+") describe when an API appeared, not the current release.
 
 ### Gradle Setup
 
 ```kotlin
 // libs.versions.toml
 [versions]
-billing = "<latest>" // PBL 8.x
+billing = "<latest>"
 
 [libraries]
 billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
