@@ -800,7 +800,7 @@ resource "aws_db_instance" "this" {
   engine   = "mysql"
   username = "admin"
 
-  manage_master_user_password = true  # Cannot be combined with password/password_wo
+  manage_master_user_password = true # Cannot be combined with password/password_wo
 }
 ```
 
