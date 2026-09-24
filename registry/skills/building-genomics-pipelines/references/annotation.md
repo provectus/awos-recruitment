@@ -1,5 +1,19 @@
 # Variant Annotation Pipeline
 
+## Contents
+- Workflow Overview
+- Versions and Databases (how to pick current releases)
+- Variant Normalization
+- VEP (cache setup, basic annotation, plugins, Docker)
+- SnpEff and SnpSift
+- ANNOVAR (database download, table annotation)
+- Key Annotation Databases (population, functional prediction, clinical)
+- Filtering Strategies (rare disease, cancer)
+- Clinical Interpretation (ACMG evidence codes, InterVar)
+- Variant Prioritization Tools (GEMINI, bcftools)
+- Output Formats
+- Best Practices
+
 ## Workflow Overview
 
 ```

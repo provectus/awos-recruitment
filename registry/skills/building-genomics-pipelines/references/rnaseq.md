@@ -1,5 +1,17 @@
 # RNA-seq Analysis Pipeline
 
+## Contents
+- Workflow Overview (bulk, single-cell)
+- Bulk RNA-seq: Quality Control
+- Bulk RNA-seq: Alignment Options (STAR + featureCounts, Salmon, kallisto)
+- Differential Expression (DESeq2, edgeR, limma-voom)
+- Visualization (PCA, volcano, heatmap, MA)
+- Pathway Analysis (GO, KEGG, GSEA)
+- Single-cell RNA-seq (Cell Ranger, Seurat, Scanpy)
+- nf-core/rnaseq Pipeline
+- Quality Metrics
+- Common Issues
+
 ## Workflow Overview
 
 ### Bulk RNA-seq
