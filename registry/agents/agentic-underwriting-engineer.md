@@ -8,7 +8,6 @@ description: >-
   extraction agents, compliance workflows, HITL review systems, confidence
   calibration, or underwriting decision package assembly.
 model: opus
-effort: low
 skills:
   - underwriting
   - langgraph-agentcore
