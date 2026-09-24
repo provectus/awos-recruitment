@@ -77,6 +77,8 @@ describe("downloadBundle", () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
+    // vitest 4: restoreAllMocks no longer resets vi.fn() state, so reset first.
+    vi.resetAllMocks();
     vi.restoreAllMocks();
     for (const dir of tempDirs) {
       try {
