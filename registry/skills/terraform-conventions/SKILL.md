@@ -270,24 +270,24 @@ resource "aws_nat_gateway" "this" {
 
 ### Variable Block Ordering
 
-1. `description` (ALWAYS required)
+1. `description` (always required)
 2. `type`
 3. `default`
-4. `validation`
+4. `sensitive` (when setting to true)
 5. `nullable` (when setting to false)
+6. `validation`
 
 ```hcl
 variable "environment" {
   description = "Environment name for resource tagging"
   type        = string
   default     = "dev"
+  nullable    = false
 
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be one of: dev, staging, prod."
   }
-
-  nullable = false
 }
 ```
 

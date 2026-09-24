@@ -71,7 +71,7 @@ resource "aws_nat_gateway" "this" {
 
 **Variable block ordering:**
 
-1. `description` (ALWAYS required)
+1. `description` (always required)
 2. `type`
 3. `default`
 4. `sensitive` (when setting to true)
