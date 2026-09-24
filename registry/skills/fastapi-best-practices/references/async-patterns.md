@@ -1,5 +1,12 @@
 # Async Patterns in FastAPI
 
+## Contents
+- How FastAPI Handles Routes (sync `def`, async `async def`)
+- Threadpool Caveats
+- CPU-Intensive Tasks (process pool, task queue)
+- Using Sync Libraries in Async Routes (`run_in_threadpool`)
+- Decision Matrix
+
 ## How FastAPI Handles Routes
 
 FastAPI is async-first but supports both sync and async route handlers with different execution models.

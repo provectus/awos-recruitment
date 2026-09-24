@@ -1,5 +1,13 @@
 # Pydantic Patterns for FastAPI
 
+## Contents
+- Leverage Built-in Validators
+- Custom Base Model (shared datetime serialization)
+- Split BaseSettings by Domain
+- Response Serialization Gotcha (models built twice per request)
+- ValueError Becomes ValidationError
+- Schema Design Patterns (input/output split, shared base, ORM mode)
+
 ## Leverage Built-in Validators
 
 Pydantic provides rich validation out of the box — use it before writing custom validators:

@@ -1,5 +1,14 @@
 # FastAPI Dependencies
 
+## Contents
+- Declare Dependencies with `Annotated`
+- Dependencies as Validation
+- Chaining Dependencies (JWT parsing, ownership, active creator)
+- Dependency Caching (per-request cache, `use_cache=False`)
+- Prefer Async Dependencies
+- REST Path Variables for Dependency Reuse
+- Common Dependency Patterns (auth guard, database session, pagination)
+
 ## Declare Dependencies with `Annotated`
 
 FastAPI has recommended `Annotated[T, Depends(...)]` over the `param: T = Depends(...)`
