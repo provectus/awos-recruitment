@@ -1,6 +1,6 @@
 # First-run setup and the per-repo file
 
-Applies on first run in a repo — `.claude/gh-watch-reviews.local.json` absent — or when args say `reconfigure`.
+Applies on first run in a repo — `.claude/gh-watch-reviews.local.json` absent — or when the skill was invoked with `reconfigure`.
 
 ## The file
 
@@ -34,7 +34,7 @@ A `check` block appears alongside `config` and `state` once a recurring check is
 
 The two timing knobs:
 
-- `poll_interval_minutes` (default 15) — how often the recurring check asks GitHub. A quiet tick is one scan and one line (~950 tokens), so this trades new-PR latency against that. `loop <interval>` in the args overrides it for that invocation only.
+- `poll_interval_minutes` (default 15) — how often the recurring check asks GitHub. A quiet tick is one Bash call and one printed line, so this trades new-PR latency against a little context and GitHub API traffic. Invoking with `loop <interval>` overrides it for that invocation only.
 - `stale_review_hours` (default 2) — how long one review may hold the in-flight lock before the user gets asked about it. An `in_progress` entry pauses the whole scan, and the scanner clears it by itself when the review is submitted or the PR closes — but a review that died (closed tab, killed session) leaves nothing to clear, so the watch would stay paused forever. Past this many hours the scan returns `stale_in_progress` and asks instead. Set it longer than a review realistically takes: too short nags mid-review, too long is a silent watch.
 
 How the scanner uses `state` (for awareness — the rules live in the script, not in your judgement):
@@ -54,7 +54,7 @@ Build `config` via TWO `AskUserQuestion` calls. First call — what to watch and
 
 Second call — the two timings, each of which needs its explanation in the question text, because neither is guessable:
 
-5. How often should I check GitHub? — `Every 15 minutes (recommended)` / `Every 5 minutes` / `Every hour` → `poll_interval_minutes`. Explain: a check with nothing to report is one scan and one line (~950 tokens), so a shorter interval buys lower latency on a new PR and costs a little context and GitHub API traffic.
+5. How often should I check GitHub? — `Every 15 minutes (recommended)` / `Every 5 minutes` / `Every hour` → `poll_interval_minutes`. Explain: a check with nothing to report is one Bash call and one printed line, so a shorter interval buys lower latency on a new PR and costs a little context and GitHub API traffic.
 6. A review is handed off and then never finishes — the tab was closed, the session died. How long before I ask you about it? — `After 2 hours (recommended)` / `After 1 hour` / `After 8 hours` → `stale_review_hours`. Explain: while a review is marked in progress the watch is paused so it won't re-surface the PR you're on, and that pause normally ends by itself the moment the review is submitted or the PR is merged. Nothing can see whether a review session is still alive, so this timeout is the only thing that distinguishes "still working" from "gone" — after it, the watch asks you instead of staying quiet indefinitely.
 
 Then one housekeeping step for the file this interview is about to create — it shouldn't be committed:
