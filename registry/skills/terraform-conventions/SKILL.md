@@ -463,106 +463,17 @@ checkov -d .
 **For detailed security guidance, see:**
 - **[Security & Compliance Guide](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
 
-## Version Management
+## Versions and Modern Features
 
 > **Provectus Convention: All versions must be pinned to exact versions. No pessimistic (`~>`) or range constraints.**
 
-### Version Constraint Syntax
-
-```hcl
-version = "= 5.82.2"    # Exact (required by Provectus convention)
-version = "5.1.2"        # Exact (alternative syntax for modules)
-```
-
-### Strategy by Component
-
-| Component | Strategy | Example |
-|-----------|----------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.9.8"` |
-| **Providers** | Pin exact version | `version = "= 5.82.2"` |
-| **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
-| **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
-
-### Update Workflow
-
-```bash
-# Lock versions initially
-terraform init              # Creates .terraform.lock.hcl
-
-# Update to latest within constraints
-terraform init -upgrade     # Updates providers
-
-# Review and test
-terraform plan
-```
+See **[Version Management](references/version-management.md)** for constraint syntax, strategy by component, the update workflow, modern Terraform features by version (1.0+), and version-specific guidance.
 
 **For detailed version management, see:** [Code Patterns: Version Management](references/code-patterns.md#version-management)
 
-## Modern Terraform Features (1.0+)
-
-### Feature Availability by Version
-
-| Feature | Version | Use Case |
-|---------|---------|----------|
-| `try()` function | 0.13+ | Safe fallbacks, replaces `element(concat())` |
-| `nullable = false` | 1.1+ | Prevent null values in variables |
-| `moved` blocks | 1.1+ | Refactor without destroy/recreate |
-| `optional()` with defaults | 1.3+ | Optional object attributes |
-| Native testing | 1.6+ | Built-in test framework |
-| Mock providers | 1.7+ | Cost-free unit testing |
-| Provider functions | 1.8+ | Provider-specific data transformation |
-| Cross-variable validation | 1.9+ | Validate relationships between variables |
-| Write-only arguments | 1.11+ | Secrets never stored in state |
-
-### Quick Examples
-
-```hcl
-# try() - Safe fallbacks (0.13+)
-output "sg_id" {
-  value = try(aws_security_group.this[0].id, "")
-}
-
-# optional() - Optional attributes with defaults (1.3+)
-variable "config" {
-  type = object({
-    name    = string
-    timeout = optional(number, 300)  # Default: 300
-  })
-}
-
-# Cross-variable validation (1.9+)
-variable "environment" { type = string }
-variable "backup_days" {
-  type = number
-  validation {
-    condition     = var.environment == "prod" ? var.backup_days >= 7 : true
-    error_message = "Production requires backup_days >= 7"
-  }
-}
-```
-
 **For complete patterns and examples, see:** [Code Patterns: Modern Terraform Features](references/code-patterns.md#modern-terraform-features-10)
 
-## Version-Specific Guidance
-
-### Terraform 1.0-1.5
-- Use Terratest for testing
-- No native testing framework available
-- Focus on static analysis and plan validation
-
-### Terraform 1.6+ / OpenTofu 1.6+
-- **New:** Native `terraform test` / `tofu test` command
-- Consider migrating from external frameworks for simple tests
-- Keep Terratest only for complex integration tests
-
-### Terraform 1.7+ / OpenTofu 1.7+
-- **New:** Mock providers for unit testing
-- Reduce cost by mocking external dependencies
-- Use real integration tests for final validation
-
-### Terraform vs OpenTofu
-
-Both are fully supported by this skill. For licensing, governance, and feature comparison, see [Quick Reference: Terraform vs OpenTofu](references/quick-reference.md#terraform-vs-opentofu-comparison).
+Terraform and OpenTofu are both fully supported by this skill. For licensing, governance, and feature comparison, see [Quick Reference: Terraform vs OpenTofu](references/quick-reference.md#terraform-vs-opentofu-comparison).
 
 ## Detailed Guides
 
@@ -573,6 +484,7 @@ This skill uses **progressive disclosure** - essential information is in this ma
 - **[Module Patterns](references/module-patterns.md)** - Module structure, variable/output best practices, DO vs DON'T patterns
 - **[CI/CD Workflows](references/ci-cd-workflows.md)** - GitHub Actions, GitLab CI templates, cost optimization, automated cleanup
 - **[Security & Compliance](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, compliance testing
+- **[Version Management](references/version-management.md)** - Version pinning, modern features by version, version-specific guidance
 - **[Quick Reference](references/quick-reference.md)** - Command cheat sheets, decision flowcharts, troubleshooting guide
 
 **How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand to provide comprehensive guidance.
