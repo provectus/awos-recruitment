@@ -1,5 +1,19 @@
 # TypeScript Type System Reference
 
+## Contents
+
+- [Generics](#generics) — basic, constrained, generic interfaces, defaults
+- [Utility Types](#utility-types) — built-in table and how to combine them
+- [Conditional Types](#conditional-types) — basic, `infer`, distributive
+- [Mapped Types](#mapped-types) — basic, key remapping, filtering keys
+- [Template Literal Types](#template-literal-types) — basic and intrinsic string types
+- [Type Guards](#type-guards) — `typeof`, `instanceof`, custom predicates, assertions
+- [Discriminated Unions](#discriminated-unions) — the pattern and exhaustive matching
+- [Branded Types](#branded-types) — nominal typing over structural types
+- [Satisfies Operator](#satisfies-operator) — validate without widening
+- [Const Assertions](#const-assertions) — literal and readonly inference
+- [Declaration Merging](#declaration-merging) — interface merging, module augmentation
+
 ## Generics
 
 ### Basic generics
@@ -107,7 +121,11 @@ type ElementType<T> = T extends (infer E)[] ? E : T;
 type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 // UnwrapPromise<Promise<string>> → string
 
-type FunctionReturn<T> = T extends (...args: unknown[]) => infer R ? R : never;
+// The placeholder parameter list must be `never[]`: parameters are checked
+// contravariantly, so `(...args: unknown[])` matches almost nothing and would
+// resolve to `never`. See `type-inference.md` for the full explanation.
+type FunctionReturn<T> = T extends (...args: never[]) => infer R ? R : never;
+// FunctionReturn<(a: string) => boolean> → boolean
 ```
 
 ### Distributive conditional types
