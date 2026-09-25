@@ -6,14 +6,21 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from awos_recruitment_mcp.models._frontmatter_fields import (
+    FrontmatterDescription,
+    FrontmatterName,
+)
+
 
 class SkillMetadata(BaseModel):
     """Validated representation of the YAML front matter in a SKILL.md file.
 
     Attributes:
         name: Kebab-case identifier for the skill (1-64 chars, lowercase
-              alphanumeric and hyphens only).
-        description: Human-readable description of the skill.
+              alphanumeric and hyphens only, no reserved words
+              ``anthropic``/``claude``, no XML tags).
+        description: Human-readable description of the skill (1-1024
+            chars, no XML tags).
         version: Optional SemVer-style version string.
         argument_hint: Optional hint text shown to the user for arguments.
         disable_model_invocation: If true, prevents the model from invoking
@@ -31,8 +38,8 @@ class SkillMetadata(BaseModel):
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    name: str = Field(..., pattern=r"^[a-z0-9-]{1,64}$")
-    description: str = Field(..., min_length=1)
+    name: FrontmatterName = Field(...)
+    description: FrontmatterDescription = Field(...)
 
     version: str | None = Field(None)
     argument_hint: str | None = Field(None, alias="argument-hint")
