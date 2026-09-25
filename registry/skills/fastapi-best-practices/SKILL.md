@@ -1,30 +1,28 @@
 ---
 name: fastapi-best-practices
 description: >-
-  FastAPI best practices and conventions. Use when writing, reviewing, or refactoring
-  FastAPI applications — route handlers, Pydantic schemas, dependency injection,
-  project structure, async patterns, testing, or API documentation. Triggers on tasks
-  involving FastAPI routers, endpoints, request validation, response models, or
-  application configuration. Does not cover general Python syntax or typing — see
-  modern-python-development for that.
-version: 0.1.0
+  Use when writing, reviewing, or refactoring FastAPI applications — route
+  handlers, Pydantic schemas, dependency injection, async routes, database
+  conventions, testing, or API documentation. Triggers include FastAPI routers,
+  endpoints, request validation, response models, application configuration,
+  blocked event loops, or flaky async tests.
+version: 0.3.0
 ---
 
 # FastAPI Best Practices
 
-Opinionated conventions for building production FastAPI applications. General Python idioms (naming, type hints, error handling, dataclasses) are covered by `modern-python-development` — this skill focuses on FastAPI-specific patterns.
+Opinionated conventions for building production FastAPI applications. This skill focuses on FastAPI-specific patterns.
 
 ## Categories
 
 | Category | Impact | Reference |
 |---|---|---|
-| Project Structure | HIGH | `references/project-conventions.md` |
 | Async Routes | CRITICAL | `references/async-patterns.md` |
 | Pydantic Integration | HIGH | `references/pydantic-patterns.md` |
 | Dependency Injection | HIGH | `references/dependencies.md` |
-| Database & Migrations | MEDIUM | `references/project-conventions.md` |
-| Testing | MEDIUM | `references/project-conventions.md` |
-| API Documentation | LOW | `references/project-conventions.md` |
+| Database & Migrations | MEDIUM | `references/conventions.md` |
+| Testing | MEDIUM | `references/conventions.md` |
+| API Documentation | LOW | `references/conventions.md` |
 
 ## Quick Reference
 
@@ -37,45 +35,21 @@ Opinionated conventions for building production FastAPI applications. General Py
 
 See `references/async-patterns.md` for decision matrix, threadpool caveats, and examples.
 
-### Project Structure
-
-Organize by **domain**, not by file type:
-
-```
-src/
-├── auth/                # Domain package
-│   ├── router.py        # Endpoints
-│   ├── schemas.py       # Pydantic models
-│   ├── models.py        # DB models
-│   ├── service.py       # Business logic
-│   ├── dependencies.py  # Route dependencies
-│   ├── config.py        # Env vars (BaseSettings)
-│   ├── constants.py     # Constants, error codes
-│   ├── exceptions.py    # Domain exceptions
-│   └── utils.py         # Helpers
-├── posts/               # Another domain
-│   └── ...
-├── config.py            # Global config
-├── database.py          # DB connection
-└── main.py              # App init
-```
-
-- Import across domains with explicit module names: `from src.auth import constants as auth_constants`
-
-See `references/project-conventions.md` for full layout, DB naming, Alembic, and linting.
-
 ### Pydantic
 
 - Use built-in validators (`Field`, `EmailStr`, `AnyUrl`) before writing custom ones
 - Create a custom base model for consistent serialization across the app
-- Split `BaseSettings` by domain — one per module, not a single global config
+- Split `BaseSettings` by domain — separate settings classes, not one global class; classes live wherever the project's structure keeps config
 - Beware: `ValueError` in validators becomes a 422 response with the full message
 - Response models are created twice — once by you, once by FastAPI for validation
+- `response_model` is always a Pydantic class, never a SQLAlchemy model — a new column must not be able to reach a client by default
+- Never share a base model across request and response — duplicate the fields; a shared base is how `X | None`-everything god-schemas start
 
 See `references/pydantic-patterns.md` for base model template, schema design, and ORM mode.
 
 ### Dependencies
 
+- Declare with `Annotated[T, Depends(...)]`, never `Depends` in the default position; alias repeated dependencies (`DbSession = Annotated[AsyncSession, Depends(get_db)]`)
 - Use for **request validation** (DB lookups, auth), not just DI
 - Chain dependencies to compose validation without repetition
 - Dependencies are **cached per request** — same dependency in multiple chains runs once
@@ -91,21 +65,21 @@ See `references/dependencies.md` for chaining, auth, pagination, and DB session 
 - Set explicit index naming conventions in SQLAlchemy metadata
 - Prefer SQL-first — complex joins and JSON aggregation belong in the database
 
-See `references/project-conventions.md` for index naming template, Alembic migration conventions, and SQL-first examples.
+See `references/conventions.md` for index naming template, Alembic migration conventions, and SQL-first examples.
 
 ### Testing
 
 - Set up an async test client (httpx + ASGITransport) from day one
 - Mixing sync/async test patterns later causes event loop conflicts
 
-See `references/project-conventions.md` for async test fixture setup.
+See `references/conventions.md` for async test fixture setup.
 
 ### API Documentation
 
 - Hide docs in production: set `openapi_url=None` for non-allowed environments
 - Always set `response_model`, `status_code`, `description`, `tags` on endpoints
 
-See `references/project-conventions.md` for docs configuration and endpoint documentation examples.
+See `references/conventions.md` for docs configuration and endpoint documentation examples.
 
 ## How to Use
 

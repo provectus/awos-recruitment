@@ -1,6 +1,12 @@
 ---
 name: pytest-best-practices
-description: Expert guidance for writing high-quality pytest tests. Use when writing tests, setting up fixtures, parametrizing, mocking, or reviewing test code.
+description: >-
+  Use when writing or reviewing pytest tests — setting up fixtures,
+  parametrizing, mocking dependencies, using markers, testing exceptions or
+  async code, or configuring pytest via pytest.ini or pyproject.toml. Triggers
+  include conftest.py and fixture-scope questions, flaky or order-dependent
+  tests, and coverage setup.
+version: 0.2.0
 ---
 
 <objective>
@@ -20,16 +26,8 @@ Provide pytest best practices and patterns for writing maintainable, efficient t
 - Classes: `Test<ClassName>`
 - Fixtures: descriptive `lowercase_with_underscores`
 
-**Directory Structure**
-```
-tests/
-├── conftest.py          # Shared fixtures
-├── unit/
-│   └── test_module.py
-├── integration/
-│   └── test_api.py
-└── fixtures/            # Test data files
-```
+**Test Placement**
+Where test files and directories live is owned by the project's structure conventions (architecture or project-layout skills, existing repo layout) — not by this skill. pytest discovers `test_*.py` files and `conftest.py` fixtures along the path from rootdir regardless of layout.
 
 **Core Testing Rules**
 - Use plain `assert` statements (pytest provides detailed failure messages)
