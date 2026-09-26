@@ -545,7 +545,7 @@ version = "5.1.2"
 # versions.tf
 terraform {
   # Pin to exact version
-  required_version = "= 1.9.8"
+  required_version = "= X.Y.Z"
 }
 ```
 
@@ -598,7 +598,7 @@ module "vpc" {
 ```hcl
 # Step 1: Lock versions in versions.tf
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
@@ -624,7 +624,7 @@ terraform plan
 ```hcl
 terraform {
   # Terraform version - pinned exactly
-  required_version = "= 1.9.8"
+  required_version = "= X.Y.Z"
 
   # Provider versions - pinned exactly
   required_providers {

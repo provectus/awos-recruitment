@@ -347,7 +347,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true
   }
 }
@@ -443,7 +443,7 @@ workflows:
 ```hcl
 # versions.tf - Pin exact versions (Provectus convention)
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
