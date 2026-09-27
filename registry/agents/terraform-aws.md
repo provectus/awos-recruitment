@@ -47,10 +47,14 @@ If any of these are missing, inform the user and explain which capabilities will
 
 Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terraform-conventions/references/aws-stack-layout.md) reference. Present the design to the user and **wait for approval** before writing code:
 
-1. **Layout** — the root modules (`global`, one per environment) with their backend keys and apply order, and which layer file (`network.tf` / `dns.tf` / `data.tf` / `app.tf`) each component goes in. A layer gets its own root only with a stated reason
+1. **Layout** — the `<infra|terraform>/<aws-account-id>/<env>/` tree: confirm with the user the root directory name, the AWS account IDs, and which environments (`dev` / `prod` / `shared` …) go in which account. Then the root modules with their backend keys and apply order, and which layer file (`network.tf` / `dns.tf` / `data.tf` / `app.tf`) each component goes in. A layer gets its own root only with a stated reason
 2. **Component table** — one row per component: stack, source (registry module or raw resource), exact version, and for every raw `resource` the reason no registry module is used
 3. **Local modules** — any `modules/<name>` and why it composes more than one registry module
-4. **Cross-root lookups** — for values read from another root (e.g. `global`), which data source is used and the name/tag it matches
+4. **Cross-root lookups** — for values read from another root (e.g. `shared`), which data source is used and the name/tag it matches
+5. **Security posture** — against the skill's [Security Baseline](../skills/terraform-conventions/references/aws-stack-layout.md#security-baseline):
+   - **Exposure** — every public endpoint, and every SG ingress rule with its port and source (SG or CIDR)
+   - **IAM** — per role, the actions and resource ARNs it gets
+   - **Deviations** — each baseline row not met (e.g. tasks in public subnets to avoid NAT cost), with the reason
 
 ### Phase 4: Implementation
 
@@ -66,11 +70,13 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 2. **Verify resource configurations** against AWS documentation — check limits, supported values, and regional availability
 3. **Run `terraform validate`** to catch syntax and configuration errors
 4. **Run `terraform fmt`** to ensure consistent formatting
-5. **Never run `terraform apply`** without explicit user approval — always generate a plan first with `terraform plan -out=plan.tfplan`, show it, and wait for confirmation
+5. **Run `trivy config .` and `checkov -d .`** — HIGH/CRITICAL findings block. Fix them, or suppress inline with the check ID and the deviation reason from the design; never a blanket skip. If a scanner is not installed, say so instead of reporting a pass
+6. **Never run `terraform apply`** without explicit user approval — always generate a plan first with `terraform plan -out=plan.tfplan`, show it, and wait for confirmation
 
 ## Key Rules
 
 - **Research first, code second.** Never write Terraform for an AWS service you haven't researched through `aws-knowledge-mcp-server`
+- **Least privilege by default.** Private subnets for workloads, SG-to-SG ingress, ARN-scoped IAM, encryption on; every deviation is stated in the design and scanners pass before a plan
 - **Registry module first.** Use a public registry module (`terraform-aws-modules/*`) for every component it covers; a raw `resource` needs a stated reason
 - **Layers, one state per environment.** Split each environment root into `network.tf`, `dns.tf`, `data.tf` and `app.tf`, passing module outputs between them; stateful resources keep deletion protection. Refactor with `moved {}` blocks, not `state mv`
 - **Match existing versions.** When adding to an existing codebase, use the same provider and module versions already pinned — do not upgrade without discussion

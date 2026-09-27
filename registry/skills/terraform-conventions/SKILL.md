@@ -75,7 +75,9 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 
 > ### Layers
 >
-> **One root module (one state) per environment, organised by layer files:** `network.tf` (VPC), `dns.tf` (ACM + validation), `data.tf` (tables, secrets — deletion protection on), `app.tf` (ALB, compute, IAM, logs, alias record). Account-wide resources go in a separate `global` root. Never one module that holds every layer.
+> **Directory layout `<infra|terraform>/<aws-account-id>/<env>/`**, env typically `dev` / `prod` / `shared`; the root name, accounts and environments are confirmed with the user at design time.
+>
+> **One root module (one state) per environment, organised by layer files:** `network.tf` (VPC), `dns.tf` (ACM + validation), `data.tf` (tables, secrets — deletion protection on), `app.tf` (ALB, compute, IAM, logs, alias record). Resources used by several environments go in the `shared` root. Never one module that holds every layer.
 >
 > The root calls registry modules **directly**; layers pass values through module outputs. A local module is justified only when it composes several modules/resources whose wiring must match across environments — never a pass-through around one registry module.
 >
@@ -83,9 +85,15 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 
 > ### Cross-Root Wiring
 >
-> **Within a root, pass module outputs directly.** Between roots (an env reading `global`, or a split-out layer), read through data sources by name or tag (`aws_vpc`, `aws_subnets`, `aws_acm_certificate`, `aws_ecr_repository`, `aws_route53_zone`), not `terraform_remote_state`.
+> **Within a root, pass module outputs directly.** Between roots (an env reading `shared`, or a split-out layer), read through data sources by name or tag (`aws_vpc`, `aws_subnets`, `aws_acm_certificate`, `aws_ecr_repository`, `aws_route53_zone`), not `terraform_remote_state`.
 >
 > **Details, lookup table and a worked example:** [AWS Stack Layout](references/aws-stack-layout.md)
+
+> ### Least Privilege by Default
+>
+> **Workloads and data go in private subnets.** SG ingress names a port and a source SG, never a CIDR; only the public ALB takes 443 (and 80 to redirect) from `0.0.0.0/0`. IAM statements list exact actions and resource ARNs, no `*`. Encryption at rest and TLS in transit are always on; secrets reach containers through `secrets`, never `environment`. A stricter module default is kept, not relaxed to match legacy. Every deviation is a reason written in the design, and `trivy` + `checkov` pass before a plan.
+>
+> **Per-component baseline:** [AWS Stack Layout → Security Baseline](references/aws-stack-layout.md#security-baseline)
 
 > ### Apply Workflow
 >
@@ -481,6 +489,7 @@ checkov -d .
 - Use least-privilege security groups
 
 **For detailed security guidance, see:**
+- **[Security Baseline](references/aws-stack-layout.md#security-baseline)** - Provectus per-component AWS defaults (overrides the generic lists here)
 - **[Security & Compliance Guide](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
 
 ## Version Management
