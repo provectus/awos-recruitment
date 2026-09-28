@@ -3,10 +3,13 @@
 # and the Terraform root and modules under infra/.
 #
 # What this file does: opens weekly, grouped PRs when a newer version of a
-# dependency exists. `allow: dependency-type: all` makes the npm and uv
-# entries cover transitive (lock-only) packages too — anyio, which turned the
-# Image Scan red on 2026-09-24 (CVE-2026-63374), is not in pyproject.toml,
-# only in uv.lock.
+# dependency exists. `allow: dependency-type: all` makes the uv entry cover
+# transitive (lock-only) packages too — anyio, which turned the Image Scan
+# red on 2026-09-24 (CVE-2026-63374), is not in pyproject.toml, only in
+# uv.lock. npm has no such option: version updates there reach only the
+# packages named in package.json, and transitive npm packages move only when
+# a security update rewrites the lockfile (as tar, nanoid and postcss did on
+# 2026-09-24).
 #
 # What this file cannot do: enable Dependabot *security* updates. That is a
 # repository setting (Settings > Code security > Dependabot security updates),
