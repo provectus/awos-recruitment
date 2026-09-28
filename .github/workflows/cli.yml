@@ -1,0 +1,76 @@
+name: CLI
+
+# Lint, test, and build the npm CLI. Until this workflow existed the CLI's
+# vitest suite never ran in CI and publish-cli shipped untested code.
+# publish-cli.yml calls it as a reusable workflow so the release gate and the
+# PR check are the same steps.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to check out; defaults to the triggering commit.
+        type: string
+        required: false
+  pull_request:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  # PR runs share a group per ref so a superseded run is cancelled. Pushes to
+  # main get a group per commit: a group holds one pending run, so keying
+  # main on the ref would silently drop the middle commit of a burst.
+  # github.workflow is the caller's name when this runs as a reusable
+  # workflow, so a publish-time check never shares a group with a PR run.
+  group: ${{ github.workflow }}-cli-${{ github.event_name == 'push' && github.sha || github.ref }}
+  # Never cancel a release check: it runs on the pull_request "closed" event.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Check the published tarball contains no test files
+        run: |
+          set -euo pipefail
+          files=$(npm pack --dry-run --json | jq -r '.[0].files[].path')
+          echo "$files"
+          if echo "$files" | grep -q "__tests__"; then
+            echo "::error::dist/ contains test files; check tsconfig.build.json excludes"
+            exit 1
+          fi

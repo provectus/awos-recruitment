@@ -8,12 +8,8 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-09-18T14:48:58.177881Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
-
-[options.exclude-newer-package]
-starlette = "2026-06-13T22:00:00Z"
-cryptography = "2026-08-01T00:00:00Z"
 
 [[package]]
 name = "aiofile"
