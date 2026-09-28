@@ -1,4 +1,6 @@
-# Dependabot version updates for the three dependency surfaces in this repo.
+# Dependabot version updates for every dependency surface in this repo:
+# GitHub Actions, the npm CLI, the uv server, the server's Docker base image,
+# and the Terraform root and modules under infra/.
 #
 # What this file does: opens weekly, grouped PRs when a newer version of a
 # dependency exists. `allow: dependency-type: all` makes the npm and uv
@@ -8,7 +10,8 @@
 #
 # What this file cannot do: enable Dependabot *security* updates. That is a
 # repository setting (Settings > Code security > Dependabot security updates),
-# enabled separately on 2026-09-24. Security PRs skip the cooldown below, but
+# enabled separately on 2026-09-24. Security PRs skip the cooldown below and
+# arrive one per package (the groups here apply to version updates only), but
 # for the uv surface they still run through `uv lock --upgrade-package`, so
 # the server's own `exclude-newer = "7 days"` (server/pyproject.toml) applies:
 # a fix uploaded less than a week ago needs a manual `exclude-newer-package`
@@ -59,6 +62,36 @@ updates:
       default-days: 7
     groups:
       server:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # The python:3.12-slim base image in both Dockerfile stages. Image Scan
+  # (Trivy) reports OS-level CVEs in it; this is the entry that can fix them.
+  - package-ecosystem: docker
+    directory: /server
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Terraform and provider pins. Every root and module pins exact versions
+  # (see registry/skills/terraform-conventions), so Dependabot is how they move.
+  - package-ecosystem: terraform
+    directories:
+      - /infra/831917488702
+      - /infra/831917488702/backend
+      - /infra/modules/*
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      terraform:
         patterns: ["*"]
     commit-message:
       prefix: "chore(deps)"

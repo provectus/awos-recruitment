@@ -2,8 +2,16 @@ name: CLI
 
 # Lint, test, and build the npm CLI. Until this workflow existed the CLI's
 # vitest suite never ran in CI and publish-cli shipped untested code.
+# publish-cli.yml calls it as a reusable workflow so the release gate and the
+# PR check are the same steps.
 
 on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to check out; defaults to the triggering commit.
+        type: string
+        required: false
   pull_request:
     branches: [main]
     paths:
@@ -19,10 +27,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: cli-${{ github.ref }}
-  # Cancel superseded PR runs, but never a run on main: every main commit
-  # should keep its own pass/fail record.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # github.workflow is the caller's name when this runs as a reusable
+  # workflow, so a publish-time check never shares a group with a PR run for
+  # the same ref.
+  group: ${{ github.workflow }}-cli-${{ github.ref }}
+  # Cancel superseded PR runs, but never a run on main (every main commit
+  # keeps its own pass/fail record) and never a release check (it runs on the
+  # pull_request "closed" event).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 
 jobs:
   test:
@@ -33,6 +45,8 @@ jobs:
         working-directory: cli
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -54,7 +68,7 @@ jobs:
       - name: Check the published tarball contains no test files
         run: |
           set -euo pipefail
-          files=$(npm pack --dry-run --json | node -e 'const p=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(p[0].files.map(f=>f.path).join("\n"))')
+          files=$(npm pack --dry-run --json | jq -r '.[0].files[].path')
           echo "$files"
           if echo "$files" | grep -q "__tests__"; then
             echo "::error::dist/ contains test files; check tsconfig.build.json excludes"
