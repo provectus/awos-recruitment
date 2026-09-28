@@ -20,7 +20,10 @@ module "ecs" {
     }
   }
 
-  # Cluster capacity providers
+  # Cluster capacity providers. v7 of the module no longer infers them from
+  # the default strategy, so FARGATE has to be listed explicitly.
+  cluster_capacity_providers = ["FARGATE"]
+
   default_capacity_provider_strategy = {
     FARGATE = {
       weight = 50
