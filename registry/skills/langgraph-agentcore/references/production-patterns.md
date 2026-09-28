@@ -12,6 +12,8 @@
 - [Semantic Caching](#semantic-caching) — and when not to cache
 - [Bedrock Guardrails Configuration](#bedrock-guardrails-configuration) —
   layered defence against prompt injection
+- [Observability](#observability) — LangSmith tracing, the metrics to pull
+  off spans, AgentCore's built-in tracing
 
 ## Evidence Traceability
 
@@ -388,3 +390,32 @@ injection:
 4. **Cedar policies as final guard.** Even if an injection succeeds in
    manipulating the model's output, Cedar policies prevent unauthorized
    tool access or data writes.
+
+## Observability
+
+### LangSmith Tracing
+
+Set `LANGSMITH_TRACING=true` and `LANGSMITH_PROJECT` in the runtime environment,
+not in code, and every node execution becomes a span carrying its input state,
+output state, model calls and tool calls. What matters here is what you pull off
+those spans:
+
+### Key Metrics
+
+| Metric | Source | Purpose |
+|--------|--------|---------|
+| Node latency (P50/P95/P99) | LangSmith | Performance monitoring |
+| Token usage per node | LangSmith | Cost attribution |
+| HITL rate per gate | Application metrics | Automation effectiveness |
+| Confidence calibration (ECE) | Override records | Model quality |
+| Fallback rate per model | Model router | Availability monitoring |
+| Cost per workflow invocation | Aggregated | Business metric |
+
+### AgentCore Observability
+
+AgentCore provides built-in tracing for agent reasoning:
+- Decision steps and tool invocations
+- Model interactions with timing
+- Session lifecycle events
+
+These integrate with CloudWatch for dashboards and alerting.

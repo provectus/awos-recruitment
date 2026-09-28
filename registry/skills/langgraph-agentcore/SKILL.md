@@ -484,35 +484,6 @@ def cost_aware_node(state: PipelineState) -> dict:
     return {"spend_to_date": spend_after, **result}
 ```
 
-## Observability
-
-### LangSmith Tracing
-
-Set `LANGSMITH_TRACING=true` and `LANGSMITH_PROJECT` in the runtime environment,
-not in code, and every node execution becomes a span carrying its input state,
-output state, model calls and tool calls. What matters here is what you pull off
-those spans:
-
-### Key Metrics
-
-| Metric | Source | Purpose |
-|--------|--------|---------|
-| Node latency (P50/P95/P99) | LangSmith | Performance monitoring |
-| Token usage per node | LangSmith | Cost attribution |
-| HITL rate per gate | Application metrics | Automation effectiveness |
-| Confidence calibration (ECE) | Override records | Model quality |
-| Fallback rate per model | Model router | Availability monitoring |
-| Cost per workflow invocation | Aggregated | Business metric |
-
-### AgentCore Observability
-
-AgentCore provides built-in tracing for agent reasoning:
-- Decision steps and tool invocations
-- Model interactions with timing
-- Session lifecycle events
-
-These integrate with CloudWatch for dashboards and alerting.
-
 ## Reference Files
 
 Both bundle several independent topics and open with a contents list — read the
@@ -531,7 +502,8 @@ what a node returns; **Error Handling** when implementing the fallback chain or
 circuit breaker; **Idempotency** when wiring retries or external writes;
 **Testing Strategies** for the interrupt/resume check in the workflow above;
 **Semantic Caching** when prompts repeat; **Bedrock Guardrails Configuration**
-when hardening against prompt injection.
+when hardening against prompt injection; **Observability** for LangSmith
+tracing, the key-metrics table and AgentCore's built-in tracing.
 
 `references/evals.md` — behaviour checks for this skill. Read when changing the
 skill, not when using it.
