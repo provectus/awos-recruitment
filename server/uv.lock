@@ -220,7 +220,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "chromadb", specifier = ">=1.0.0" },
-    { name = "fastmcp", specifier = ">=3.4.4" },
+    { name = "fastmcp", specifier = ">=4.0.0" },
     { name = "posthog", specifier = ">=7.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "python-frontmatter", specifier = ">=1.1.0" },
