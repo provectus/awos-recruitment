@@ -13,10 +13,9 @@ async def test_server_initializes(mcp_client):
 
 async def test_server_info(mcp_client):
     """Verify the server reports the correct name and version."""
-    info = mcp_client.initialize_result
-    assert info is not None, "initialize_result should be populated after handshake"
+    server_info = mcp_client.server_info
+    assert server_info is not None, "server_info should be populated after connect"
 
-    server_info = info.serverInfo
     assert server_info.name == "AWOS Recruitment", (
         f"Expected server name 'AWOS Recruitment', got '{server_info.name}'"
     )
