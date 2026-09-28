@@ -4,7 +4,7 @@
 
 module "ecs" {
   source  = "terraform-aws-modules/ecs/aws"
-  version = "6.0.0"
+  version = "7.6.1"
 
   count = var.ecs_cluster_enabled ? 1 : 0
 
