@@ -408,7 +408,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: v1.6.0
+    terraform_version: vX.Y.Z # same as the root's required_version; >= 1.10 for use_lockfile
     workflow: custom
 
 workflows:
@@ -416,8 +416,7 @@ workflows:
     plan:
       steps:
         - init
-        - plan:
-            extra_args: ["-lock", "false"]
+        - plan
     apply:
       steps:
         - apply

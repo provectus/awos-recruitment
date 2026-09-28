@@ -645,8 +645,10 @@ terraform {
   # Backend configuration (optional here, often in backend.tf)
   backend "s3" {
     bucket = "my-terraform-state"
-    key    = "infrastructure/terraform.tfstate"
-    region = "us-east-1"
+    key          = "infrastructure/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true # S3 native state locking (Terraform >= 1.10)
   }
 }
 ```

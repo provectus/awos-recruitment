@@ -85,13 +85,13 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 
 > ### Cross-Root Wiring
 >
-> **Within a root, pass module outputs directly.** Between roots (an env reading `shared`, or a split-out layer), read through data sources by name or tag (`aws_vpc`, `aws_subnets`, `aws_acm_certificate`, `aws_ecr_repository`, `aws_route53_zone`), not `terraform_remote_state`.
+> **Within a root, pass module outputs directly.** Between roots (an env reading `shared`, or a split-out layer), read through data sources by name or tag (`aws_vpc`, `aws_subnets`, `aws_acm_certificate`, `aws_ecr_repository`, `aws_route53_zone`), not `terraform_remote_state` — the one exception is a producer owned by another team that publishes a deliberate, versioned output contract.
 >
 > **Details, lookup table and a worked example:** [AWS Stack Layout](references/aws-stack-layout.md)
 
 > ### Least Privilege by Default
 >
-> **Workloads and data go in private subnets.** SG ingress names a port and a source SG, never a CIDR; only the public ALB takes 443 (and 80 to redirect) from `0.0.0.0/0`. IAM statements list exact actions and resource ARNs, no `*`. Encryption at rest and TLS in transit are always on; secrets reach containers through `secrets`, never `environment`. A stricter module default is kept, not relaxed to match legacy. Every deviation is a reason written in the design, and `trivy` + `checkov` pass before a plan.
+> **Workloads and data go in private subnets.** SG ingress names a port and a source SG, never a CIDR; only the public ALB takes 443 (and 80 to redirect) from `0.0.0.0/0`. IAM statements list exact actions and resource ARNs: never `Action = "*"`, and `Resource = "*"` only for actions without resource-level permissions (e.g. `ecr:GetAuthorizationToken`). Encryption at rest and TLS in transit are always on; secrets reach containers through `secrets`, never `environment`. A stricter module default is kept, not relaxed to match legacy. Every deviation is a reason written in the design, and `trivy` + `checkov` pass before a plan.
 >
 > **Per-component baseline:** [AWS Stack Layout → Security Baseline](references/aws-stack-layout.md#security-baseline)
 

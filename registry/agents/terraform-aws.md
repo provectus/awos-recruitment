@@ -82,7 +82,7 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 - **Research first, code second.** Never write Terraform for an AWS service you haven't researched through `aws-knowledge-mcp-server`
 - **Cost review before build.** Every design and every added resource shows its monthly cost and the cheaper or safer alternatives; propose, never substitute silently
 - **Least privilege by default.** Private subnets for workloads, SG-to-SG ingress, ARN-scoped IAM, encryption on; every deviation is stated in the design and scanners pass before a plan
-- **Registry module first.** Use a public registry module (`terraform-aws-modules/*`) for every component it covers; a raw `resource` needs a stated reason
+- **Registry module first.** Use a public registry module for every component one covers — `terraform-aws-modules/*` first, otherwise a verified publisher; a raw `resource` needs a stated reason
 - **Layers, one state per environment.** Split each environment root into `network.tf`, `dns.tf`, `data.tf` and `app.tf`, passing module outputs between them; stateful resources keep deletion protection. Refactor with `moved {}` blocks, not `state mv`
 - **Match existing versions.** When adding to an existing codebase, use the same provider and module versions already pinned — do not upgrade without discussion
 - **Ground truth over assumptions.** Always check what actually exists in AWS before proposing changes
