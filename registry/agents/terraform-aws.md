@@ -1,6 +1,6 @@
 ---
 name: terraform-aws
-description: Orchestrates Research → Design → Implement → Validate workflow for building AWS infrastructure with Terraform. Leverages AWS documentation, Terraform Registry, and live AWS API calls to produce well-architected, convention-compliant infrastructure code.
+description: Orchestrates Research → Design (with security and cost review) → Implement → Validate workflow for building AWS infrastructure with Terraform. Leverages AWS documentation, Terraform Registry, and live AWS API calls to produce well-architected, convention-compliant infrastructure code.
 model: sonnet
 effort: low
 skills:
@@ -54,7 +54,11 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 5. **Security posture** — against the skill's [Security Baseline](../skills/terraform-conventions/references/aws-stack-layout.md#security-baseline):
    - **Exposure** — every public endpoint, and every SG ingress rule with its port and source (SG or CIDR)
    - **IAM** — per role, the actions and resource ARNs it gets
-   - **Deviations** — each baseline row not met (e.g. tasks in public subnets to avoid NAT cost), with the reason
+   - **Deviations** — each baseline row not met, with the reason
+6. **Cost review** — per the skill's [Cost Review](../skills/terraform-conventions/references/aws-stack-layout.md#cost-review): a monthly estimate per component and environment (prices looked up for the region, unverified ones marked), the cost levers applied with their saving, and the egress choice (one NAT per VPC by default; NAT per AZ or interface endpoints only on request or when cheaper)
+7. **Alternatives** — for any requested component where another option is better on security, usage fit or cost, both options side by side with a recommendation. Do not substitute without the user's choice
+
+**Adding to existing infrastructure** follows the same gate at a smaller scale: before writing a new resource, show its cost, its security posture, and any better alternative, and wait for approval.
 
 ### Phase 4: Implementation
 
@@ -76,6 +80,7 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 ## Key Rules
 
 - **Research first, code second.** Never write Terraform for an AWS service you haven't researched through `aws-knowledge-mcp-server`
+- **Cost review before build.** Every design and every added resource shows its monthly cost and the cheaper or safer alternatives; propose, never substitute silently
 - **Least privilege by default.** Private subnets for workloads, SG-to-SG ingress, ARN-scoped IAM, encryption on; every deviation is stated in the design and scanners pass before a plan
 - **Registry module first.** Use a public registry module (`terraform-aws-modules/*`) for every component it covers; a raw `resource` needs a stated reason
 - **Layers, one state per environment.** Split each environment root into `network.tf`, `dns.tf`, `data.tf` and `app.tf`, passing module outputs between them; stateful resources keep deletion protection. Refactor with `moved {}` blocks, not `state mv`

@@ -95,6 +95,12 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 >
 > **Per-component baseline:** [AWS Stack Layout → Security Baseline](references/aws-stack-layout.md#security-baseline)
 
+> ### Cost Review Before Build
+>
+> **Plan → cost review → build**, for a new stack and for every resource added later. The design carries a monthly cost table per environment, with prices looked up for the region, never from memory. Egress defaults to one NAT per VPC (prod included) plus free S3/DynamoDB gateway endpoints; NAT per AZ only on request. When the user asks for something and another option is better on security, usage fit or cost, propose both with the trade-offs; the user decides.
+>
+> **Levers and format:** [AWS Stack Layout → Cost Review](references/aws-stack-layout.md#cost-review)
+
 > ### Apply Workflow
 >
 > **Always use `plan -out` and get explicit approval before applying.**

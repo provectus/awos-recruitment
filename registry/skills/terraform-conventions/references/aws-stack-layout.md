@@ -7,10 +7,11 @@ How to split AWS infrastructure into separately-stated stacks, how to pick betwe
 1. [Registry Module Selection](#registry-module-selection)
 2. [Stack Layers](#stack-layers)
 3. [Security Baseline](#security-baseline)
-4. [When to Write a Local Module](#when-to-write-a-local-module)
-5. [Cross-Root Wiring by Lookup](#cross-root-wiring-by-lookup)
-6. [Worked Example: ECS Fargate Service](#worked-example-ecs-fargate-service)
-7. [Common Mistakes](#common-mistakes)
+4. [Cost Review](#cost-review)
+5. [When to Write a Local Module](#when-to-write-a-local-module)
+6. [Cross-Root Wiring by Lookup](#cross-root-wiring-by-lookup)
+7. [Worked Example: ECS Fargate Service](#worked-example-ecs-fargate-service)
+8. [Common Mistakes](#common-mistakes)
 
 ---
 
@@ -107,7 +108,7 @@ Each root's provider sets `allowed_account_ids = ["<account-id>"]` from its dire
 | Layer | Component | Required |
 |-------|-----------|----------|
 | network | subnets | ECS tasks, Lambdas in a VPC, databases and endpoints go in **private** subnets; only the ALB and NAT go in public ones |
-| network | egress | NAT gateway, or VPC endpoints when there is no NAT: gateway endpoints for S3/DynamoDB, interface endpoints for ECR (`ecr.api`, `ecr.dkr`), `logs`, `secretsmanager` |
+| network | egress | **one NAT gateway per VPC** (`single_nat_gateway = true`) in every environment, prod included; one NAT per AZ (`one_nat_gateway_per_az = true`) only when the user asks for AZ-level egress HA. Always add the free **gateway endpoints for S3 and DynamoDB** (ECR image layers come from S3). Interface endpoints only when the user asks, or when the cost review shows they are cheaper for that traffic |
 | network | VPC | flow logs on; the default security group has no rules |
 | app | ALB SG | ingress 443 from `0.0.0.0/0` (and 80 only for the HTTPS redirect); egress only to the task SG on the container port |
 | app | ALB | HTTPS listener with a TLS 1.2+ policy (e.g. `ELBSecurityPolicy-TLS13-1-2-2021-06`); port 80 redirects, never forwards; `drop_invalid_header_fields = true` |
@@ -123,6 +124,31 @@ Each root's provider sets `allowed_account_ids = ["<account-id>"]` from its dire
 | shared | CI role | GitHub OIDC trust scoped to the repo and branch/environment (`sub` condition); no long-lived keys |
 
 **Static checks before every plan:** `trivy config .` and `checkov -d .`. HIGH/CRITICAL findings block. A suppression is an inline `#checkov:skip=<ID>:<reason>` / `#trivy:ignore:<ID>` with the reason from the design — never a blanket skip.
+
+---
+
+## Cost Review
+
+**Plan → cost review → build.** Every design, and every later request to add a resource, gets a cost review before code is written. The user approves the design with the cost table in front of them.
+
+1. **Estimate each billable component per environment**: the monthly fixed cost plus the usage-driven charge (per GB, per request, per hour), and the assumption behind it (AZ count, task size, expected traffic). Get prices from the AWS Price List API (`aws pricing get-products` through `aws-api-mcp-server`) or the service's pricing page via `aws-knowledge-mcp-server`, for the target region. Mark any price you could not look up as unverified — never state one from memory as fact.
+2. **Check the cost levers below**, and list the ones that apply with their saving and trade-off.
+3. **Propose, don't substitute.** When the user asks for a resource and another option is better on security, fit for the usage, or cost, present both side by side (cost, security, operational trade-off) with a recommendation. The user decides; never switch silently.
+
+| Area | Lever | Trade-off |
+|------|-------|-----------|
+| egress | one NAT per VPC + free S3/DynamoDB gateway endpoints (default) | single-AZ egress; per-AZ NAT only on request |
+| egress | interface endpoints instead of a NAT | ~$7/month per endpoint per AZ; wins only with no internet egress and few endpoints |
+| compute | Graviton (`ARM64`) Fargate tasks | image must be built for arm64 |
+| compute | Fargate Spot for dev and interruptible workers | tasks can be stopped at 2 minutes' notice |
+| compute | right-size CPU/memory; scale dev to zero out of hours | needs usage data / a schedule |
+| load balancing | one ALB per environment shared by services (host/path rules) | shared blast radius |
+| data | DynamoDB on-demand for spiky or low traffic, provisioned + autoscaling for steady load | on-demand costs more at sustained high load |
+| data | S3 lifecycle rules / Intelligent-Tiering | retrieval latency or fees on colder tiers |
+| logs | explicit CloudWatch retention (short in dev) | older logs are gone |
+| registry | ECR lifecycle policy expiring untagged/old images | old images cannot be rolled back to |
+
+In the design, the cost review is one table (component, env, monthly estimate, usage assumption) plus the levers applied, each with its saving.
 
 ---
 
@@ -193,7 +219,8 @@ Request: containerised API on ECS Fargate behind HTTPS ALB at a custom domain, D
 | Component | Layer file | Source | Why |
 |-----------|-------|--------|-----|
 | VPC, public/private subnets | `network` | `terraform-aws-modules/vpc/aws` | registry |
-| DynamoDB gateway + ECR/logs/Secrets Manager interface endpoints | `network` | `…/vpc/aws//modules/vpc-endpoints` | registry; private tasks egress without a NAT |
+| NAT gateway (one per VPC) | `network` | `terraform-aws-modules/vpc/aws` | registry; private tasks egress through it |
+| S3 + DynamoDB gateway endpoints | `network` | `…/vpc/aws//modules/vpc-endpoints` | registry; free, keeps ECR layer pulls and table traffic off the NAT |
 | Certificate + validation | `dns` | `terraform-aws-modules/acm/aws` | registry |
 | Table | `data` | `terraform-aws-modules/dynamodb-table/aws` | registry |
 | Secret | `data` | raw `aws_secretsmanager_secret` | module adds little; write-only value |
@@ -218,7 +245,8 @@ module "vpc" {
   private_subnets     = local.private_subnet_cidrs # ECS tasks
   private_subnet_tags = { Tier = "private" }
 
-  enable_nat_gateway = false # egress via the endpoints below; a NAT is the alternative when tasks call the internet
+  enable_nat_gateway = true
+  single_nat_gateway = true # prod too; one per AZ (one_nat_gateway_per_az) only when the user asks
 
   enable_flow_log                      = true
   create_flow_log_cloudwatch_log_group = true
@@ -232,13 +260,16 @@ module "vpc_endpoints" {
   vpc_id = module.vpc.vpc_id
 
   endpoints = {
+    s3 = {
+      service         = "s3"
+      service_type    = "Gateway"
+      route_table_ids = module.vpc.private_route_table_ids
+    }
     dynamodb = {
       service         = "dynamodb"
       service_type    = "Gateway"
       route_table_ids = module.vpc.private_route_table_ids
     }
-    # plus Interface endpoints (private_dns_enabled = true, subnet_ids = module.vpc.private_subnets)
-    # for ecr.api, ecr.dkr, logs and secretsmanager, with an SG allowing 443 from the task SG
   }
 }
 
@@ -273,7 +304,10 @@ module "app" {
 | DynamoDB table for state locking | `use_lockfile = true` in the S3 backend |
 | `terraform_remote_state` between your own roots | Data-source lookup by name/tag |
 | ACM certificate declared in `app.tf` | `dns.tf`; pass `module.acm.acm_certificate_arn` to the app |
-| ECS tasks in public subnets with a public IP | Private subnets + NAT or VPC endpoints; public only as a written cost trade-off |
+| ECS tasks in public subnets with a public IP "to save the NAT" | Private subnets + one NAT; public only as a written exception |
+| A NAT per AZ, or interface endpoints, by default | One NAT per VPC + S3/DynamoDB gateway endpoints; the rest only on request or when the cost review shows a saving |
+| Building what was asked when a cheaper or safer option fits better | Present both with costs and trade-offs; the user decides |
+| Prices quoted from memory, or no cost table in the design | Look prices up for the region; mark any you could not verify |
 | Task SG ingress from a CIDR (`0.0.0.0/0`, the VPC CIDR) | Ingress only from the ALB SG on the container port |
 | HTTP listener that forwards to the target group | Port 80 redirects to HTTPS |
 | `Resource = "*"` or `dynamodb:*` on the task role | Exact actions on the table / index / secret ARNs |
