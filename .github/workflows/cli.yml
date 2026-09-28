@@ -27,13 +27,13 @@ permissions:
   contents: read
 
 concurrency:
+  # PR runs share a group per ref so a superseded run is cancelled. Pushes to
+  # main get a group per commit: a group holds one pending run, so keying
+  # main on the ref would silently drop the middle commit of a burst.
   # github.workflow is the caller's name when this runs as a reusable
-  # workflow, so a publish-time check never shares a group with a PR run for
-  # the same ref.
-  group: ${{ github.workflow }}-cli-${{ github.ref }}
-  # Cancel superseded PR runs, but never a run on main (every main commit
-  # keeps its own pass/fail record) and never a release check (it runs on the
-  # pull_request "closed" event).
+  # workflow, so a publish-time check never shares a group with a PR run.
+  group: ${{ github.workflow }}-cli-${{ github.event_name == 'push' && github.sha || github.ref }}
+  # Never cancel a release check: it runs on the pull_request "closed" event.
   cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 
 jobs:
