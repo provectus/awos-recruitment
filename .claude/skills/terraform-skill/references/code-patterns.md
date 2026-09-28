@@ -22,26 +22,25 @@ This document provides detailed code patterns, structure guidelines, and modern 
 
 ### Resource Block Structure
 
-**Strict argument ordering:**
+**Argument ordering:**
 
-1. `count` or `for_each` FIRST (blank line after)
+1. `count` or `for_each` first (blank line after)
 2. Other arguments (alphabetical or logical grouping)
 3. `tags` as last real argument
 4. `depends_on` after tags (if needed)
 5. `lifecycle` at the very end (if needed)
 
 ```hcl
-# ✅ GOOD - Correct ordering
+# GOOD - Correct ordering with required tags
 resource "aws_nat_gateway" "this" {
   count = var.create_nat_gateway ? 1 : 0
 
   allocation_id = aws_eip.this[0].id
   subnet_id     = aws_subnet.public[0].id
 
-  tags = {
-    Name        = "${var.name}-nat"
-    Environment = var.environment
-  }
+  tags = merge(local.required_tags, {
+    Name = "${var.name}-nat"
+  })
 
   depends_on = [aws_internet_gateway.this]
 
@@ -50,7 +49,7 @@ resource "aws_nat_gateway" "this" {
   }
 }
 
-# ❌ BAD - Wrong ordering
+# BAD - Wrong ordering, missing required tags
 resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.this[0].id
 
@@ -72,7 +71,7 @@ resource "aws_nat_gateway" "this" {
 
 **Variable block ordering:**
 
-1. `description` (ALWAYS required)
+1. `description` (always required)
 2. `type`
 3. `default`
 4. `sensitive` (when setting to true)
@@ -80,7 +79,7 @@ resource "aws_nat_gateway" "this" {
 6. `validation`
 
 ```hcl
-# ✅ GOOD - Correct ordering and structure
+# GOOD - Correct ordering and structure
 variable "environment" {
   description = "Environment name for resource tagging"
   type        = string
@@ -103,7 +102,7 @@ variable "environment" {
 **Modern variable patterns (Terraform 1.3+):**
 
 ```hcl
-# ✅ GOOD - Using optional() for object attributes
+# GOOD - Using optional() for object attributes
 variable "database_config" {
   description = "Database configuration with optional parameters"
   type = object({
@@ -146,7 +145,7 @@ variable "mixed_config" {
 **Pattern:** `{name}_{type}_{attribute}`
 
 ```hcl
-# ✅ GOOD
+# GOOD
 output "security_group_id" {  # "this_" should be omitted
   description = "The ID of the security group"
   value       = try(aws_security_group.this[0].id, "")
@@ -157,7 +156,7 @@ output "private_subnet_ids" {  # Plural for list
   value       = aws_subnet.private[*].id
 }
 
-# ❌ BAD
+# BAD
 output "this_security_group_id" {  # Don't prefix with "this_"
   value = aws_security_group.this[0].id
 }
@@ -173,7 +172,7 @@ output "subnet_id" {  # Should be plural "subnet_ids"
 
 ### When to use count
 
-✓ **Simple numeric replication:**
+**Simple numeric replication:**
 ```hcl
 resource "aws_subnet" "public" {
   count = 3
@@ -182,9 +181,9 @@ resource "aws_subnet" "public" {
 }
 ```
 
-✓ **Boolean conditions (create or don't):**
+**Boolean conditions (create or don't):**
 ```hcl
-# ✅ GOOD - Boolean condition
+# GOOD - Boolean condition
 resource "aws_nat_gateway" "this" {
   count = var.create_nat_gateway ? 1 : 0
 }
@@ -195,11 +194,11 @@ resource "aws_nat_gateway" "this" {
 }
 ```
 
-✓ **When order doesn't matter and items won't change**
+**When order doesn't matter and items won't change**
 
 ### When to use for_each
 
-✓ **Reference resources by key:**
+**Reference resources by key:**
 ```hcl
 resource "aws_subnet" "private" {
   for_each = toset(var.availability_zones)
@@ -212,9 +211,9 @@ resource "aws_subnet" "private" {
 # Reference by key: aws_subnet.private["us-east-1a"]
 ```
 
-✓ **Items may be added/removed from middle:**
+**Items may be added/removed from middle:**
 ```hcl
-# ❌ BAD with count - removing middle item recreates all subsequent resources
+# BAD with count - removing middle item recreates all subsequent resources
 resource "aws_subnet" "private" {
   count = length(var.availability_zones)
 
@@ -222,7 +221,7 @@ resource "aws_subnet" "private" {
   # If var.availability_zones[1] removed, all resources after recreated!
 }
 
-# ✅ GOOD with for_each - removal only affects that one resource
+# GOOD with for_each - removal only affects that one resource
 resource "aws_subnet" "private" {
   for_each = toset(var.availability_zones)
 
@@ -231,30 +230,56 @@ resource "aws_subnet" "private" {
 }
 ```
 
-✓ **Creating multiple named resources:**
+**Creating multiple named resources:**
+
+A resource can set `count` or `for_each`, never both — Terraform rejects the
+configuration with "Invalid combination of `count` and `for_each`". When each
+key needs more than one instance, flatten the input into one map entry per
+instance first, so every instance keeps its own stable address.
+
 ```hcl
 variable "environments" {
+  description = "Per-environment instance settings, keyed by environment name"
+  type = map(object({
+    instance_type  = string
+    instance_count = number
+  }))
+
   default = {
     dev = {
-      instance_type = "t3.micro"
+      instance_type  = "t3.micro"
       instance_count = 1
     }
     prod = {
-      instance_type = "t3.large"
+      instance_type  = "t3.large"
       instance_count = 3
     }
   }
 }
 
+locals {
+  # One entry per instance: { "dev-0" = {...}, "prod-0" = {...}, ... }
+  app_instances = merge([
+    for environment, config in var.environments : {
+      for index in range(config.instance_count) :
+      "${environment}-${index}" => {
+        environment   = environment
+        instance_type = config.instance_type
+      }
+    }
+  ]...)
+}
+
 resource "aws_instance" "app" {
-  for_each = var.environments
+  for_each = local.app_instances
 
+  ami           = var.ami_id
   instance_type = each.value.instance_type
-  count         = each.value.instance_count
 
-  tags = {
-    Environment = each.key  # "dev" or "prod"
-  }
+  tags = merge(local.required_tags, {
+    Name        = "app-${each.key}"
+    Environment = each.value.environment
+  })
 }
 ```
 
@@ -339,7 +364,7 @@ moved {
 **Use try() instead of element(concat()):**
 
 ```hcl
-# ✅ GOOD - Modern try() function
+# GOOD - Modern try() function
 output "security_group_id" {
   description = "The ID of the security group"
   value       = try(aws_security_group.this[0].id, "")
@@ -354,7 +379,7 @@ output "first_subnet_id" {
   )
 }
 
-# ❌ BAD - Legacy pattern
+# BAD - Legacy pattern
 output "security_group_id" {
   value = element(concat(aws_security_group.this.*.id, [""]), 0)
 }
@@ -365,7 +390,7 @@ output "security_group_id" {
 **Set nullable = false for non-null variables:**
 
 ```hcl
-# ✅ GOOD (Terraform 1.1+)
+# GOOD (Terraform 1.1+)
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
@@ -379,7 +404,7 @@ variable "vpc_cidr" {
 **Use optional() for object attributes:**
 
 ```hcl
-# ✅ GOOD - Using optional() for object attributes
+# GOOD - Using optional() for object attributes
 variable "database_config" {
   description = "Database configuration with optional parameters"
   type = object({
@@ -487,16 +512,23 @@ variable "backup_retention" {
 
 ### Write-Only Arguments (Terraform 1.11+)
 
-**Always use write-only arguments or external secret management:**
+**Use write-only arguments or external secret management for every secret.**
+
+Read the secret through an `ephemeral` resource rather than a `data` source:
+Terraform writes data-source results to state, and `password_wo` protects only
+the resource attribute.
+
+Each resource also needs a provider version that implements the argument —
+`aws_db_instance.password_wo` landed in AWS provider 5.88.0. The canonical pins
+below (`= 1.14.8`, `= 6.41.0`) clear both floors, so this example applies as
+written; check the pins in `versions.tf` first, and see
+`references/security-compliance.md` for the fallback when a project pins older
+versions.
 
 ```hcl
-# ✅ GOOD - External secret with write-only argument
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - External secret, ephemeral lookup, write-only argument
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
@@ -504,11 +536,23 @@ resource "aws_db_instance" "this" {
   instance_class = "db.t3.micro"
   username       = "admin"
 
-  # write-only: Terraform sends to AWS then forgets it (not in state)
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Terraform sends to AWS then forgets it (not in state).
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 
-# ❌ BAD - Secret ends up in state file
+# BAD - Data source puts the secret in state before password_wo sees it
+data "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
+}
+
+resource "aws_db_instance" "this" {
+  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
+}
+
+# BAD - Secret ends up in state file
 resource "random_password" "db" {
   length = 16
 }
@@ -517,7 +561,7 @@ resource "aws_db_instance" "this" {
   password = random_password.db.result  # Stored in state!
 }
 
-# ❌ BAD - Variable secret stored in state
+# BAD - Variable secret stored in state
 resource "aws_db_instance" "this" {
   password = var.db_password  # Ends up in state file
 }
@@ -527,26 +571,16 @@ resource "aws_db_instance" "this" {
 
 ## Version Management
 
+> **Provectus Convention: All versions must be pinned to exact versions. No pessimistic (`~>`) or range constraints.**
+
 ### Version Constraint Syntax
 
 ```hcl
-# Exact version (avoid unless necessary - inflexible)
-version = "5.0.0"
+# Exact version (required by Provectus convention)
+version = "= 6.41.0"
 
-# Pessimistic constraint (recommended for stability)
-# Allows patch updates only
-version = "~> 5.0"      # Allows 5.0.x (any x), but not 5.1.0
-version = "~> 5.0.1"    # Allows 5.0.x where x >= 1, but not 5.1.0
-
-# Range constraints
-version = ">= 5.0, < 6.0"     # Any 5.x version
-version = ">= 5.0.0, < 5.1.0" # Specific minor version range
-
-# Minimum version
-version = ">= 5.0"  # Any version 5.0 or higher (risky - breaking changes)
-
-# Latest (avoid in production - unpredictable)
-# No version specified = always use latest available
+# For modules (quotes-only syntax also pins exactly)
+version = "5.1.2"
 ```
 
 ### Versioning Strategy by Component
@@ -555,8 +589,8 @@ version = ">= 5.0"  # Any version 5.0 or higher (risky - breaking changes)
 ```hcl
 # versions.tf
 terraform {
-  # Pin to minor version, allow patch updates
-  required_version = "~> 1.9"  # Allows 1.9.x
+  # Pin to exact version
+  required_version = "= 1.14.8"
 }
 ```
 
@@ -567,11 +601,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"  # Pin major version, allow minor/patch updates
+      version = "= 6.41.0"  # Pin exact version
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.5"
+      version = "= 3.6.3"
     }
   }
 }
@@ -579,16 +613,10 @@ terraform {
 
 **Modules:**
 ```hcl
-# Production - pin exact version
+# All environments - pin exact version
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.1.2"  # Exact version for production stability
-}
-
-# Development - allow flexibility
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.1"  # Allow patch updates in dev
+  version = "5.1.2"  # Exact version for all environments
 }
 ```
 
@@ -596,7 +624,7 @@ module "vpc" {
 
 **Security patches:**
 - Update immediately
-- Test in dev → stage → prod
+- Test in dev -> stage -> prod
 - Prioritize provider and Terraform core updates
 
 **Minor versions:**
@@ -608,19 +636,19 @@ module "vpc" {
 - Planned upgrade cycles
 - Dedicated testing period
 - May require code changes
-- Update in phases: dev → stage → prod
+- Update in phases: dev -> stage -> prod
 
 ### Version Management Workflow
 
 ```hcl
 # Step 1: Lock versions in versions.tf
 terraform {
-  required_version = "~> 1.9"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "= 6.41.0"
     }
   }
 }
@@ -629,9 +657,8 @@ terraform {
 terraform init
 # Creates .terraform.lock.hcl with exact versions used
 
-# Step 3: Update providers when needed
-terraform init -upgrade
-# Updates to latest within constraints
+# Step 3: When updating, change the exact version in versions.tf first
+# Then run terraform init -upgrade
 
 # Step 4: Review and test changes before committing
 terraform plan
@@ -641,22 +668,22 @@ terraform plan
 
 ```hcl
 terraform {
-  # Terraform version
-  required_version = "~> 1.9"
+  # Terraform version - pinned exactly
+  required_version = "= 1.14.8"
 
-  # Provider versions
+  # Provider versions - pinned exactly
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "= 6.41.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.5"
+      version = "= 3.6.3"
     }
     null = {
       source  = "hashicorp/null"
-      version = "~> 3.2"
+      version = "= 3.2.3"
     }
   }
 
@@ -675,7 +702,7 @@ terraform {
 
 ### Terraform Version Upgrades
 
-#### 0.12/0.13 → 1.x Migration Checklist
+#### 0.12/0.13 -> 1.x Migration Checklist
 
 **Replace legacy patterns with modern equivalents:**
 
@@ -725,7 +752,7 @@ variable "config" {
 #### Before - Secrets in State
 
 ```hcl
-# ❌ BAD - Secret generated and stored in state
+# BAD - Secret generated and stored in state
 resource "random_password" "db" {
   length  = 16
   special = true
@@ -739,7 +766,7 @@ resource "aws_db_instance" "this" {
 
 # OR
 
-# ❌ BAD - Secret passed via variable and stored in state
+# BAD - Secret passed via variable and stored in state
 variable "db_password" {
   description = "Database password"
   type        = string
@@ -756,47 +783,44 @@ resource "aws_db_instance" "this" {
 **Option 1: Write-only arguments (Terraform 1.11+)**
 
 ```hcl
-# ✅ GOOD - Fetch from AWS Secrets Manager
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - Ephemeral fetch from AWS Secrets Manager (never lands in state)
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
   engine   = "mysql"
   username = "admin"
 
-  # write-only: Sent to AWS, not stored in state
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Sent to AWS, not stored in state.
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 ```
 
-**Option 2: Separate secret creation (if Terraform 1.11+ not available)**
+**Option 2: Let RDS own the password (if Terraform 1.11+ not available)**
 
 ```hcl
-# ✅ GOOD - Reference pre-existing secret
-# Secret created outside Terraform (manually or separate process)
+# GOOD - AWS generates the password, stores it in Secrets Manager,
+# and Terraform never sees the value
+resource "aws_db_instance" "this" {
+  engine   = "mysql"
+  username = "admin"
 
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
+  manage_master_user_password = true # Cannot be combined with password/password_wo
 }
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
-}
-
-# Note: Without write-only, you may need to handle secret rotation
-# outside Terraform or accept that the secret value appears in state
-# during initial creation but not after rotation
 ```
+
+Read the generated secret from `aws_db_instance.this.master_user_secret` when
+an application needs its ARN. This is not a way to keep using a pre-existing
+secret: RDS creates its own and ignores any other, so existing consumers have
+to be repointed.
 
 **Migration steps:**
 
 1. Create secret in AWS Secrets Manager (outside Terraform)
-2. Update Terraform to use data sources
+2. Read the secret with an `ephemeral` lookup (not a `data` source)
 3. Use write-only argument (if Terraform 1.11+)
 4. Remove `random_password` resource or variable
 5. Run `terraform apply` to update
@@ -809,7 +833,7 @@ data "aws_secretsmanager_secret_version" "db_password" {
 **Use locals to hint explicit resource deletion order:**
 
 ```hcl
-# ✅ GOOD - Forces correct deletion order
+# GOOD - Forces correct deletion order
 # Ensures subnets deleted before secondary CIDR blocks
 
 locals {
@@ -840,8 +864,8 @@ resource "aws_subnet" "public" {
   cidr_block = "10.1.0.0/24"
 }
 
-# Without local: Terraform might try to delete CIDR before subnets → ERROR
-# With local: Subnets deleted first, then CIDR association, then VPC ✓
+# Without local: Terraform might try to delete CIDR before subnets -> ERROR
+# With local: Subnets deleted first, then CIDR association, then VPC
 ```
 
 **Why this matters:**

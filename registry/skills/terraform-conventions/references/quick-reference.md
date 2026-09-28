@@ -133,14 +133,14 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform 1.6+ / OpenTofu 1.6+
 
-- NEW: Native `terraform test` / `tofu test`
+- Native `terraform test` / `tofu test` available
 - Consider migrating simple tests from Terratest
 - Keep Terratest for complex integration
 - All Terraform 1.0+ features available
 
 ### Terraform 1.7+ / OpenTofu 1.7+
 
-- NEW: Mock providers for unit testing
+- Mock providers available for unit testing
 - Reduce costs with mocking
 - Use real integration tests for final validation
 - Faster test iteration
@@ -155,7 +155,6 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 |--------|-----------|----------|
 | **Licensing** | Business Source License (BSL) 1.1 | Mozilla Public License 2.0 (MPL 2.0) |
 | **Governance** | HashiCorp (single vendor) | Linux Foundation (community-driven) |
-| **Latest Version** | 1.14+ | 1.11+ |
 | **Native Testing** | 1.6+ | 1.6+ |
 | **Mock Providers** | 1.7+ | 1.7+ |
 | **Feature Parity** | Reference implementation | Compatible fork with some additions |
@@ -179,7 +178,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 - Version-specific features noted (1.6+, 1.7+, etc.)
 - **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
 
-**When creating modules, Claude will ask your preference** to generate appropriate commands and documentation.
+When creating modules, the binary is detected from the commands the repo actually runs (CI config, README, Makefile) and from OpenTofu-only markers such as `*.tofu` files or a `registry.opentofu.org` host in `.terraform.lock.hcl` — the mere presence of that lock file is not evidence, since both tools write it. Detection defaults to Terraform; specify a preference to override it.
 
 ---
 
@@ -201,12 +200,12 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 ```hcl
 # versions.tf - Pin versions exactly (Provectus convention)
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"  # Pin exact version
+      version = "= 6.41.0"  # Pin exact version
     }
   }
 }
@@ -423,15 +422,15 @@ Required documentation for all modules:
 
 | Syntax | Meaning | Provectus Policy |
 |--------|---------|-----------------|
-| `"= 5.82.2"` | Exact version | **Required** |
+| `"= 6.41.0"` | Exact version | **Required** |
 | `"5.1.2"` | Exact version (modules) | **Required** |
 
 ### Strategy by Component
 
 | Component | Recommendation | Example |
 |-----------|----------------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.9.8"` |
-| **Providers** | Pin exact version | `version = "= 5.82.2"` |
+| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
 | **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
 
@@ -510,7 +509,7 @@ git commit -m "Update provider versions"
 # Step 1: Create secret in AWS Secrets Manager (outside Terraform)
 aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 
-# Step 2: Update Terraform to use data sources
+# Step 2: Read it with an ephemeral lookup, not a data source (data is state)
 # Step 3: Use write-only argument (Terraform 1.11+)
 # Step 4: Remove random_password resource or variable
 # Step 5: Apply and verify secret not in state
@@ -555,7 +554,7 @@ What are you refactoring?
 3. Update documentation
 4. Communicate changes to team
 
-**For detailed refactoring patterns, see:** [Code Patterns: Refactoring Patterns](code-patterns.md#refactoring-patterns)
+For detailed refactoring patterns, see the Refactoring Patterns section of the Code Patterns reference listed in SKILL.md.
 
 ---
 

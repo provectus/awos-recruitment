@@ -126,24 +126,24 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform 1.0-1.5
 
-- ❌ No native testing framework
-- ✅ Use Terratest
-- ✅ Focus on static analysis
-- ✅ terraform plan validation
+- No native testing framework
+- Use Terratest
+- Focus on static analysis
+- terraform plan validation
 
 ### Terraform 1.6+ / OpenTofu 1.6+
 
-- ✅ NEW: Native `terraform test` / `tofu test`
-- ✅ Consider migrating simple tests from Terratest
-- ✅ Keep Terratest for complex integration
-- ✅ All Terraform 1.0+ features available
+- Native `terraform test` / `tofu test` available
+- Consider migrating simple tests from Terratest
+- Keep Terratest for complex integration
+- All Terraform 1.0+ features available
 
 ### Terraform 1.7+ / OpenTofu 1.7+
 
-- ✅ NEW: Mock providers for unit testing
-- ✅ Reduce costs with mocking
-- ✅ Use real integration tests for final validation
-- ✅ Faster test iteration
+- Mock providers available for unit testing
+- Reduce costs with mocking
+- Use real integration tests for final validation
+- Faster test iteration
 
 ### Terraform vs OpenTofu Comparison
 
@@ -155,12 +155,11 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 |--------|-----------|----------|
 | **Licensing** | Business Source License (BSL) 1.1 | Mozilla Public License 2.0 (MPL 2.0) |
 | **Governance** | HashiCorp (single vendor) | Linux Foundation (community-driven) |
-| **Latest Version** | 1.14+ | 1.11+ |
 | **Native Testing** | 1.6+ | 1.6+ |
 | **Mock Providers** | 1.7+ | 1.7+ |
 | **Feature Parity** | Reference implementation | Compatible fork with some additions |
 | **Enterprise Support** | HCP Terraform, Terraform Cloud | Multiple vendors |
-| **Migration Path** | N/A | Drop-in replacement for Terraform ≤1.5 |
+| **Migration Path** | N/A | Drop-in replacement for Terraform <=1.5 |
 
 **When to choose Terraform:**
 - Using HashiCorp Terraform Cloud or HCP Terraform
@@ -179,7 +178,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 - Version-specific features noted (1.6+, 1.7+, etc.)
 - **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
 
-**When creating modules, Claude will ask your preference** to generate appropriate commands and documentation.
+When creating modules, the binary is detected from the commands the repo actually runs (CI config, README, Makefile) and from OpenTofu-only markers such as `*.tofu` files or a `registry.opentofu.org` host in `.terraform.lock.hcl` — the mere presence of that lock file is not evidence, since both tools write it. Detection defaults to Terraform; specify a preference to override it.
 
 ---
 
@@ -199,14 +198,14 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 **Solution:**
 
 ```hcl
-# versions.tf - Pin versions explicitly
+# versions.tf - Pin versions exactly (Provectus convention)
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = "= 1.14.8"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.0"  # Pin to major version
+      version = "= 6.41.0"  # Pin exact version
     }
   }
 }
@@ -271,7 +270,7 @@ bucketName := fmt.Sprintf("test-bucket-%s", uniqueId)
 
 ## Migration Paths
 
-### From Manual Testing → Automated
+### From Manual Testing -> Automated
 
 **Phase 1:** Static analysis
 ```bash
@@ -293,7 +292,7 @@ terraform plan -out=tfplan
 - GitHub Actions / GitLab CI
 - Automated apply on main branch
 
-### From Terratest → Native Tests (1.6+)
+### From Terratest -> Native Tests (1.6+)
 
 **Strategy:** Gradual migration
 
@@ -322,7 +321,7 @@ tests/
     └── complete_test.go
 ```
 
-### From Terraform → OpenTofu
+### From Terraform -> OpenTofu
 
 **Good news:** OpenTofu is a drop-in replacement!
 
@@ -381,7 +380,7 @@ terraform validate
 - [ ] `tags` as last real argument in resources
 - [ ] `depends_on` after tags (if used)
 - [ ] `lifecycle` at end of resource (if used)
-- [ ] Variables ordered: description → type → default → sensitive → nullable → validation
+- [ ] Variables ordered: description -> type -> default -> sensitive -> nullable -> validation
 - [ ] Only `#` comments used (no `//` or `/* */`)
 
 ### Modern Features Check
@@ -395,11 +394,13 @@ terraform validate
 
 ### Architecture Review
 
-- [ ] `terraform.tfvars` only at composition level (not in modules)
+- [ ] Root modules use `locals.tf` instead of `terraform.tfvars` (Provectus convention)
 - [ ] Remote state configured (never local state)
 - [ ] Resource modules don't hardcode values (use variables/data sources)
 - [ ] `terraform_remote_state` used for cross-composition dependencies
 - [ ] File structure follows standard: main.tf, variables.tf, outputs.tf, versions.tf
+- [ ] All taggable resources include required tags: `Environment`, `Project`, `Owner`, `ManagedBy`
+- [ ] Tags defined via `local.required_tags` and merged per-resource
 
 ### Documentation Check
 
@@ -415,24 +416,23 @@ Required documentation for all modules:
 
 ## Version Management Quick Reference
 
+> **Provectus Convention: All versions must be pinned to exact versions.**
+
 ### Constraint Syntax
 
-| Syntax | Meaning | Use Case |
-|--------|---------|----------|
-| `"5.0.0"` | Exact version | Avoid (inflexible) |
-| `"~> 5.0"` | Pessimistic (5.0.x) | Recommended for stability |
-| `"~> 5.0.1"` | Pessimistic (5.0.x where x >= 1) | Specific patch minimum |
-| `">= 5.0, < 6.0"` | Range | Any 5.x version |
-| `">= 5.0"` | Minimum | Risky (breaking changes) |
+| Syntax | Meaning | Provectus Policy |
+|--------|---------|-----------------|
+| `"= 6.41.0"` | Exact version | **Required** |
+| `"5.1.2"` | Exact version (modules) | **Required** |
 
 ### Strategy by Component
 
 | Component | Recommendation | Example |
 |-----------|----------------|---------|
-| **Terraform** | Pin minor, allow patch | `required_version = "~> 1.9"` |
-| **Providers** | Pin major, allow minor/patch | `version = "~> 5.0"` |
+| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
-| **Modules (dev)** | Allow patch updates | `version = "~> 5.1"` |
+| **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
 
 ### Update Workflow
 
@@ -440,8 +440,8 @@ Required documentation for all modules:
 # Step 1: Lock versions initially
 terraform init              # Creates .terraform.lock.hcl
 
-# Step 2: Update to latest within constraints
-terraform init -upgrade     # Updates providers
+# Step 2: When updating, change the exact version in versions.tf first
+# Then run terraform init -upgrade
 
 # Step 3: Review changes
 terraform plan
@@ -455,7 +455,7 @@ git commit -m "Update provider versions"
 
 **Security patches:**
 - Update immediately
-- Test: dev → stage → prod
+- Test: dev -> stage -> prod
 - Prioritize Terraform core and provider updates
 
 **Minor versions:**
@@ -467,7 +467,7 @@ git commit -m "Update provider versions"
 - Planned upgrade cycles
 - Dedicated testing period
 - May require code changes
-- Phased rollout: dev → stage → prod
+- Phased rollout: dev -> stage -> prod
 
 ---
 
@@ -491,9 +491,9 @@ git commit -m "Update provider versions"
 
 #### Pattern 2: Legacy to Modern Terraform
 
-**0.12/0.13 → 1.x checklist:**
+**0.12/0.13 -> 1.x checklist:**
 
-- [ ] Replace `element(concat(...))` → `try()`
+- [ ] Replace `element(concat(...))` -> `try()`
 - [ ] Add `nullable = false` where appropriate
 - [ ] Use `optional()` in object types (1.3+)
 - [ ] Add `validation` blocks
@@ -509,7 +509,7 @@ git commit -m "Update provider versions"
 # Step 1: Create secret in AWS Secrets Manager (outside Terraform)
 aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 
-# Step 2: Update Terraform to use data sources
+# Step 2: Read it with an ephemeral lookup, not a data source (data is state)
 # Step 3: Use write-only argument (Terraform 1.11+)
 # Step 4: Remove random_password resource or variable
 # Step 5: Apply and verify secret not in state
@@ -521,7 +521,7 @@ terraform show | grep -i password  # Should not appear
 ```
 What are you refactoring?
 
-├─ Resource addressing (count[0] → for_each["key"])
+├─ Resource addressing (count[0] -> for_each["key"])
 │  └─ Use: moved blocks + for_each conversion
 │
 ├─ Secrets in state
@@ -554,7 +554,7 @@ What are you refactoring?
 3. Update documentation
 4. Communicate changes to team
 
-**For detailed refactoring patterns, see:** [Code Patterns: Refactoring Patterns](code-patterns.md#refactoring-patterns)
+For detailed refactoring patterns, see the Refactoring Patterns section of the Code Patterns reference listed in SKILL.md.
 
 ---
 
@@ -563,11 +563,11 @@ What are you refactoring?
 ### Resource Naming
 
 ```hcl
-# ✅ Good: Descriptive, contextual
+# Good: Descriptive, contextual
 resource "aws_instance" "web_server" { }
 resource "aws_s3_bucket" "application_logs" { }
 
-# ❌ Bad: Generic
+# Bad: Generic
 resource "aws_instance" "main" { }
 resource "aws_s3_bucket" "bucket" { }
 ```
@@ -575,11 +575,11 @@ resource "aws_s3_bucket" "bucket" { }
 ### Variable Naming
 
 ```hcl
-# ✅ Good: Context-specific
+# Good: Context-specific
 var.vpc_cidr_block
 var.database_instance_class
 
-# ❌ Bad: Generic
+# Bad: Generic
 var.cidr
 var.instance_class
 ```

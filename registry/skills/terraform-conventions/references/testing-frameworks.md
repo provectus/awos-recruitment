@@ -104,25 +104,23 @@ run "verify_encryption" {
 }
 ```
 
-### Critical: Validate Resource Schemas First
+### Validate Resource Schemas First
 
-**Always use Terraform MCP to validate resource schemas before writing tests:**
+Confirm the schema before writing assertions — guessing whether a nested block
+is a set or a list is the most common reason a generated test fails.
 
-```bash
-# Example workflow in Claude Code:
-# 1. Search for provider documentation
-mcp__terraform__search_providers({
-  provider_name: "aws",
-  provider_namespace: "hashicorp",
-  service_slug: "s3_bucket_server_side_encryption_configuration",
-  provider_document_type: "resources"
-})
+**With the `terraform-mcp-server` MCP server** (defined in the AWOS registry as
+`terraform-mcp-server`):
 
-# 2. Get detailed schema
-mcp__terraform__get_provider_details({
-  provider_doc_id: "12345"  # from search results
-})
-```
+1. `terraform-mcp-server:search_providers` — find the provider doc for the
+   resource, e.g. namespace `hashicorp`, provider `aws`, service slug
+   `s3_bucket_server_side_encryption_configuration`, document type `resources`
+2. `terraform-mcp-server:get_provider_details` — read the schema for the
+   `provider_doc_id` the search returned
+
+**Without it:** open the resource's page in the Terraform Registry provider
+docs for the version pinned in `versions.tf` and check each nested block's
+type there.
 
 **Why This Matters:**
 - Some blocks are **sets** (unordered, no indexing with `[0]`)
