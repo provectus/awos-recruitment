@@ -2,6 +2,9 @@
   "name": "@provectusinc/awos-recruitment",
   "version": "0.1.4",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "bin": "dist/index.js",
   "files": [
     "dist"
@@ -22,9 +25,9 @@
     "yaml": "^2.8.3"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0",
-    "vitest": "^4.1.11"
+    "@types/node": "^22.20.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   },
   "overrides": {
     "vite": "^7.3.2"
