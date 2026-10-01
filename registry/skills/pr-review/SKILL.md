@@ -1,9 +1,17 @@
 ---
 name: pr-review
-description: Use when authoring a code review of a pull request or merge request — "review this PR", "do a code review on PR #N", "review this MR", "review my branch", "leave review comments". Works in two modes. Public mode (default) reviews someone else's PR/MR on the hosting platform — GitHub or GitLab — and posts the result as a draft review for your approval. Local mode — triggered when the request says "locally", "for myself", "just my branch", or "don't post" — reviews your own working branch and writes the review to a file, posting nothing to a review platform. Finds issues by orchestrating the code-review and pr-review-toolkit plugins, drafts in a human voice with no severity badges, and gates everything on your approval. This is the reviewer's side; to respond to feedback on a PR you authored, use pr-comments-address.
+description: >-
+  Authors a human-voice code review of someone else's pull request or merge request
+  and posts it as a draft (pending) review for the user's approval — "review this PR",
+  "do a code review on PR #N", "review this MR", "leave review comments". Also reviews
+  the user's own branch when the request says "review locally", "review for myself",
+  "just my branch", or "don't post": the review goes to a file and nothing is posted.
+  Works on GitHub and GitLab. Finds issues by orchestrating the code-review and
+  pr-review-toolkit plugins, drafts with no severity badges, and gates every post on
+  the user's approval. This is the reviewer's side; to respond to feedback on a PR the
+  user authored, use pr-comments-address.
+argument-hint: "[PR URL | owner/repo#N | N | branch]"
 ---
-
-<!-- No `context: fork`: a forked skill runs as a subagent, and subagents cannot use AskUserQuestion — the results gate in step 5 depends on it. (The Agent tool is not the constraint: subagents can dispatch nested subagents, so the step 2 engines would run fine.) For isolation from other work, invoke this skill in a dedicated session instead. -->
 
 # Author a Code Review
 
@@ -39,7 +47,7 @@ Review voice and formatting rules are in [references/house-style.md](references/
 
 ## Input
 
-`args` is a PR reference (public) or a branch/base hint (local): a PR URL, `owner/repo#N`, a bare `N` inside the repo, a branch name, or empty (use the current branch). Parse what you can; if public mode needs a PR you can't resolve, ask for a PR URL.
+`$ARGUMENTS` is a PR reference (public) or a branch/base hint (local): a PR URL, `owner/repo#N`, a bare `N` inside the repo, a branch name, or empty (use the current branch). Parse what you can; if public mode needs a PR you can't resolve, ask for a PR URL.
 
 ## Workflow
 
@@ -65,7 +73,7 @@ Follow [references/analysis.md](references/analysis.md) — the same engines wor
 
 ### 3. Triage in a fresh subagent
 
-A review is worth only as much as its independence, and the merge is where independence quietly dies: deciding which findings survive, and at what confidence, is exactly the judgment a session that wrote, planned, or debated this change would bend toward its own decisions. A model is a poor judge of its own anchoring, so don't self-assess independence; remove the need for it: triage runs in a **fresh subagent** that never sees this conversation, whether the session touched the change or not.
+Triage runs in a **fresh subagent** that never sees this conversation, whether or not this session touched the change. Don't self-assess independence — a session that wrote or debated the change bends the merge toward its own decisions, and a model can't judge its own anchoring (background: [references/design-notes.md](references/design-notes.md)).
 
 Dispatch one triage subagent with the Agent tool (`subagent_type: "general-purpose"` — a fresh context; **not** `"fork"`, which inherits this conversation and defeats the isolation). Hand it exactly:
 
@@ -97,15 +105,15 @@ No severity badges, plain citations. Order by what matters, explained in words. 
 
 Holding a PR open over log-field quality and comment accuracy costs more in cycle time than those findings cost in risk — and it costs most on a late round, where the remainder is nearly always visibility and hygiene. Approving is a statement about the verdict, never a reason to drop or soften a finding: post them all, and say plainly in the summary why you're approving anyway. This is the verdict *intent* either way — the user picks the verdict at delivery.
 
-**Materialize the draft with `Write`** to the `review/` folder of **the repo whose code is under review** — the same one local mode delivers into (create it if missing; it stays out of commits, gitignored or per the user's preference): `review/pr-<N>-draft.md`. In a multi-repo or orchestrator checkout, that means the service's own clone, not the parent — say which path you used, since a sibling `review/` from an earlier session is easy to confuse it with. A draft composed only in thinking does not exist — the `Write` call is the verifiable proof it does, and an in-repo file is one the user can open in their editor no matter what happens to the chat. Don't proceed to the gate without this file.
+**Materialize the draft with `Write`** to `review/pr-<N>-draft.md` in the `review/` folder of **the repo whose code is under review** — the same one local mode delivers into (create it if missing; it stays out of commits, gitignored or per the user's preference). In a multi-repo or orchestrator checkout, that means the service's own clone, not the parent — say which path you used. A draft that exists only in thinking is not a draft; the file is what the user can open whatever happens to the chat. Don't proceed to the gate without it.
 
 ### 5. Results gate
 
 Print the complete draft **as message text** — summary, architectural notes, and the inline findings (each with `path:line`) — then ask the user with `AskUserQuestion` how to proceed. The user can only approve what they can read: if the draft isn't in the message, the gate is void. Any session-wide brevity or compression mode (terse-output instructions, token-saving styles) governs your commentary, never the deliverable — a file path, a recap, or "the review is above" does not satisfy this step.
 
-**Read the draft once more before printing it**, against [references/house-style.md](references/house-style.md)'s "What never goes in a posted review". Four things to strike, every one of which reached a real MR: a finding that opens on mechanism instead of the defect; a sentence carrying more than one claim; any phrasing that implies you ran, tried, or reproduced something (this skill never executes anything); and any line about the review itself — what you read, how you checked, what you couldn't check. Then confirm the summary opens on the MR and your overall read, not on the first bug.
+**Read the draft once more before printing it**, against [references/house-style.md](references/house-style.md)'s "What never goes in a posted review". Four things to strike: a finding that opens on mechanism instead of the defect; a sentence carrying more than one claim; any phrasing that implies you ran, tried, or reproduced something (this skill never executes anything); and any line about the review itself — what you read, how you checked, what you couldn't check. Then confirm the summary opens on the MR and your overall read, not on the first bug.
 
-**Pre-gate protocol — the draft is the step 4 file, not your memory.** Present it by printing the file's full content as message text, then call `AskUserQuestion` — and always include the file path in the question itself ("full draft in `review/pr-<N>-draft.md`"), so even if the print gets squeezed out, the user opens the draft in their editor from the path alone. The documented failure of this step (three sessions running): composing the draft in thinking, then gating on "the draft is above" while the message contains nothing — your memory of having printed is not evidence; only the `Write` call from step 4 and text visible in this turn are. If there is no step 4 file, you have no draft: go back and write it.
+**The draft is the step 4 file, not your memory.** Print the file's full content as message text, then call `AskUserQuestion` with the file path in the question itself ("full draft in `review/pr-<N>-draft.md`"), so the user can open the draft from the path alone if the print gets squeezed out. Only the step 4 `Write` and text visible in this turn count as having presented it. If there is no step 4 file, there is no draft: go back and write it.
 
 **Check delivery capability before you ask, not after.** `preflight` established whether this platform and instance support a draft. If they don't (a GitLab instance without the Draft Notes API, a token missing the scope, an MCP fallback with no draft tool), **the options below are wrong as written** — "Proceed" would publish the review immediately under a label the user read as "draft". Say plainly in the gate that draft delivery isn't available here and why, then offer **publish now** (post the findings and summary for real, right away) or **write to a file and post nothing** (local mode's artifact, so nothing reaches the platform) — and let the user pick with full knowledge of what lands. Never present a publishing action as a draft.
 
@@ -130,21 +138,16 @@ Print what was delivered (the draft review URL and inline count, or the file pat
 
 **Amendments after delivery (public).** The workflow doesn't end at step 6 — the user will ask for changes to what you just posted ("add architectural notes", "that finding is unclear", "cut the last one"). **Every one of those re-enters step 5 before anything is written to the platform:** draft the new or revised text, update the step 4 file, print it, `AskUserQuestion`, then post. Amend in place with the platform's edit operation; never delete and recreate.
 
-A request to change something approves the **action**, never the **wording** — "yes, add architectural notes" is permission to draft them, not to publish whatever you draft. The failure this prevents was observed across six consecutive amendments in one session: each was drafted and posted in a single step, with the text shown to the user only afterwards, so the gate that governs first delivery silently stopped applying to everything after it. Post-delivery is exactly when the user is most engaged and most likely to be surprised.
+A request to change something approves the **action**, never the **wording** — "yes, add architectural notes" is permission to draft them, not to publish whatever you draft. Drafting and posting an amendment in one step, with the text shown only afterwards, is the gate failing exactly where the user is watching most closely.
 
 **Re-review loop (public).** This skill works under `/loop`. On a later round, repeat steps 1–6, but diff against your previous review's timestamp and treat your own prior comments as part of the conversation — raise only what's new or unaddressed and converge toward approve. **Don't itemize the fixes the author made since the last round** — not even a one-line recap of which items now look right; "everything from the last round is addressed" covers it. Confirm whether it's all addressed or say what still stands, thank them, and go straight to what's new — see the re-review summary example in [references/house-style.md](references/house-style.md). The user still approves each round; the loop automates the cadence, not the judgment.
 
 ## Boundaries
 
-- Never post, submit, or save anything the user hasn't approved at the results gate — including every amendment made after delivery.
-- Never write the review as if you executed anything. This skill reads code; it doesn't run it, so "I tried", "I couldn't reproduce" and "I went looking" are always false here.
-- Never narrate the review inside the review — method notes, what you read, and coverage caveats go to the user in step 7, not to the author on the platform.
-- Never author an engine's findings yourself. An engine that reports nothing has failed; say so and degrade, rather than reconstructing its output and passing it to triage as engine input.
-- Never poll for agent results with `sleep`/`until` loops, and never read agent transcripts to recover them — see [references/analysis.md](references/analysis.md).
-- Hand the triage subagent only the diff, the engines' findings, the recorded conversation, and the code — never this session's reasoning, intent, or debate about the change, and never a fork that inherits it.
-- Never delete or recreate an existing pending review draft without explicit approval — it may hold the user's own comments.
-- In public mode: comment only on lines in the PR diff; never resolve other people's threads; never auto-approve — the user chooses that verdict; default to a draft, not a direct submit.
-- Don't re-raise a point already settled — in a PR thread or off-platform — unless the new changes make it live again; don't post a finding you couldn't verify — lower its confidence and drop it.
+The workflow steps carry the gate, the triage isolation, and the print-in-full rules once each; these are the rules no step states.
+
+- This skill reads code; it doesn't run it. Don't run builds, tests, typecheck, or lint to find issues — CI covers those, and flagging them is noise — and don't write the review as if you had.
 - No severity badges, no performative praise, no "generated by" footer.
-- Session-wide brevity or compression modes never shrink a deliverable: the step 5 draft and step 7 summary print in full, verbatim, as message text.
-- Don't run builds, typecheck, or lint to find issues — CI covers those; flagging them is noise.
+- Never delete or recreate an existing pending review draft without explicit approval — it may hold the user's own comments.
+- Public mode: don't resolve other people's threads, and never auto-approve — the user picks the verdict.
+- An engine that reports nothing has failed: say so and degrade, rather than authoring findings in its place. Dispatch and collection rules are in [references/analysis.md](references/analysis.md).
