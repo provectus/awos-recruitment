@@ -1,5 +1,14 @@
 # ChromaDB Python API Reference
 
+## Contents
+
+- [Client Types](#client-types) — ephemeral, persistent, HTTP
+- [Client Methods](#client-methods) — create / get / list / delete collections, and what is stored with them
+- [Collection Methods](#collection-methods) — `add`, `query`, `get`, `update`, `upsert`, `delete`, `count`, `peek`, with return shapes
+- [Filter Operators (Complete Reference)](#filter-operators-complete-reference) — every `where` operator, logical nesting, and the `where_document` operators including `$regex`
+- [Include Parameter](#include-parameter) — which fields come back from `query` and `get`
+- [Embedding Functions](#embedding-functions) — built-in wrappers, API-key environment variables, and writing a custom function that survives `get_collection`
+
 ## Client Types
 
 ### chromadb.Client()
@@ -35,21 +44,22 @@ client = chromadb.HttpClient(host="localhost", port=8000)
 # Create — raises if exists
 collection = client.create_collection(
     name="my_collection",
-    embedding_function=ef,           # optional
-    metadata={"hnsw:space": "cosine"},  # optional
+    embedding_function=ef,                           # optional
+    configuration={"hnsw": {"space": "cosine"}},     # optional; index tuning
+    metadata={"team": "search"},                     # optional; free-form labels
 )
 
 # Get — raises if not found
 collection = client.get_collection(
     name="my_collection",
-    embedding_function=ef,           # must match the one used at creation
+    embedding_function=ef,           # optional; name() must match the stored one
 )
 
 # Get or create — idempotent
 collection = client.get_or_create_collection(
     name="my_collection",
     embedding_function=ef,
-    metadata={"hnsw:space": "cosine"},
+    configuration={"hnsw": {"space": "cosine"}},  # applied only on creation
 )
 
 # List all collections
@@ -59,7 +69,16 @@ collections = client.list_collections()
 client.delete_collection("my_collection")
 ```
 
-**Important:** When using `get_collection` or `get_or_create_collection`, always pass the same `embedding_function` that was used at creation. Chroma does not store the embedding function — it must be provided on every access.
+**Important:** Chroma stores the embedding function's *configuration* with the collection, so `get_collection` and `get_or_create_collection` rebuild it for you. Passing `embedding_function` again is optional, and what happens when you do depends on its `name()`:
+
+- **A different `name()` is rejected.** Chroma compares it against the stored one and raises `ValueError: An embedding function already exists in the collection configuration, and a new one is provided. ... Embedding function conflict: new: <new> vs persisted: <persisted>`. This is the safe case — you find out immediately.
+- **The same `name()` with a different config is accepted and overrides the stored one.** The name check passes, so a wrapper pointing at a different model, endpoint or dimension count replaces what was stored. A dimension change surfaces later as `InvalidArgumentError: Collection expecting embedding with dimension of N, got M`; a same-dimension swap produces no error at all, just vectors the index cannot meaningfully compare.
+
+So the override to guard against is the *silent* one: same registry name, different configuration.
+
+The exception is a custom function that implements only `__call__`: it is stored as `{"type": "legacy"}` and cannot be rebuilt, so it must be passed on every access. See "Custom embedding function" below.
+
+`configuration` behaves the same way on `get_or_create_collection`: it is applied when the collection is created and **ignored without warning** when an existing one is returned. Asking for `{"hnsw": {"space": "cosine"}}` against a collection already built with `l2` gives you back the `l2` collection and no error, so treat `collection.configuration["hnsw"]` as the answer rather than the argument you passed. Changing the metric means recreating the collection.
 
 ### Utility
 
@@ -71,7 +90,13 @@ client.heartbeat()  # health check, returns nanosecond timestamp
 
 ### add()
 
-Add new records. All IDs must be unique and not already exist in the collection.
+Add new records.
+
+IDs must be unique. An ID that is already in the collection is **dropped
+silently** — `add` raises nothing, warns about nothing, `count()` does not
+move, and the existing record keeps its old document, metadata and embedding.
+Nothing in the return value signals the skip, so `add` cannot be used to detect
+collisions; reach for `upsert` whenever a record may already exist.
 
 ```python
 collection.add(
@@ -251,8 +276,10 @@ sample = collection.peek(limit=5)  # default limit=10
 | `$nin` | Value not in list | `{"tag": {"$nin": ["spam"]}}` |
 | `$contains` | Array contains value | `{"tags": {"$contains": "python"}}` |
 | `$not_contains` | Array does not contain | `{"tags": {"$not_contains": "draft"}}` |
-| `$regex` | Regex match (string) | `{"name": {"$regex": "^test.*"}}` |
-| `$not_regex` | Regex does not match | `{"name": {"$not_regex": "^draft"}}` |
+
+These ten are the complete set. Anything else — `$regex` included — is rejected
+with `ValueError: Expected where operator to be one of $gt, $gte, $lt, $lte,
+$ne, $eq, $in, $nin, $contains, $not_contains, got <op>`.
 
 ### Logical operators
 
@@ -289,6 +316,18 @@ where={
 |---|---|---|
 | `$contains` | Document contains substring | `{"$contains": "search term"}` |
 | `$not_contains` | Document does not contain | `{"$not_contains": "excluded"}` |
+| `$regex` | Document matches regex | `{"$regex": "gradient\\s+descent"}` |
+| `$not_regex` | Document does not match regex | `{"$not_regex": "^draft"}` |
+
+Regex matching is a `where_document` feature only — it operates on document
+text, not on metadata values. Applying `$regex` to a metadata key in `where`
+raises the ValueError shown above; the substring you want to match on a
+metadata field usually belongs in its own metadata key instead.
+
+```python
+# Documents mentioning gradient descent, however it is spaced.
+results = collection.get(where_document={"$regex": r"gradient\s+descent"})
+```
 
 ### Combining metadata and document filters
 
@@ -323,25 +362,108 @@ Default for `get()`: `["documents", "metadatas"]`
 
 Chroma provides built-in wrappers for common embedding providers:
 
-| Function | Import | Requires |
-|---|---|---|
-| SentenceTransformer | `SentenceTransformerEmbeddingFunction` | `sentence-transformers` package |
-| OpenAI | `OpenAIEmbeddingFunction` | `OPENAI_API_KEY` env var |
-| Cohere | `CohereEmbeddingFunction` | `COHERE_API_KEY` env var |
-| HuggingFace | `HuggingFaceEmbeddingFunction` | `HUGGINGFACE_API_KEY` env var |
-| Default (ONNX) | (none — used automatically) | Built-in, no setup |
+| Function | Import | Package | Default key env var |
+|---|---|---|---|
+| SentenceTransformer | `SentenceTransformerEmbeddingFunction` | `sentence-transformers` | (none — runs locally) |
+| OpenAI | `OpenAIEmbeddingFunction` | `openai` | `CHROMA_OPENAI_API_KEY` |
+| Cohere | `CohereEmbeddingFunction` | `cohere`, `pillow` | `CHROMA_COHERE_API_KEY` |
+| HuggingFace | `HuggingFaceEmbeddingFunction` | `httpx` | `CHROMA_HUGGINGFACE_API_KEY` |
+| Default (ONNX) | (none — used automatically) | Built-in | (none) |
 
 All embedding functions are in `chromadb.utils.embedding_functions`.
 
-### Custom embedding function
+### API keys
 
-Implement the `EmbeddingFunction` protocol:
+Each hosted provider wrapper takes an `api_key_env_var` argument naming the
+variable to read, and it defaults to the `CHROMA_`-prefixed form in the table
+above. Two things are easy to get wrong:
+
+- The unprefixed legacy variable (`OPENAI_API_KEY`, `COHERE_API_KEY`,
+  `HUGGINGFACE_API_KEY`) is still honoured, and when it is set it **overrides**
+  `api_key_env_var` — including a value you passed explicitly. If both are set,
+  the unprefixed one wins.
+- `api_key="sk-…"` passed inline raises a `DeprecationWarning` and is not
+  written to the collection configuration ("Direct api_key configuration will
+  not be persisted"), so reopening the collection in a new process cannot
+  recover it.
 
 ```python
-from chromadb import EmbeddingFunction, Documents, Embeddings
-
-class MyEmbeddingFunction(EmbeddingFunction[Documents]):
-    def __call__(self, input: Documents) -> Embeddings:
-        # input is list[str], return list[list[float]]
-        return [embed(doc) for doc in input]
+# Reads MY_OPENAI_KEY; the variable name is persisted with the collection.
+ef = OpenAIEmbeddingFunction(
+    model_name="text-embedding-3-small",
+    api_key_env_var="MY_OPENAI_KEY",
+)
 ```
+
+If no key is found, construction fails with
+`ValueError: The <VAR> environment variable is not set.` — the message names
+whichever variable the function settled on, which is the quickest way to see
+which one it is actually looking at.
+
+### Custom embedding function
+
+A class with only `__call__` still runs, but Chroma emits two
+`DeprecationWarning`s ("does not implement `__init__`", "does not implement
+`name()`") and stores it as `{"type": "legacy"}`. A legacy function cannot be
+rebuilt from the collection configuration, so reopening the collection falls
+back to the default 384-dimension ONNX model and the next `add` fails with
+`Collection expecting embedding with dimension of N, got 384`.
+
+Implement the full protocol instead, so the function is stored as `known` and
+survives `get_collection`:
+
+```python
+from typing import Any
+
+import numpy as np
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings, Space
+from chromadb.utils.embedding_functions import register_embedding_function
+
+
+@register_embedding_function
+class MyEmbeddingFunction(EmbeddingFunction[Documents]):
+    """Embeddings from a locally hosted model."""
+
+    def __init__(self, endpoint: str, dimensions: int = 768) -> None:
+        self._endpoint = endpoint
+        self._dimensions = dimensions
+
+    def __call__(self, input: Documents) -> Embeddings:
+        # input is list[str]; return one vector per document.
+        # `embed` stands in for your own call to the model — supply it.
+        return [
+            np.asarray(embed(doc, self._endpoint), dtype=np.float32)
+            for doc in input
+        ]
+
+    @staticmethod
+    def name() -> str:
+        # Stable registry key. Changing it orphans existing collections.
+        return "my_embedding_function"
+
+    def get_config(self) -> dict[str, Any]:
+        # Serialised into the collection configuration — keep it JSON-safe and
+        # never put a secret here.
+        return {"endpoint": self._endpoint, "dimensions": self._dimensions}
+
+    @staticmethod
+    def build_from_config(config: dict[str, Any]) -> "MyEmbeddingFunction":
+        return MyEmbeddingFunction(endpoint=config["endpoint"], dimensions=config["dimensions"])
+
+    def default_space(self) -> Space:
+        # Optional; without it Chroma defaults the collection to "l2".
+        return "cosine"
+```
+
+Two details that bite:
+
+- `@register_embedding_function` matters for *reading*, not writing. Chroma
+  registers the class automatically when the collection is created, so a
+  round-trip inside one process works either way. A different process that
+  opens the collection only has the stored name, and without the decorator (and
+  an import of the module that defines the class) `get_collection` raises
+  `ValueError: Embedding function my_embedding_function not found. Add
+  @register_embedding_function decorator to the class definition.`
+- `get_config()` output is stored in plain text alongside the collection. Pass
+  credentials by environment-variable *name*, the way the built-in wrappers do
+  with `api_key_env_var`, rather than by value.
