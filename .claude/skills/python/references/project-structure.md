@@ -1,5 +1,17 @@
 # Python Project Structure Reference
 
+## Contents
+- Directory Layout (src layout)
+- Why src Layout
+- pyproject.toml (minimal config, entry points, tool configuration)
+- Module Organization (by domain, when flat is acceptable)
+- `__init__.py` Patterns
+- `__main__.py` Entry Point
+- py.typed Marker
+- Test Organization
+- Constants and Configuration
+- Import Conventions
+
 ## Directory Layout (src layout)
 
 ```
@@ -55,6 +67,11 @@ project/
 
 ### Minimal configuration
 
+Scaffold with this toolchain — `hatchling` to build, `ruff` to lint and format, `mypy`
+to type-check, `pytest` to test — so a generated `pyproject.toml` runs as written. If
+the project already configures a different build backend or tool set, keep what is
+there; the point is to have a working default, not to standardise every repository.
+
 ```toml
 [project]
 name = "package-name"
@@ -69,12 +86,14 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    # linter, type checker, test runner of choice
+    "ruff",
+    "mypy",
+    "pytest",
 ]
 
 [build-system]
-requires = ["<build-backend>"]
-build-backend = "<build-backend>.build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 ```
 
 ### With entry points (CLI commands)
@@ -89,17 +108,21 @@ mycommand = "package_name.__main__:main"
 Keep all tool configuration in `pyproject.toml` — avoid separate config files:
 
 ```toml
-[tool.<linter>]
+[tool.ruff]
 target-version = "py312"
 line-length = 88
 
-[tool.<type-checker>]
+[tool.mypy]
 python_version = "3.12"
 strict = true
 
-[tool.<test-runner>.ini_options]
+[tool.pytest.ini_options]
 testpaths = ["tests"]
 ```
+
+Swap these tables for the project's existing tools when `pyproject.toml` already
+configures them — for example `[tool.pyright]` in place of `[tool.mypy]`. Match the
+repository rather than adding a second type checker alongside the one it uses.
 
 ## Module Organization
 

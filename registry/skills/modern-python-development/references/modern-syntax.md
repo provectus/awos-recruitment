@@ -1,5 +1,13 @@
 # Modern Python 3.12+ Syntax Reference
 
+## Contents
+- Structural Pattern Matching (values, sequences, mappings, classes, guards, when to use)
+- The `type` Statement (basic and generic aliases, ParamSpec, TypeVarTuple)
+- Exception Groups (raising, `except*`, `asyncio.TaskGroup`)
+- The `@override` Decorator
+- F-String Enhancements (nested quotes, multi-line expressions, `=` debug format)
+- Walrus Operator (`:=`)
+
 ## Structural Pattern Matching
 
 ### Basic value matching

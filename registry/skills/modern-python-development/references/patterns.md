@@ -1,5 +1,18 @@
 # Idiomatic Python Patterns Reference
 
+## Contents
+- Protocols over ABCs
+- Enums (basic, `StrEnum`, enums with methods, enums in `match`/`case`)
+- Context Managers (`contextmanager`, class-based, async, `ExitStack`)
+- Generators and Iterators (`yield from`, iterator protocol)
+- Pathlib
+- Dataclass Patterns (frozen value objects, keyword-only, `__post_init__`, factories)
+- Properties
+- Slots
+- Dunder Methods
+- String Handling
+- Guard Clauses
+
 ## Protocols over ABCs
 
 Prefer `Protocol` for defining interfaces when only structural compatibility is needed. Use `ABC` only when shared implementation (methods, state) must be inherited.
