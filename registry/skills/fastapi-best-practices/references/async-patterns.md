@@ -1,5 +1,12 @@
 # Async Patterns in FastAPI
 
+## Contents
+- How FastAPI Handles Routes (sync `def`, async `async def`)
+- Threadpool Caveats
+- CPU-Intensive Tasks (process pool, task queue)
+- Using Sync Libraries in Async Routes (`run_in_threadpool`)
+- Decision Matrix
+
 ## How FastAPI Handles Routes
 
 FastAPI is async-first but supports both sync and async route handlers with different execution models.
@@ -57,7 +64,7 @@ executor = ProcessPoolExecutor(max_workers=4)
 
 @router.get("/compute")
 async def compute():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, heavy_computation, data)
     return {"result": result}
 
@@ -67,6 +74,12 @@ async def transcode(video_id: UUID4):
     task = celery_app.send_task("transcode_video", args=[str(video_id)])
     return {"task_id": task.id}
 ```
+
+Inside a coroutine, reach for `asyncio.get_running_loop()` rather than
+`asyncio.get_event_loop()`. Both return the running loop when one is active, but
+`get_event_loop()` falls back to the event loop policy when there isn't one — so it
+hides the mistake if the code is later called from a synchronous context, where
+`get_running_loop()` would raise `RuntimeError` and point straight at the bug.
 
 ## Using Sync Libraries in Async Routes
 
