@@ -2,6 +2,18 @@
 
 Practical guide for working with mixed Swift/Objective-C codebases. Always prefer Swift for new code; use interop to maintain and incrementally migrate existing Objective-C.
 
+## Contents
+- Bridging Headers (Setup, Importing Obj-C Headers into Swift, Best Practices)
+- Swift to Obj-C (The Generated Header, `@objc` Attribute, `@objcMembers`, Limitations)
+- NS_SWIFT_NAME (Basic Renaming, NS_REFINED_FOR_SWIFT)
+- Nullability Annotations (Annotations, Audited Regions, Impact on Swift)
+- Type Bridging (Core Bridged Types, Typed Collections, NSNumber Bridging, NSError to Swift Error)
+- Protocol Bridging (@objc Protocol, Swift Implementation, Checking Optional Methods, Swift Protocol vs Obj-C Protocol Differences, Defining a Protocol in Swift for Obj-C Use)
+- Memory Management (ARC in Mixed Codebases, Common Cycle: Delegate Pattern, autoreleasepool, weak vs unowned Across Languages)
+- Incremental Migration Strategy (Guiding Principles, Screen-by-Screen Migration, Module-by-Module Migration, Extracting Swift Packages from Obj-C Monolith, When to Rewrite vs Wrap)
+- Common Patterns (Wrapping Obj-C Singletons, Bridging Delegates to async/await, Adapting KVO to Combine)
+- Mixed-Language SPM Modules (Obj-C and Swift in the Same Package, Directory Structure, Umbrella Header, Consuming from Swift, Clang Module Map (Custom))
+- Gotchas (Circular Imports, Naming Conflicts, Swift 6 Strict Concurrency and ObjC Interop, Swift-Only Features Unavailable in Bridged Code, Performance Implications of `@objc dynamic`, Build Order and Incremental Compilation, …)
 
 ## Bridging Headers
 

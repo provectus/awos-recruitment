@@ -8,7 +8,7 @@ version: 0.1.0
 
 Modern best practices for building apps across Apple platforms. Targets Swift 6+ with SwiftUI as the primary UI framework. Covers iOS, iPadOS, macOS, tvOS, watchOS, and visionOS.
 
-For Swift language fundamentals (type system, optionals, error handling, concurrency, protocols, generics, idiomatic patterns), see the `swift-development` skill. This skill focuses on platform and framework patterns.
+For Swift language fundamentals (type system, optionals, error handling, concurrency, protocols, generics, idiomatic patterns), see the `swift-development` skill — install it alongside this one. This skill focuses on platform and framework patterns.
 
 ## Important Rules
 
@@ -18,11 +18,12 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **Check the project context.** Before applying patterns, check the deployment target, Swift version, and existing architecture. Adapt recommendations accordingly.
 - **No `#if` / compiler directives for multi-target branching.** Do not use `#if TARGET_NAME` or custom build flags to branch behavior between app targets. Instead, use dependency injection (protocol + per-target conformance) or separate file implementations (one per target, added to the correct target membership in Xcode). `#if` directives are reserved for excluding code from compilation entirely (e.g., `#if DEBUG`, `#if os(iOS)`, `#if canImport(UIKit)`) — not for runtime or build-time polymorphism between targets in the same project.
 - **Always localize user-facing text.** Never use explicit string literals for user-facing text (e.g., `"Welcome back"`, `Text("Sign in")`). Always use whichever localization solution is already in use in the project (e.g., String Catalogs, `.strings` files, a custom localization layer). Do not migrate to a different solution unless explicitly asked. When you encounter an existing explicit string that should be localized, flag it and suggest the appropriate key name and parameter names, but do not migrate it unless asked. See `references/localization.md` for String Catalog patterns and named parameter format.
+- **Samples are not templates for literals.** Code samples in this skill and its reference files use literal strings (`Text("Total")`) and raw numeric values (`spacing: 12`) for brevity. When generating real code, apply the localization rule above and the design-token rule in Code Style instead of copying those literals.
 
 ## Reference Files
 
 - **`references/swiftui-patterns.md`** — View composition, property wrappers (`@State`, `@Binding`, `@Observable`), navigation, state management, lists, forms, custom modifiers
-- **`references/concurrency.md`** — `@MainActor` for UI, `.task` modifier, `@Observable` lifecycle, Combine interop in SwiftUI context
+- **`references/concurrency.md`** — Swift concurrency on Apple platforms: async/await and typed throws, structured concurrency, actors, Sendable, task management and `.task`, `@MainActor` in practice, AsyncSequence/AsyncStream, GCD and Combine migration, Swift 6.2 approachable concurrency, pitfalls, testing async code (overlaps with the `swift-development` concurrency reference)
 - **`references/uikit-interop.md`** — `UIViewRepresentable`, `UIViewControllerRepresentable`, hosting SwiftUI in UIKit, migration strategies
 - **`references/project-structure.md`** — Xcode project organization, SPM packages, multi-module architecture, build configurations, targets, schemes
 - **`references/persistence.md`** — Core Data (NSPersistentContainer, contexts, migrations, batch ops, CloudKit) and SwiftData (@Model, @Query, ModelActor, VersionedSchema, #Unique, #Index)
@@ -40,7 +41,7 @@ For Swift language fundamentals (type system, optionals, error handling, concurr
 - **`references/objc-interop.md`** — Bridging headers, `@objc`, `NS_SWIFT_NAME`, nullability annotations, incremental migration
 - **`references/testing.md`** — Swift Testing (@Test, #expect, traits, parameterized), XCTest (unit tests, async, performance), XCUITest (UI automation, page objects), test doubles, snapshot testing, test plans, CI/CD
 - **`references/localization.md`** — String Catalogs (.xcstrings), code-generated accessors, named parameter format (`%(name)@`, `%1$(name)@`), custom table namespacing, localization best practices
-- **`references/code-quality.md`** — Xcode Static Analyzer, sanitizers (ASan, TSan, UBSan), Periphery (dead code), Danger-Swift, Xcode build settings, xcconfig. For SwiftLint/SwiftFormat, see `swift-development` skill's `references/static-analysis.md`
+- **`references/code-quality.md`** — Xcode Static Analyzer, sanitizers (ASan, TSan, UBSan), Periphery (dead code), Danger-Swift, Xcode build settings, xcconfig. For SwiftLint/SwiftFormat, see the `swift-development` skill (its static-analysis reference)
 
 ## Code Style
 
@@ -74,7 +75,7 @@ enum AppColors {
 }
 
 // 2. Use tokens everywhere — never raw values
-Text("Hello")
+Text(title)
     .font(AppTypography.body)                           // not .font(.system(size: 16))
     .foregroundStyle(AppColors.primary)                 // not .foregroundStyle(Color.blue)
     .padding(AppSpacing.medium)                         // not .padding(16)
@@ -107,7 +108,7 @@ ContentView()
 
 // Use in views
 @Environment(\.appTheme) private var theme
-Text("Hello").font(theme.typography.body)
+Text(title).font(theme.typography.body)
 ```
 
 **No magic numbers in UI code.** If a numeric value appears in UI, it must be an app-defined design token. For SwiftUI theming patterns see `references/swiftui-patterns.md`.
@@ -118,7 +119,6 @@ Text("Hello").font(theme.typography.body)
 |---|---|---|
 | SwiftUI View | Suffix `View` | `SettingsView`, `UserCardView` |
 | View Model | Suffix `ViewModel` | `SettingsViewModel` |
-| Screen composable | Suffix `View` | `HomeView`, `ProfileView` |
 | UI State | Suffix `ViewState` or `State` | `HomeViewState` |
 | Preview | Prefix `#Preview` | `#Preview { SettingsView() }` |
 
@@ -127,7 +127,8 @@ For general Swift naming conventions (types, functions, properties, booleans, fi
 ## SwiftUI Essentials
 
 ```swift
-// Observable model (Swift 5.9+ / iOS 17+)
+// Observable model (Swift 5.9+ / iOS 17+) — @MainActor because it holds UI state
+@MainActor
 @Observable
 class UserViewModel {
     var user: User?
@@ -168,7 +169,7 @@ For navigation, lists, forms, custom modifiers, and advanced patterns see `refer
 
 ## Apple Concurrency Patterns
 
-For Swift concurrency fundamentals (async/await, actors, TaskGroup, Sendable), see the `swift-development` skill. Below are Apple platform-specific patterns.
+For Swift concurrency fundamentals (async/await, actors, TaskGroup, Sendable), the `swift-development` skill is the primary source; this skill's `references/concurrency.md` restates them with Apple-platform framing and adds `@MainActor` practice, `.task`, Combine-in-SwiftUI, and Swift 6.2 defaults. Below are Apple platform-specific patterns.
 
 ```swift
 // @MainActor for UI-updating code
@@ -194,7 +195,7 @@ For actors, task groups, Sendable patterns, GCD migration, and Combine interop s
 
 **Recommended: MVVM with unidirectional data flow** for new SwiftUI projects. The ViewModel owns the state, the View renders it and sends user actions back. This is the natural pattern for SwiftUI with `@Observable`.
 
-For projects that want stricter unidirectional architecture (similar to MVI on Android), **TCA (The Composable Architecture)** is a well-established alternative — see below.
+For projects that want stricter, redux-style unidirectional architecture, **TCA (The Composable Architecture)** is a well-established alternative — see below.
 
 If the project already uses MVC, MVP, or another architecture — adapt to the existing pattern.
 
@@ -208,7 +209,8 @@ struct HomeViewState {
     var error: String?
 }
 
-// 2. ViewModel — owns state, exposes actions
+// 2. ViewModel — owns state, exposes actions; @MainActor because it holds UI state
+@MainActor
 @Observable
 class HomeViewModel {
     private(set) var state = HomeViewState()
@@ -263,7 +265,7 @@ struct HomeView: View {
 
 ### Rules
 
-- **ViewModel per screen** — each screen has its own `@Observable` ViewModel.
+- **ViewModel per screen** — each screen has its own `@MainActor @Observable` ViewModel.
 - **Single state object** — prefer one `ViewState` struct over scattered `@Published` properties. Easier to test and reason about.
 - **View doesn't mutate state directly** — it calls ViewModel methods which update state.
 - **Inject dependencies** — ViewModel receives protocols via `init`, not concrete types.
@@ -271,7 +273,7 @@ struct HomeView: View {
 
 ### TCA (The Composable Architecture) — Alternative
 
-For teams that prefer a stricter unidirectional architecture (similar to MVI on Android), TCA provides `State` + `Action` + `Reducer` + `Store` with built-in dependency injection, side effect management, and exhaustive testing. It is a third-party framework (Point-Free), well-established and actively maintained in the iOS community.
+For teams that prefer a stricter, redux-style unidirectional architecture, TCA provides `State` + `Action` + `Reducer` + `Store` with built-in dependency injection, side effect management, and exhaustive testing. It is a third-party framework (Point-Free), well-established and actively maintained in the iOS community.
 
 ```swift
 // TCA pattern (requires swift-composable-architecture package)

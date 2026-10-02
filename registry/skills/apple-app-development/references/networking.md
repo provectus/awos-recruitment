@@ -2,6 +2,13 @@
 
 Comprehensive guide to networking on Apple platforms. URLSession is the foundation — use it by default. Alamofire is an optional convenience layer for complex scenarios (interceptors, retry, certificate pinning). Both can coexist in the same project.
 
+## Contents
+- When to Use Which
+- URLSession — Foundation (Simple Data Fetch (async/await), API Client Pattern, Session Configuration, Uploads, Downloads, Streaming Bytes, …)
+- Alamofire — Convenience Layer (Setup, Basic Requests, RequestInterceptor (Token Refresh), Automatic Retry, Certificate Pinning, Multipart Upload, …)
+- Shared Patterns (Error Types, JSON Decoding Configuration, Pagination Pattern, Testable Networking)
+- Common Pitfalls
+
 ## When to Use Which
 
 | Scenario | Recommendation |
@@ -22,7 +29,6 @@ Comprehensive guide to networking on Apple platforms. URLSession is the foundati
 ## URLSession — Foundation
 
 ### Simple Data Fetch (async/await)
----
 
 ```swift
 // One-liner with shared session
@@ -58,7 +64,6 @@ func fetch<T: Decodable>(_ type: T.Type, from url: URL) async throws -> T {
 ```
 
 ### API Client Pattern
----
 
 A reusable, protocol-based networking layer:
 
@@ -137,7 +142,6 @@ final class URLSessionAPIClient: APIClient, @unchecked Sendable {
 ```
 
 ### Session Configuration
----
 
 ```swift
 // Default — disk caching, cookies, credentials
@@ -175,7 +179,6 @@ let session = URLSession(configuration: config)
 ```
 
 ### Uploads
----
 
 #### JSON Body
 
@@ -235,7 +238,6 @@ func createMultipartRequest(url: URL, fileData: Data, fileName: String,
 ```
 
 ### Downloads
----
 
 #### Simple Download
 
@@ -310,7 +312,6 @@ if let resumeData = savedResumeData {
 ```
 
 ### Streaming Bytes
----
 
 ```swift
 let (bytes, response) = try await URLSession.shared.bytes(from: url)
@@ -321,7 +322,6 @@ for try await line in bytes.lines {
 ```
 
 ### WebSocket
----
 
 ```swift
 let task = URLSession.shared.webSocketTask(with: URL(string: "wss://example.com/ws")!)
@@ -352,7 +352,6 @@ task.cancel(with: .normalClosure, reason: nil)
 ```
 
 ### Authentication Challenges
----
 
 #### Server Trust (SSL/TLS Validation)
 
@@ -389,7 +388,6 @@ func urlSession(_ session: URLSession, task: URLSessionTask,
 ```
 
 ### Auth Token Injection (URLSession-only approach)
----
 
 ```swift
 actor TokenManager {
@@ -428,7 +426,6 @@ func authorizedRequest(_ endpoint: Endpoint) async throws -> URLRequest {
 ```
 
 ### Caching
----
 
 ```swift
 // Configure cache
@@ -452,7 +449,6 @@ request.cachePolicy = .reloadIgnoringLocalCacheData  // Skip cache
 | `.returnCacheDataDontLoad` | Cache only — fail if not cached |
 
 ### Network Reachability
----
 
 Use `NWPathMonitor` (Network framework) instead of deprecated `SCNetworkReachability`:
 
@@ -494,7 +490,6 @@ Add Alamofire when you need interceptors, automatic retry, or cleaner certificat
 ```
 
 ### Basic Requests
----
 
 ```swift
 import Alamofire
@@ -518,7 +513,6 @@ let newUser: User = try await AF.request(
 ```
 
 ### RequestInterceptor (Token Refresh)
----
 
 The primary reason to adopt Alamofire — automatic token injection and refresh:
 
@@ -563,7 +557,6 @@ let session = Session(interceptor: AuthInterceptor(tokenManager: tokenManager))
 ```
 
 ### Automatic Retry
----
 
 ```swift
 // Built-in retry policy with exponential backoff
@@ -583,7 +576,6 @@ let session = Session(interceptor: retryPolicy)
 ```
 
 ### Certificate Pinning
----
 
 ```swift
 let evaluators: [String: ServerTrustEvaluating] = [
@@ -597,7 +589,6 @@ let session = Session(serverTrustManager: manager)
 ```
 
 ### Multipart Upload
----
 
 ```swift
 let response = try await AF.upload(
@@ -614,7 +605,6 @@ let response = try await AF.upload(
 ```
 
 ### Download with Progress
----
 
 ```swift
 let destination: DownloadRequest.Destination = { _, _ in
@@ -634,7 +624,6 @@ AF.download("https://example.com/large-file.pdf", to: destination)
 ```
 
 ### Event Monitor (Logging)
----
 
 ```swift
 let monitor = ClosureEventMonitor()
@@ -646,7 +635,6 @@ let session = Session(eventMonitors: [monitor])
 ```
 
 ### Coexisting with URLSession
----
 
 Alamofire's `Session` wraps a `URLSession`. You can use both in the same project:
 
@@ -665,7 +653,6 @@ Common pattern: Alamofire for authenticated API layer, raw URLSession for backgr
 ## Shared Patterns
 
 ### Error Types
----
 
 ```swift
 enum NetworkError: LocalizedError {
@@ -699,7 +686,6 @@ enum NetworkError: LocalizedError {
 ```
 
 ### JSON Decoding Configuration
----
 
 ```swift
 let decoder = JSONDecoder()
@@ -718,7 +704,6 @@ decoder.dateDecodingStrategy = .custom { decoder in
 ```
 
 ### Pagination Pattern
----
 
 ```swift
 struct PagedResponse<T: Decodable>: Decodable {
@@ -748,7 +733,6 @@ func fetchAll<T: Decodable>(endpoint: String, type: T.Type) -> AsyncStream<[T]> 
 ```
 
 ### Testable Networking
----
 
 Abstract behind a protocol for testing:
 
