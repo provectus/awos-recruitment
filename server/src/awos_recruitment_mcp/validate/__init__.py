@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 import frontmatter
 import yaml
@@ -14,6 +15,11 @@ from awos_recruitment_mcp.models import (
     HookMetadata,
     McpDefinition,
     SkillMetadata,
+)
+from awos_recruitment_mcp.validate.quality import (
+    check_description,
+    check_description_yaml_comment,
+    check_skill_quality,
 )
 
 # Top-level entries permitted inside a skill directory. Kept in lockstep with
@@ -51,11 +57,19 @@ class ValidationError:
         file: Relative path to the file with the problem.
         field: Name of the problematic field, or ``None`` for file-level issues.
         message: Human-readable description of the problem.
+        severity: ``"error"`` fails validation; ``"warning"`` is reported but
+            only fails under ``--strict``.
+        rule: Stable id of the quality rule that fired, or ``None`` for
+            schema and layout checks.
+        line: 1-based line in *file*, when the problem has one.
     """
 
     file: str
     field: str | None
     message: str
+    severity: Literal["error", "warning"] = "error"
+    rule: str | None = None
+    line: int | None = None
 
 
 @dataclass(slots=True)
@@ -64,13 +78,15 @@ class ValidationResult:
 
     Attributes:
         file: Relative path to the validated file.
-        valid: ``True`` when no errors were found.
+        valid: ``True`` when no errors were found. Warnings do not affect it.
         errors: List of individual validation errors (empty when valid).
+        warnings: Quality findings that are reported but do not block.
     """
 
     file: str
     valid: bool
     errors: list[ValidationError] = field(default_factory=list[ValidationError])
+    warnings: list[ValidationError] = field(default_factory=list[ValidationError])
 
 
 def validate_skills(registry_path: Path) -> list[ValidationResult]:
@@ -258,11 +274,33 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                             )
                         )
 
+        # Quality rules from Anthropic's skill-authoring guide. Hard limits
+        # become errors; style guidance becomes warnings (see quality.py).
+        warnings: list[ValidationError] = []
+        skill_root = str(entry.relative_to(registry_path))
+        issues = check_description_yaml_comment(
+            skill_md.read_text(encoding="utf-8"), "SKILL.md"
+        )
+        issues += check_description(metadata.get("description"))
+        if post.content.strip():
+            issues += check_skill_quality(entry, post.content)
+        for issue in issues:
+            finding = ValidationError(
+                file=f"{skill_root}/{issue.file}",
+                field="description" if issue.rule.startswith("description") else None,
+                message=issue.message,
+                severity=issue.severity,
+                rule=issue.rule,
+                line=issue.line,
+            )
+            (errors if issue.severity == "error" else warnings).append(finding)
+
         results.append(
             ValidationResult(
                 file=relative_path,
                 valid=len(errors) == 0,
                 errors=errors,
+                warnings=warnings,
             )
         )
 
@@ -425,6 +463,22 @@ def validate_agents(registry_path: Path) -> list[ValidationResult]:
                     )
                 )
 
+        # The model only sees the parsed value, so a description YAML cut at
+        # ' #' passes it; check the raw front matter too.
+        for issue in check_description_yaml_comment(
+            md_file.read_text(encoding="utf-8"), relative_path
+        ):
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="description",
+                    message=issue.message,
+                    severity=issue.severity,
+                    rule=issue.rule,
+                    line=issue.line,
+                )
+            )
+
         # Ensure the filename stem matches the metadata name.
         meta_name = metadata.get("name")
         if meta_name is not None and md_file.stem != meta_name:
@@ -463,6 +517,7 @@ def validate_agents(registry_path: Path) -> list[ValidationResult]:
                                 f"Referenced skill '{skill_name}' not found "
                                 f"in registry skills directory"
                             ),
+                            rule="agent-skill-exists",
                         )
                     )
 
