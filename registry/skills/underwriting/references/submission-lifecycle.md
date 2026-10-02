@@ -1,5 +1,16 @@
 # Submission Lifecycle — Detailed Pipeline Design
 
+## Contents
+- Stage 1: Email Ingestion (pipeline nodes, outputs, events)
+- Stage 2: Triage (classification, two-stage confidence, routing, HITL resolution)
+- Stage 3: Wave 1 — Fast Gate (sequential checks, gate decision)
+- Stage 4: Wave 2 — Deep Processing (extraction, enrichment, compliance, decision package)
+- Event Catalog Pattern
+- Orchestration Pattern
+
+Confidence percentages, timeouts and cost targets in this file are
+illustrative starting defaults; tune them per LoB via policy packs.
+
 ## Stage 1: Email Ingestion
 
 **Trigger**: Email arrives at submission inbox (Gmail API, Exchange, or portal upload).
@@ -159,7 +170,11 @@ preparation. Only reached by submissions that passed Wave 1.
 ### C. Compliance (parallel with enrichment, some gates blocking)
 
 8. **Asset-Level Sanctions Screening** — Screen all extracted entities against
-   sanctions lists using the 3-gate escalation pattern (see compliance-and-hitl.md).
+   sanctions lists using the 3-gate escalation pattern: cheap exact-match
+   watchlist lookup, then fuzzy/alias screening, then a blocking human
+   compliance review (detailed in the "Sanctions Screening — 3-Gate
+   Escalation" section of `references/compliance-and-hitl.md`, linked from
+   SKILL.md).
 9. **Company Sanctions Check** — Same pattern for insured company entity.
 10. **Advanced Licensing & Clearance** — Re-run with full extracted data
     (Wave 1 used preliminary data). Cache results to avoid duplicate API calls.

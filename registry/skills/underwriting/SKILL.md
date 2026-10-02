@@ -9,6 +9,7 @@ description: >-
   traceability requirements. Use when designing or implementing underwriting
   pipelines, extraction agents, compliance workflows, HITL review systems,
   or decision package assembly for insurance or MGA operations.
+user-invocable: false
 ---
 
 # Underwriting Domain Knowledge
@@ -16,6 +17,16 @@ description: >-
 This skill provides domain knowledge for building automated underwriting
 systems in insurance. It covers the business logic, decision criteria, and
 regulatory patterns that engineering teams need to implement correctly.
+
+Two scoping notes apply to everything below and in the reference files:
+
+- **Jurisdiction**: regulatory references (PRA, FCA, Lloyd's, the MLRO role,
+  the named sanctions lists) assume the UK/Lloyd's market. Adapt regulator
+  names, sanctions lists and compliance roles to the carrier's jurisdiction.
+- **Numeric thresholds** (confidence cut-offs, cost targets, HITL rates,
+  timeouts, ECE alerts) are illustrative starting defaults, not regulatory
+  requirements. Tune them per line of business via policy packs and treat
+  them as configuration, not constants, in any spec you write.
 
 ## Submission-to-Bind Lifecycle
 
@@ -58,7 +69,8 @@ Ingestion → Triage → Assessment → Quoting → Binding → Issuance
 
 Structure pipelines to minimise cost-to-decline. Run inexpensive checks
 (API lookups, business rules) before costly ones (LLM extraction, external
-enrichment, compliance screening). Target cost breakdown:
+enrichment, compliance screening). Illustrative target cost breakdown
+(recalibrate against current model and API pricing):
 
 | Stage | Target Cost | Primary Cost Drivers |
 |-------|------------|---------------------|
@@ -106,7 +118,8 @@ different extraction requirements and field criticality.
 ### Field Criticality Tiers
 
 Every extracted field has a criticality tier that determines its confidence
-threshold and HITL routing:
+threshold and HITL routing. The thresholds below are illustrative starting
+defaults; tune them per LoB via policy packs:
 
 | Criticality | Threshold | Examples | HITL Policy |
 |------------|-----------|----------|-------------|
@@ -160,9 +173,10 @@ Every AI-extracted field **must** link to its source via evidence coordinates:
 }
 ```
 
-This is not optional. Regulatory audit requirements (PRA, FCA, Lloyd's)
-demand that every AI-produced output be traceable to its source document.
-Evidence coordinates enable:
+This is not optional. Regulatory audit expectations (in the UK market: PRA,
+FCA and Lloyd's; the equivalent supervisors elsewhere) demand that every
+AI-produced output be traceable to its source document. Evidence coordinates
+enable:
 - Underwriter verification (click-to-source)
 - Audit trail completeness
 - Confidence calibration feedback loops
@@ -196,18 +210,14 @@ Regulated underwriting requires multiple compliance checkpoints. These are
 
 ### Sanctions Screening
 
-Use a tiered escalation pattern to optimise cost:
-
-1. **Basic watchlist check** (~$0.01) — quick lookup against primary lists.
-   Clear result → proceed. Flag → escalate.
-2. **Enhanced screening** (~$0.50) — fuzzy matching, alias detection,
-   related entity analysis. Clear → proceed. Flag → escalate.
-3. **Full compliance review** (~$5.00 + human) — comprehensive screening
-   with mandatory human review. This is a **blocking HITL gate**.
-
-Screen all entities: insured company, key persons, asset locations, beneficial
-owners. Re-screen in Wave 2 with full extracted data even if Wave 1 cleared
-(Wave 1 used limited data).
+Screen every extracted entity (insured company, key persons, beneficial
+owners, asset locations) through a cost-tiered three-gate escalation: a cheap
+exact-match watchlist check, then fuzzy/alias screening, then a **blocking**
+human compliance review. Re-screen in Wave 2 with full extracted data even if
+Wave 1 cleared, because Wave 1 ran on limited data. Gate-by-gate costs, human
+actions, and the partial-coverage pattern for sanctioned assets are in the
+"Sanctions Screening — 3-Gate Escalation" section of
+`references/compliance-and-hitl.md`.
 
 ### Licensing and Clearance
 
@@ -236,7 +246,9 @@ automation. Three patterns, each for different scenarios:
 Agent creates a review task, continues other work or pauses. Human completes
 the task within an SLA window. Agent resumes with human input.
 - **Use for**: Extraction review, disambiguation, broker queries, identity review.
-- **Timeout**: Configurable per gate (typically 30 min to 4 hours).
+- **Timeout**: Configurable per gate. Illustrative defaults run from 30 min
+  for a triage review (the worked example in
+  `references/submission-lifecycle.md`) to a few hours for extraction review.
 
 ### Pattern 2: Blocking (Compliance-Critical)
 Agent halts completely until human explicitly clears. No progress on any
@@ -266,39 +278,21 @@ decisions during a scheduled review window.
 
 ## Confidence Calibration
 
-Raw LLM confidence is unreliable. Use a two-stage hybrid approach:
-
-### Stage 1: Business Rules (Deterministic)
-Apply deterministic rules to classify outputs into confidence tiers:
-
-- **High Confidence** (auto-proceed): Known document type + known broker +
-  standard field + exact match + good OCR quality + historical accuracy > 98%.
-- **Low Confidence** (always HITL): Financial field above threshold, or
-  contract-critical field, or poor OCR, or ambiguous source, or exclusion
-  language, or sanctions fuzzy match.
-- **Medium Confidence** (needs Stage 2): Everything else.
-
-### Stage 2: Self-Consistency Sampling (Statistical)
-For Medium Confidence outputs, run the extraction N times (default 5) at
-temperature > 0 and measure agreement:
-
-| Agreement | Confidence | Routing |
-|-----------|-----------|---------|
-| >= 80% | High | Auto-proceed + audit sample |
-| 60-79% | Medium | Junior reviewer queue |
-| 40-59% | Low | Senior reviewer queue |
-| < 40% | Very Low | Specialist review |
-
-### Monitoring: Expected Calibration Error (ECE)
-Track whether confidence predictions match actual accuracy. A system
-predicting 80% confidence should be correct ~80% of the time. Alert when
-ECE exceeds 0.08 (warning) or 0.10 (critical). Auto-tighten thresholds
-on critical ECE breach.
+Raw LLM confidence is unreliable. Use a two-stage hybrid: deterministic
+business rules first (any Low-confidence trigger wins and routes to HITL;
+High requires every condition to hold; everything else is Medium), then
+self-consistency sampling for Medium outputs only — run the extraction N
+times at temperature > 0 and map the agreement rate to a confidence band.
+Monitor calibration with Expected Calibration Error (a system predicting 80%
+confidence should be right ~80% of the time) and auto-tighten thresholds on a
+critical breach. The rule lists, sampling pseudocode, agreement-to-band table,
+ECE formula and alert thresholds are in the "Confidence Calibration Details"
+section of `references/compliance-and-hitl.md`.
 
 ## Operating Mode Progression
 
 Introduce automation gradually through five operating modes, managed
-**per workflow type** (not globally):
+**per workflow type** (not globally). HITL rates are illustrative targets:
 
 | Mode | HITL Rate | Behaviour |
 |------|-----------|-----------|
@@ -308,12 +302,15 @@ Introduce automation gradually through five operating modes, managed
 | **Selective** | 5-15% | AI handles routine cases. Exceptions route to human. |
 | **Automated** | < 5% | Full automation. Human involvement only for policy-gated exceptions. |
 
-### Transition Requirements
-- **Manual → Shadow**: Admin approval, agent deployed and tested.
-- **Shadow → Assisted**: N validated shadow outcomes (configurable, default 50)
-  showing AI/human agreement. Dual admin approval.
-- Each transition is recorded in an immutable audit ledger.
-- Firebreak controls can force any workflow back to Manual at any time.
+### Transitions and Firebreaks
+
+Every mode transition needs explicit admin approval plus evidence (for
+example a configurable number of validated shadow outcomes before Shadow →
+Assisted) and is recorded in an immutable audit ledger. Firebreak controls
+can force any workflow back to Manual at any time, and lifting a firebreak
+never auto-restores the previous mode. The per-transition requirements and
+the four firebreak levels are in the "Operating Mode Transitions" and
+"Firebreak Controls" sections of `references/compliance-and-hitl.md`.
 
 ## Underwriting Decision Package
 
@@ -357,4 +354,5 @@ and confidence thresholds. Design systems to be **LoB-configurable**:
 - `references/submission-lifecycle.md` — Detailed stage-by-stage pipeline design
   with decision logic, event patterns, and cost targets
 - `references/compliance-and-hitl.md` — Sanctions screening escalation, HITL gate
-  inventory, confidence calibration details, automation bias safeguards
+  inventory, confidence calibration details, automation bias safeguards,
+  operating mode transitions, firebreak controls
