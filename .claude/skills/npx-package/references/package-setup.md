@@ -1,5 +1,18 @@
 # npx Package Setup Reference
 
+## Contents
+
+- [Complete package.json](#complete-packagejson) — full manifest for a CLI that also exports a library
+- [Key Fields Explained](#key-fields-explained) — `bin`, `files`, `exports`, `engines`
+- [Scoped Packages](#scoped-packages) — `@scope/name` and `--access public`
+- [Bundling with tsup](#bundling-with-tsup) — single-file builds, shebang via `banner`
+- [Dual CJS/ESM Support](#dual-cjsesm-support) — conditional `exports` for `require` and `import`
+- [CI/CD Publishing](#cicd-publishing) — GitHub Actions workflow, npm provenance
+- [Version Management](#version-management) — `npm version`, pre-release tags
+- [.npmignore vs files](#npmignore-vs-files) — why the whitelist wins
+- [Verifying the Package](#verifying-the-package) — `npm pack --dry-run`
+- [Post-Publish Testing](#post-publish-testing) — smoke-testing the published package with npx
+
 ## Complete package.json
 
 ```json

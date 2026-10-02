@@ -1,6 +1,6 @@
 ---
-name: npx Package Development
-description: This skill should be used when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx. Covers package structure, TypeScript configuration, argument parsing, build pipeline, and npm publishing.
+name: npx-package
+description: Provides patterns for building TypeScript CLI tools distributed via npx - package structure, the bin entry point and shebang, ESM-ready tsconfig, argument parsing, output and exit codes, local testing, and npm publishing. Use when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", or "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx.
 version: 0.1.0
 ---
 
