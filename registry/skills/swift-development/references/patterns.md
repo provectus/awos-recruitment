@@ -1136,11 +1136,13 @@ actor ServiceContainer {
 
 ### Testing with fakes
 
+Fakes that record calls need reference semantics: the test must observe state after the service has used the fake. A `struct` fake would be copied into the service, and `mutating` methods cannot satisfy the non-mutating protocol requirements anyway. Since the protocols are `Sendable`, an `actor` is the natural fit — it is both shareable and data-race safe.
+
 ```swift
-struct InMemoryUserRepository: UserRepository {
+actor InMemoryUserRepository: UserRepository {
     private var storage: [UUID: User] = [:]
 
-    mutating func save(_ user: User) async throws {
+    func save(_ user: User) async throws {
         storage[user.id] = user
     }
 
@@ -1152,10 +1154,10 @@ struct InMemoryUserRepository: UserRepository {
     }
 }
 
-struct FakeEmailService: EmailService {
-    var sentEmails: [(to: String, subject: String, body: String)] = []
+actor FakeEmailService: EmailService {
+    private(set) var sentEmails: [(to: String, subject: String, body: String)] = []
 
-    mutating func send(to: String, subject: String, body: String) async throws {
+    func send(to: String, subject: String, body: String) async throws {
         sentEmails.append((to, subject, body))
     }
 }
@@ -1165,15 +1167,16 @@ import Testing
 
 @Test("Registers user and sends welcome email")
 func registerUser() async throws {
-    var emailService = FakeEmailService()
-    var repo = InMemoryUserRepository()
+    let emailService = FakeEmailService()
+    let repo = InMemoryUserRepository()
     let service = UserService(repository: repo, emailService: emailService)
 
     let user = try await service.register(name: "Alice", email: "alice@example.com")
 
     #expect(user.name == "Alice")
-    #expect(emailService.sentEmails.count == 1)
-    #expect(emailService.sentEmails.first?.to == "alice@example.com")
+    let sent = await emailService.sentEmails   // actor state — read with await
+    #expect(sent.count == 1)
+    #expect(sent.first?.to == "alice@example.com")
 }
 ```
 
