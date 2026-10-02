@@ -1,5 +1,15 @@
 # TypeScript Project Structure Reference
 
+## Contents
+
+- [tsconfig.json Essentials](#tsconfigjson-essentials) — strict mode, base config, extra safety flags
+- [Module Configuration](#module-configuration) — ESM and CJS setup
+- [Directory Layout](#directory-layout) — standard layout, organizing types, barrel exports
+- [Declaration Files](#declaration-files) — when to emit, custom `.d.ts`
+- [Import Organization](#import-organization) — import order, type-only imports
+- [Path Aliases](#path-aliases) — setup and the runtime caveat
+- [Gitignore for TypeScript Projects](#gitignore-for-typescript-projects)
+
 ## tsconfig.json Essentials
 
 ### Strict mode (non-negotiable)
@@ -93,15 +103,9 @@ In `tsconfig.json`:
 }
 ```
 
-**Critical rule:** All relative imports must include the `.js` extension (even in `.ts` source):
-
-```typescript
-// Correct
-import { helper } from "./utils.js";
-
-// Wrong — fails at runtime with ESM
-import { helper } from "./utils";
-```
+This is what activates the `.js`-extension rule in SKILL.md: under `Node16`, every relative
+import needs the `.js` suffix even in `.ts` source, because the emitted specifier is passed
+to the Node ESM resolver unchanged and Node does no extension guessing.
 
 ### CJS setup (legacy)
 

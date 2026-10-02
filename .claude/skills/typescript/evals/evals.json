@@ -1,0 +1,60 @@
+{
+  "skill_name": "typescript",
+  "note": "Shared eval set for this skill and its registry twin registry/skills/typescript-development. It lives only in the .claude copy because the registry validator's layout allow-list (server/src/awos_recruitment_mcp/validate/__init__.py, _ALLOWED_SKILL_DIRS) permits only references/ and scripts/ inside a registry skill directory. Run these after any change to the description or to the rules in SKILL.md.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "unknown-over-any-on-untrusted-input",
+      "prompt": "I've got a webhook handler in src/webhook.ts that takes the raw parsed JSON body and pulls out an `eventName` string and a `retryCount` number. Right now the body param is typed `any` and it's leaking everywhere downstream. Can you rewrite it so it's actually type safe?",
+      "expected_output": "A handler whose input is typed `unknown` (not `any`), narrowed with an explicit type guard or assertion predicate before any property access, with an explicit return type, and an error path that throws or returns a typed Result rather than returning a partially-typed object.",
+      "should_trigger": true,
+      "assertions": [
+        "The parameter is typed `unknown`, not `any`",
+        "Property access happens only after a type guard / `in` check / typeof narrowing",
+        "The exported function has an explicit return type annotation",
+        "No `as any` or unexplained `as` assertion is introduced"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "discriminated-union-over-optional-props",
+      "prompt": "This is getting out of hand — our upload state is one interface with `isLoading?`, `data?`, `error?` and `progress?` all optional, and every consumer has to null-check four fields in combinations that can't actually happen. There are four real states: nothing started, uploading with a percentage, finished with a file URL, failed with an error. Can you model this properly in TypeScript?",
+      "expected_output": "A discriminated union with a shared literal discriminant (e.g. `status`), one member per real state carrying only the data valid for that state, plus a consumer that switches on the discriminant and closes with an exhaustive `never` check.",
+      "should_trigger": true,
+      "assertions": [
+        "A discriminated union with a shared literal discriminant replaces the optional-property interface",
+        "Each member carries only the fields valid in that state (no optional data/error on every member)",
+        "A consumer switches on the discriminant",
+        "An exhaustiveness check via `never` (assertNever or `const _x: never = state`) is present"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "strict-esm-node-project-setup",
+      "prompt": "Starting a small Node 20 library from scratch, publishing as ESM only. Need a tsconfig and the initial src layout. I want the compiler as strict as it'll reasonably go — I'd rather fight it now than debug undefined at 2am.",
+      "expected_output": "A tsconfig with `strict: true` (not individual flags), `module`/`moduleResolution` set to Node16 or NodeNext, `declaration: true` for a library, and the extra safety flags such as `noUncheckedIndexedAccess`; `\"type\": \"module\"` in package.json; and relative imports written with the `.js` extension in `.ts` source.",
+      "should_trigger": true,
+      "assertions": [
+        "tsconfig sets `strict: true` rather than enabling individual strict flags",
+        "`module` and `moduleResolution` are Node16 or NodeNext",
+        "`declaration: true` is set (library consumed by other TypeScript)",
+        "At least one extra safety flag such as `noUncheckedIndexedAccess` is suggested",
+        "Any relative import shown in .ts source carries the `.js` extension"
+      ]
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "prompt": "The types in our React components are a mess — can you convert these class components in src/components/ to function components with hooks?",
+      "why": "Framework-specific work; react-best-practices / react-feature-sliced-design own this, not the language-level skill."
+    },
+    {
+      "prompt": "Write me a quick Node script that renames every .jpeg in ~/Photos to .jpg. Plain JS is fine, don't bother with types.",
+      "why": "JavaScript, explicitly no TypeScript."
+    },
+    {
+      "prompt": "Our DynamoDB single-table design has a hot partition on the GSI1PK. How should I reshape the key schema?",
+      "why": "Data modelling question; aws-dynamodb-best-practices owns it even though the SDK calls are written in TypeScript."
+    }
+  ]
+}
