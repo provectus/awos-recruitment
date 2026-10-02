@@ -1,12 +1,12 @@
 ---
 name: kotlin-development
-description: "This skill should be used when the user asks to \"write Kotlin code\", \"create a Kotlin class\", \"set up a Kotlin project\", \"review Kotlin code\", \"refactor Kotlin\", \"use coroutines\", \"fix Kotlin style\", \"set up Detekt\", \"configure ktlint\", \"add static analysis\", \"set up code linting\", or when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices covering null safety, coroutines, data modeling, error handling, idiomatic patterns, and static analysis (Detekt, ktlint). Does not cover any specific library or framework."
+description: "This skill should be used when the user asks to \"write Kotlin code\", \"create a Kotlin class\", \"set up a Kotlin project\", \"review Kotlin code\", \"refactor Kotlin\", \"use Kotlin coroutines\", \"fix Kotlin style\", \"set up Detekt\", \"configure ktlint\", \"add static analysis to a Kotlin project\", \"set up Kotlin linting (Detekt, ktlint)\", or when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices covering null safety, coroutines, data modeling, error handling, idiomatic patterns, and static analysis (Detekt, ktlint). Covers the language and stdlib only; the one framework-specific part is an optional Android/Compose lint section."
 version: 0.1.0
 ---
 
 # Kotlin Development (2.1+)
 
-Modern Kotlin best practices for writing concise, safe, and idiomatic code. Targets Kotlin 2.1+ on the JVM — language and stdlib only, no frameworks or libraries.
+Modern Kotlin best practices for writing concise, safe, and idiomatic code. Targets Kotlin 2.1+ on the JVM — language and stdlib only, no frameworks or libraries. The lint configuration is target-neutral; Android/Compose settings live in one clearly marked section of `references/static-analysis.md` and apply only when the project uses them.
 
 ## Reference Files
 
@@ -14,11 +14,11 @@ Modern Kotlin best practices for writing concise, safe, and idiomatic code. Targ
 - **`references/patterns.md`** — Scope functions, sealed hierarchies, delegation, extensions, DSL builders, domain modeling, error handling guide
 - **`references/coroutines.md`** — Flow, StateFlow/SharedFlow, Channels, exception handling, cancellation, testing
 - **`references/project-structure.md`** — `build.gradle.kts`, multi-module, compiler options, testing setup
-- **`references/static-analysis.md`** — Detekt (setup, `detekt.yml`, rule sets, custom rules, baseline, Compose rules), ktlint (setup, `.editorconfig`, standard rules, Spotless), Detekt vs ktlint comparison, multi-module convention plugin, pre-commit hooks
+- **`references/static-analysis.md`** — Detekt (setup, `detekt.yml`, rule sets, custom rules, baseline), ktlint (setup, `.editorconfig`, standard rules, Spotless), Detekt vs ktlint comparison, multi-module convention plugin, pre-commit hooks, Android/Compose additions (optional)
 
 ## Code Style
 
-- **Short functions** — target under 15 lines. If a block needs a comment to explain it, extract it into a well-named function.
+- **Short functions** — keep each function readable without scrolling. If a block needs a comment to explain it, extract it into a well-named function. The Detekt config in `references/static-analysis.md` enforces `LongMethod` at 60 lines as the hard ceiling; aim well below it.
 - **Imports at the top** — never use inline fully-qualified types (`java.time.LocalDateTime`) in the code body. Use import aliases for naming conflicts. No wildcard imports.
 
 ## Naming Conventions
@@ -42,7 +42,7 @@ val name: String? = findUser()?.name   // safe call
 val length = name?.length ?: 0          // elvis — default for null
 ```
 
-NEVER use `!!` to silence the compiler — it crashes at runtime. Acceptable only with a provable invariant and a comment explaining why.
+Never use `!!` to silence the compiler — it crashes at runtime. Acceptable only with a provable invariant and a comment explaining why.
 
 ### Safe patterns
 
@@ -74,7 +74,7 @@ For generics (`in`/`out` variance, star projection, reified types), type aliases
 data class User(val id: String, val name: String, val email: String)
 ```
 
-MUST use `val` properties. ALWAYS prefer data classes over `Map<String, Any>` — maps lose type safety, autocompletion, and refactoring support.
+Use `val` properties — change state with `copy()`. Prefer data classes over `Map<String, Any>`; maps lose type safety, autocompletion, and refactoring support.
 
 ### `sealed class` / `sealed interface` — restricted hierarchies
 
@@ -113,8 +113,8 @@ open class AppException(message: String, cause: Throwable? = null) : RuntimeExce
 class ValidationException(message: String) : AppException(message)
 class NotFoundException(message: String) : AppException(message)
 
-// runCatching for functional error handling
-val name = runCatching { fetchUser(id) }.map { it.name }.getOrDefault("Unknown")
+// runCatching — non-suspending code only (see the coroutines rule below)
+val port = runCatching { config.getValue("port").toInt() }.getOrDefault(8080)
 
 // Sealed result for expected business outcomes
 sealed interface FetchResult {
@@ -125,9 +125,10 @@ sealed interface FetchResult {
 ```
 
 Rules:
-- ALWAYS use `require()` for argument validation, `check()` for state validation.
-- MUST catch the narrowest exception. NEVER catch `Throwable` unless re-throwing.
+- Use `require()` for argument validation, `check()` for state validation.
+- Catch the narrowest exception that you can handle. Don't catch `Throwable` unless re-throwing — it hides `OutOfMemoryError` and cancellation.
 - Prefer sealed hierarchies over exceptions for expected outcomes.
+- In `suspend` functions use `try/catch` and rethrow `CancellationException` first; `runCatching` catches `Throwable`, so it swallows cancellation too. Keep it for non-suspending code.
 - See `references/patterns.md` for the full error handling decision guide.
 
 ## Coroutines Essentials
@@ -143,10 +144,10 @@ suspend fun loadDashboard(): Dashboard = coroutineScope {
 ```
 
 Rules:
-- MUST use structured concurrency — NEVER use `GlobalScope`.
+- Use structured concurrency; don't use `GlobalScope` — it leaks coroutines that nothing cancels.
 - `coroutineScope` when all must succeed; `supervisorScope` when partial failure is OK.
 - `launch` for fire-and-forget; `async` when you need the result.
-- NEVER swallow `CancellationException` — ALWAYS rethrow it.
+- Rethrow `CancellationException` from every catch block — swallowing it breaks structured concurrency (worked example in `references/coroutines.md`).
 - Use `withContext(Dispatchers.IO)` for blocking I/O; `Dispatchers.Default` for CPU work.
 
 For Flow, Channels, exception handling, cancellation patterns, timeouts, and testing, see `references/coroutines.md`.
@@ -177,18 +178,7 @@ For `build.gradle.kts` config, multi-module setup, compiler options, and testing
 - `Sequence` for lazy evaluation of large collections.
 - `use` for auto-closeable resource management.
 - Collection operations over loops: `users.filter { it.age >= 18 }.map { it.name }`
-
-### Scope functions quick reference
-
-| Function | Receiver | Returns | Use for |
-|---|---|---|---|
-| `apply` | `this` | receiver | Object configuration |
-| `let` | `it` | lambda result | Nullable transforms, scoping |
-| `run` | `this` | lambda result | Object computation |
-| `also` | `it` | receiver | Side effects |
-| `with` | `this` | lambda result | Grouping calls |
-
-For the complete decision guide, see `references/patterns.md`.
+- Scope functions (`let`, `run`, `with`, `apply`, `also`): pick by what the lambda should return and whether the object is `this` or `it`; don't nest them. Decision table in `references/patterns.md`.
 
 ## Testable Design
 
@@ -206,13 +196,12 @@ For full patterns, see `references/patterns.md`.
 | Using `!!` to silence nullability | Use `?.`, `?:`, `let`, or redesign to be non-null |
 | Platform types without annotation | Add explicit nullability at Java boundaries |
 | `var` in data classes | Use `val` — copy with `copy()` |
-| Catching `Throwable` | Catch specific exceptions; rethrow `CancellationException` |
-| `GlobalScope.launch` | Use structured concurrency |
+| Catching `Throwable` | Catch specific exceptions |
 | Mutable collections in public API | Expose `List`, not `MutableList`; backing property pattern |
 | Inline fully-qualified types | Import at top; use aliases for conflicts |
 | `Map<String, Any>` as data holder | Define a `data class` |
 | `Double` for money | `BigDecimal` with `MathContext`, or `Long` (cents) |
-| Long functions (>15 lines) | Extract named private functions |
+| Long functions (Detekt `LongMethod` fires at 60 lines) | Extract named private functions |
 | Hard-coded dependencies | Constructor injection; depend on interfaces |
 | `when` without exhaustive check | Use sealed types or add `else` branch |
 

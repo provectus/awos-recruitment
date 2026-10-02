@@ -99,11 +99,12 @@ Inline functions can access type information at runtime:
 ```kotlin
 inline fun <reified T> isInstance(value: Any): Boolean = value is T
 
-inline fun <reified T> Gson.fromJson(json: String): T =
-    fromJson(json, T::class.java)
+inline fun <reified T : Any> Iterable<*>.firstOfType(): T? =
+    firstOrNull { it is T } as T?
 
 // Usage
-val isString = isInstance<String>("hello")  // true
+val isString = isInstance<String>("hello")           // true
+val firstInt = listOf("a", 1, 2.0).firstOfType<Int>() // 1
 ```
 
 `reified` only works with `inline` functions. Use it to avoid passing `Class<T>` or `KClass<T>` explicitly.
