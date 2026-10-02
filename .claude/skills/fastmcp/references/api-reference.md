@@ -1,5 +1,16 @@
 # FastMCP API Reference
 
+## Contents
+
+- [FastMCP Constructor](#fastmcp-constructor) — constructor parameters
+- [Tool Decorator](#tool-decorator) — options, parameter types, sync vs async
+- [Resource Decorator](#resource-decorator) — static URIs, MIME types, templates
+- [Prompt Decorator](#prompt-decorator) — simple, parameterized, multi-message
+- [Context Object](#context-object) — logging, progress reporting, lifespan resources
+- [Authentication](#authentication) — JWT verification, per-tool authorization, OAuth providers
+- [Server Configuration](#server-configuration) — transports, `fastmcp.json`
+- [Client](#client) — connecting, in-process testing, client methods
+
 ## FastMCP Constructor
 
 ```python
@@ -158,10 +169,21 @@ from fastmcp.prompts import Message
 def debug_session(error: str) -> list[Message]:
     """Start a debugging session."""
     return [
-        Message(role="system", content="Act as a debugging expert."),
-        Message(role="user", content=f"Help me debug this error:\n{error}"),
+        Message(
+            role="user",
+            content=(
+                "Act as a debugging expert. "
+                f"Help me debug this error:\n{error}"
+            ),
+        ),
+        Message(role="assistant", content="What have you tried so far?"),
     ]
 ```
+
+`Message.role` accepts only `"user"` or `"assistant"` — MCP prompts have no system
+role, and passing `role="system"` raises a `pydantic.ValidationError`. Put any
+"act as an expert" framing in the first user message, or in the server's
+`instructions` if it should apply to every interaction.
 
 ## Context Object
 
@@ -183,8 +205,11 @@ await ctx.error("Error message")
 ### Progress reporting
 
 ```python
-await ctx.report_progress(current=5, total=10, message="Processing...")
+await ctx.report_progress(progress=5, total=10, message="Processing...")
 ```
+
+The first parameter is named `progress` (`report_progress(progress, total=None,
+message=None)`); `current=` is not accepted.
 
 ### Lifespan resources
 
@@ -193,51 +218,118 @@ http_client = ctx.lifespan_context["http_client"]
 db = ctx.lifespan_context["db"]
 ```
 
-Access shared resources initialized during server startup (see Lifespan in patterns.md).
+Access shared resources initialized during server startup. The lifespan handler
+that populates this dict is an `asynccontextmanager` passed to the constructor:
+
+```python
+@asynccontextmanager
+async def app_lifespan(server: FastMCP):
+    http_client = httpx.AsyncClient(timeout=30.0)
+    yield {"http_client": http_client}   # becomes ctx.lifespan_context
+    await http_client.aclose()
+
+mcp = FastMCP("MyServer", lifespan=app_lifespan)
+```
+
+For the full pattern — database pools, cleanup ordering, and when to prefer
+lifespan over per-tool connections — use the Lifespan Management reference
+listed in SKILL.md.
 
 ## Authentication
 
-### JWT authentication
+### JWT verification
 
 ```python
-from fastmcp.server.auth import JWTAuthProvider
+from fastmcp.server.auth import JWTVerifier
 
-jwt_auth = JWTAuthProvider(
+jwt_auth = JWTVerifier(
     jwks_uri="https://your-domain.auth0.com/.well-known/jwks.json",
     issuer="https://your-domain.auth0.com/",
     audience="your-api-audience",
+    required_scopes=["read:data"],       # rejected server-wide if absent
 )
 
 mcp = FastMCP("SecureServer", auth=jwt_auth)
 ```
 
+`JWTVerifier` validates a bearer token the client already holds. Pass
+`public_key=` instead of `jwks_uri=` for a static key. For local experiments,
+`StaticTokenVerifier` and `DebugTokenVerifier` accept fixed tokens — never use
+them in production.
+
 ### Per-tool authorization
+
+`@mcp.tool(auth=...)` takes an `AuthCheck` — a callable receiving an
+`AuthContext` and returning a bool (sync or async), or a list of them. The
+built-in `require_scopes` covers the common case:
+
+```python
+from fastmcp.server.auth import require_scopes
+
+@mcp.tool(auth=require_scopes("admin"))
+def admin_only() -> str:
+    """Only callable by a token carrying the `admin` scope."""
+    return "admin data"
+```
+
+For anything scopes cannot express, write the check yourself. `ctx.token` is an
+`AccessToken` model (or `None` when unauthenticated) — read `.scopes` for OAuth
+scopes and `.claims` for the decoded JWT payload. It is a Pydantic model, not a
+dict, so use attribute access:
 
 ```python
 from fastmcp.server.auth import AuthContext
 
-async def require_admin(ctx: AuthContext) -> bool:
+def is_admin(ctx: AuthContext) -> bool:
     token = ctx.token
-    return token is not None and "admin" in token.get("roles", [])
+    return token is not None and "admin" in token.claims.get("roles", [])
 
-@mcp.tool(auth=require_admin)
-def admin_only() -> str:
-    """Only accessible to admin users."""
+@mcp.tool(auth=is_admin)
+def admin_claim_only() -> str:
+    """Only callable by a token whose `roles` claim contains `admin`."""
     return "admin data"
 ```
 
-### OAuth2 provider
+`AccessToken` fields: `token`, `client_id`, `scopes`, `expires_at`, `resource`,
+`subject`, `claims`. `AuthContext` carries `token` plus `component` (the tool,
+resource or prompt being accessed).
+
+### OAuth providers
+
+FastMCP ships per-vendor providers under `fastmcp.server.auth.providers.*` —
+`github`, `google`, `azure`, `auth0`, `aws`, `clerk`, `descope`, `discord`,
+`huggingface`, `keycloak`, `oci`, `propelauth`, `scalekit`, `supabase`,
+`workos`. Each class is named `<Vendor>Provider`:
 
 ```python
-from fastmcp.server.auth.providers import GitHubOAuthProvider
+from fastmcp.server.auth.providers.github import GitHubProvider
 
-github_auth = GitHubOAuthProvider(
+github_auth = GitHubProvider(
     client_id="your-client-id",
     client_secret="your-client-secret",
+    base_url="https://your-server.example.com",   # required: this server's public URL
 )
 
 mcp = FastMCP("GitHubServer", auth=github_auth)
 ```
+
+For an identity provider with no bundled class, use `OIDCProxy` (discovers
+endpoints from the well-known config) or `OAuthProxy` (endpoints supplied
+explicitly):
+
+```python
+from fastmcp.server.auth import OIDCProxy
+
+oidc_auth = OIDCProxy(
+    config_url="https://your-domain.auth0.com/.well-known/openid-configuration",
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    base_url="https://your-server.example.com",
+)
+```
+
+`OIDCProxy` fetches the discovery document when it is constructed, so the
+`config_url` must be reachable at import time.
 
 ## Server Configuration
 
@@ -258,13 +350,19 @@ Place `fastmcp.json` alongside the server script:
 
 ```json
 {
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "path": "server.py"
+  },
   "environment": {
+    "type": "uv",
     "dependencies": ["httpx", "pydantic"]
   }
 }
 ```
 
-Dependencies are installed in an isolated UV environment before the server starts.
+`source` is the only required key — a config without it is rejected before the
+server starts. Dependencies are installed in an isolated UV environment.
 
 ## Client
 

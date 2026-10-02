@@ -1,7 +1,8 @@
 ---
-name: FastMCP Server Development
-description: This skill should be used when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package. Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment.
-version: 0.1.0
+name: fastmcp
+description: Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment. Use when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package.
+metadata:
+  version: "0.1.0"
 ---
 
 # FastMCP Server Development
@@ -103,7 +104,7 @@ async def process_files(file_paths: list[str], ctx: Context) -> dict:
 
 Context methods:
 - `ctx.info(msg)`, `ctx.debug(msg)`, `ctx.warning(msg)`, `ctx.error(msg)` — structured logging.
-- `ctx.report_progress(current, total, message)` — progress updates.
+- `ctx.report_progress(progress, total, message)` — progress updates.
 - `ctx.lifespan_context` — dict of resources from the lifespan handler.
 
 Add `ctx: Context` as any parameter — FastMCP injects it automatically (it is not exposed to the AI).
@@ -222,7 +223,8 @@ main.mount(text_server)                      # tools: uppercase (no prefix)
 | Reusable prompts | `@mcp.prompt` with parameters |
 | Modular server | `main.mount(sub_server, namespace="ns")` |
 | Shared resources (DB, HTTP) | Lifespan handler + `ctx.lifespan_context` |
-| Auth | `JWTAuthProvider` or `OAuth2ProxyProvider` |
+| Auth | `JWTVerifier` for JWTs, `OAuthProxy`/`OIDCProxy` for OAuth |
+| Per-tool authorization | `@mcp.tool(auth=require_scopes("admin"))` |
 
 ## Key Rules
 
