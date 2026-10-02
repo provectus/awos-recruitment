@@ -2,14 +2,31 @@
 // Checks whether a container or any of its children extend beyond the viewport,
 // whether it's scrollable, and whether all interactive elements inside remain reachable.
 //
-// Usage with Playwright MCP browser_evaluate:
-//   1. Inject: browser_evaluate({ function: "<paste checkOverflow function>" })
-//   2. Call:   browser_evaluate({ function: "() => checkOverflow({ scope: '[data-side]' })" })
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines checkOverflow in the page:
+//      code: async (page) => page.evaluate(`<the full text of this file>`)
+//   2. Call:
+//      code: async (page) => page.evaluate(
+//        (opts) => checkOverflow(opts),
+//        { scope: '[data-side]', checkFooter: true })
 //
-// Or with browser_run_code_unsafe:
-//   async (page) => page.evaluate((opts) => checkOverflow(opts), { scope: '...', checkFooter: true })
+// Options:
+//   scope            CSS selector for the container to check (required)
+//   checkFooter      flag the last visible child if it is clipped (default true)
+//   checkInteractive hit-test interactive descendants for reachability (default true)
+//   margin           px of slack before an edge counts as overflowing (default 0)
+//   maxDepth         how deep to scan for clipped descendants (default 5)
 
-function checkOverflow({ scope, checkFooter, checkInteractive, margin } = {}) {
+function checkOverflow({ scope, checkFooter, checkInteractive, margin, maxDepth } = {}) {
+  // Clipping is a layout failure, and layout failures surface on the boxes a
+  // user can see: the panel, its sections, and the controls inside them. Five
+  // levels reaches those in the component libraries this skill is used
+  // against, while stopping short of the wrapper-in-wrapper depths where a
+  // "clipped" span of text is just its parent being reported twice. Raise it
+  // when a genuinely deeper tree is under test.
+  const DEFAULT_SCAN_DEPTH = 5;
+  const scanDepth = maxDepth ?? DEFAULT_SCAN_DEPTH;
+
   if (!scope) {
     return { error: 'Provide a "scope" selector' };
   }
@@ -106,7 +123,7 @@ function checkOverflow({ scope, checkFooter, checkInteractive, margin } = {}) {
   const scopeRight = scopeRect.right;
 
   function scanChildren(el, depth) {
-    if (depth > 5) return; // limit depth
+    if (depth > scanDepth) return;
     for (const child of el.children) {
       const rect = child.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) continue;
@@ -319,6 +336,9 @@ function checkOverflow({ scope, checkFooter, checkInteractive, margin } = {}) {
   // --- Summary ---
   return {
     scope,
+    // How deep the clipped-descendant scan went, so an empty clippedChildren
+    // can be read as "nothing clipped down to here" rather than "nothing at all".
+    maxDepth: scanDepth,
     scopeRect: {
       top: Math.round(scopeRect.top),
       left: Math.round(scopeRect.left),

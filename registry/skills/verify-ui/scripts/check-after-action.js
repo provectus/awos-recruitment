@@ -4,11 +4,17 @@
 // Stage 2: Agent performs click via Playwright native click (page.locator().click())
 // Stage 3: collectAfterAction() — waits for expected state and returns results
 //
-// Usage:
-//   1. Inject script: page.evaluate(scriptContent)
-//   2. Setup:  page.evaluate((opts) => setupAfterAction(opts), { scope: '...', expect: [...], timeout: 5000 })
-//   3. Click:  page.locator('.submit-button').click()
-//   4. Collect: page.evaluate(() => collectAfterAction())
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines both functions in the page:
+//      code: async (page) => page.evaluate(`<the full text of this file>`)
+//   2. Setup:
+//      code: async (page) => page.evaluate(
+//        (opts) => setupAfterAction(opts),
+//        { scope: '[role="dialog"]', expect: [{ selector: '.success-message', visible: true }], timeout: 5000 })
+//   3. Click:
+//      code: async (page) => page.locator('.submit-button').click()
+//   4. Collect:
+//      code: async (page) => page.evaluate(() => collectAfterAction())
 
 function setupAfterAction({ expect, scope, timeout = 5000 } = {}) {
   if (!expect || !expect.length) return { error: 'Provide an "expect" array' };

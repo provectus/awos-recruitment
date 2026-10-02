@@ -3,12 +3,19 @@
 // interactive elements (buttons, inputs, links) with their text, roles,
 // aria states, and the container's scroll state.
 //
-// Usage with Playwright MCP browser_evaluate:
-//   1. Inject: browser_evaluate({ function: "<paste checkInventory function>" })
-//   2. Call:   browser_evaluate({ function: "() => checkInventory({ scope: '[data-radix-popper-content-wrapper]' })" })
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines checkInventory in the page:
+//      code: async (page) => page.evaluate(`<the full text of this file>`)
+//   2. Call:
+//      code: async (page) => page.evaluate(
+//        (opts) => checkInventory(opts),
+//        { scope: '[data-radix-popper-content-wrapper]' })
 //
-// Or with browser_run_code_unsafe:
-//   async (page) => page.evaluate((opts) => checkInventory(opts), { scope: '...' })
+// Options:
+//   scope     CSS selector for the container to inventory (required)
+//   include   array of selectors to search for (defaults to all interactive roles)
+//   exclude   array of selectors to skip
+//   maxDepth  measure the container's nesting depth, up to this many levels
 
 function checkInventory({ scope, include, exclude, maxDepth } = {}) {
   if (!scope) {
