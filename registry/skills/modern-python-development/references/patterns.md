@@ -4,6 +4,8 @@
 
 Prefer `Protocol` for defining interfaces when only structural compatibility is needed. Use `ABC` only when shared implementation (methods, state) must be inherited.
 
+Both rules answer which *kind* of interface to define — neither says an interface is needed. Define one only when two or more real implementations exist; a lone concrete class is depended on directly. A test fake does not count as a second implementation — duck typing lets a fake stand in without any declared interface.
+
 ### Protocol — structural interface
 
 ```python

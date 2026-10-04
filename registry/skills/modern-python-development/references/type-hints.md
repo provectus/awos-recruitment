@@ -117,10 +117,9 @@ Use `@runtime_checkable` sparingly — prefer static checking.
 ### Generic protocols
 
 ```python
-class Repository[T](Protocol):
-    def get(self, id: int) -> T | None: ...
-    def save(self, entity: T) -> None: ...
-    def delete(self, id: int) -> None: ...
+class Codec[T](Protocol):
+    def encode(self, value: T) -> bytes: ...
+    def decode(self, raw: bytes) -> T: ...
 ```
 
 ## Self Type
@@ -294,7 +293,7 @@ match status:
 3. Use `X | None` instead of `Optional[X]`.
 4. Use `type` statement for all type aliases.
 5. Use `[T]` syntax for generic functions and classes, not explicit `TypeVar`.
-6. Prefer `Protocol` over `ABC` when only method signatures matter.
+6. Prefer `Protocol` over `ABC` when only method signatures matter — and define either only when a second real implementation exists.
 7. Use `@override` on every overriding method.
 8. Use `Self` for fluent interfaces and `@classmethod` return types.
 9. Use `TypeIs` over `TypeGuard` when possible.

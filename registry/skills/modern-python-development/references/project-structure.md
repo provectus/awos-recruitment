@@ -2,7 +2,7 @@
 
 ## Directory Layout (src layout)
 
-```
+```text
 project-name/
 ├── pyproject.toml          # Single source of truth for metadata
 ├── README.md
@@ -12,13 +12,12 @@ project-name/
 │       ├── __init__.py      # Public API exports
 │       ├── __main__.py      # Entry point for `python -m package_name`
 │       ├── py.typed         # PEP 561 marker for typed package
-│       ├── core/            # Core business logic
+│       ├── config.py        # Configuration
+│       ├── errors.py        # Error hierarchy
+│       ├── users/           # A domain — see "Organize by domain, not by role"
 │       │   ├── __init__.py
 │       │   └── ...
-│       ├── models/          # Data models and types
-│       │   ├── __init__.py
-│       │   └── ...
-│       └── utils/           # Internal utilities
+│       └── orders/          # A domain
 │           ├── __init__.py
 │           └── ...
 ├── tests/
@@ -35,7 +34,7 @@ project-name/
 
 The `src/` layout prevents a class of bugs where the package in the working directory shadows the installed package. Without it, running `python` from the project root imports the local directory instead of the installed package, leading to subtle test failures and import issues.
 
-```
+```text
 # Without src layout — dangerous
 project/
 ├── mypackage/     # This gets imported instead of the installed one
@@ -105,7 +104,7 @@ testpaths = ["tests"]
 
 ### Organize by domain, not by role
 
-```
+```text
 # Preferred — by domain
 src/package_name/
 ├── users/
@@ -137,11 +136,13 @@ src/package_name/
 
 Domain-based organization keeps related code together, reducing cross-directory navigation and making dependencies between features explicit.
 
+`shared/` is a last resort, not a default destination: before adding one, check whether the project already has a home for cross-domain code (a `domain/`, `core/`, or similar package) and extend that home instead — two parallel shared-code locations is how grab-bags start.
+
 ### When flat is acceptable
 
 For small packages (< 10 modules), a flat structure is fine:
 
-```
+```text
 src/package_name/
 ├── __init__.py
 ├── models.py
@@ -199,6 +200,7 @@ if __name__ == "__main__":
 ```
 
 This enables:
+
 - `python -m package_name` to run the application
 - Clean separation between entry point and CLI logic
 
@@ -214,7 +216,7 @@ This tells type checkers that the package ships inline type information.
 
 ## Test Organization
 
-```
+```text
 tests/
 ├── conftest.py              # Project-wide fixtures
 ├── unit/
@@ -237,7 +239,7 @@ tests/
 
 Mirror the source structure in tests:
 
-```
+```text
 src/package_name/users/service.py  →  tests/unit/users/test_service.py
 src/package_name/orders/models.py  →  tests/unit/orders/test_models.py
 ```
