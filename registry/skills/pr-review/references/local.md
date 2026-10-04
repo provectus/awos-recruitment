@@ -51,4 +51,4 @@ Write to `review/<TIMESTAMP>_<BRANCH>.md` (replace any `/` in `BRANCH` with `-`)
 - `src/bar.py:10-14` — <finding>
 ```
 
-Print the file path and the headline counts. The file is the deliverable; the user edits it, hands it to `pr-comments-address` (local mode) to apply fixes, or pushes and opens a PR themselves. Nothing is sent anywhere.
+Print the file's full absolute path and the headline counts. The file is the deliverable; the user edits it, hands it to `pr-comments-address` (local mode) to apply fixes, or pushes and opens a PR themselves. Nothing is sent anywhere.

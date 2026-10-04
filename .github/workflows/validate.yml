@@ -22,3 +22,12 @@ jobs:
 
       - name: Run tests
         run: cd server && uv run pytest
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - uses: extractions/setup-just@v4
+
+      - name: Run skill script tests
+        run: just test-skills
