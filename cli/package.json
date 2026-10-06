@@ -2,6 +2,9 @@
   "name": "@provectusinc/awos-recruitment",
   "version": "0.1.4",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "bin": "dist/index.js",
   "files": [
     "dist"
@@ -12,19 +15,19 @@
     "directory": "cli"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "tar": "^7.5.11",
+    "tar": "^7.5.22",
     "yaml": "^2.8.3"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "@types/node": "^22.20.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   },
   "overrides": {
     "vite": "^7.3.2"
