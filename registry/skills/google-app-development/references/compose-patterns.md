@@ -1,5 +1,19 @@
 # Jetpack Compose Patterns Reference
 
+## Contents
+- Composable Design — stateless vs stateful, slot-based APIs
+- State Management — `remember`/`rememberSaveable`, `derivedStateOf`, `snapshotFlow`, state holders
+- Recomposition — triggers, stability, `@Stable`/`@Immutable`, performance pitfalls
+- Navigation — type-safe `NavHost`, nested graphs, bottom navigation
+- Side Effects — effect handlers and when to use each
+- Lists and Grids — `LazyColumn`, `LazyVerticalGrid`, pagination
+- Theming and Material 3 — custom theme, `CompositionLocal`
+- Animations — built-in animation APIs
+- Modifiers — ordering, custom `Modifier.Node`
+- Dialogs, Sheets, Snackbars
+- Text and Input
+- Performance — rules, debugging
+
 ## Composable Design
 
 ### Stateless vs Stateful
