@@ -1,6 +1,15 @@
 ---
 name: kotlin-development
-description: "This skill should be used when the user asks to \"write Kotlin code\", \"create a Kotlin class\", \"set up a Kotlin project\", \"review Kotlin code\", \"refactor Kotlin\", \"use Kotlin coroutines\", \"fix Kotlin style\", \"set up Detekt\", \"configure ktlint\", \"add static analysis to a Kotlin project\", \"set up Kotlin linting (Detekt, ktlint)\", or when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices covering null safety, coroutines, data modeling, error handling, idiomatic patterns, and static analysis (Detekt, ktlint). Covers the language and stdlib only; the one framework-specific part is an optional Android/Compose lint section."
+description: >-
+  This skill should be used when the user asks to "write Kotlin code", "create a Kotlin
+  class", "set up a Kotlin project", "review Kotlin code", "refactor Kotlin", "use
+  Kotlin coroutines", "fix Kotlin style", "set up Detekt", "configure ktlint", "add
+  static analysis to a Kotlin project", "set up Kotlin linting (Detekt, ktlint)", or
+  when generating any Kotlin source code. Provides modern Kotlin 2.1+ best practices
+  covering null safety, coroutines, data modeling, error handling, idiomatic patterns,
+  and static analysis (Detekt, ktlint). Covers the language and stdlib only; the one
+  framework-specific part is an optional Android/Compose lint section. For Android app
+  code (Compose UI, lifecycle, platform APIs) use google-app-development alongside it.
 version: 0.1.0
 ---
 
