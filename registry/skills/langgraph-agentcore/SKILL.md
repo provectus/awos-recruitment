@@ -1,15 +1,14 @@
 ---
 name: langgraph-agentcore
 description: >-
-  Production patterns for building LangGraph StateGraph workflows deployed on
-  AWS Bedrock AgentCore. Covers graph design, interrupt-based human-in-the-loop,
-  multi-day checkpointing, 3-tier model routing with fallback chains, confidence
-  calibration implementation, Cedar policy enforcement for agent authorization,
-  cost-aware pipeline design, AgentCore Runtime deployment, Bedrock Foundation
-  Models and Guardrails, MCP tool integration via AgentCore Gateway, and
-  observability with LangSmith and CloudWatch. Use when building agentic AI
-  workflows with LangGraph, deploying agents on AWS Bedrock AgentCore, or
-  implementing interrupt-based HITL workflows.
+  Production patterns for LangGraph StateGraph workflows deployed on AWS Bedrock
+  AgentCore. Use when building agentic AI workflows with LangGraph, deploying agents to
+  AgentCore Runtime, adding interrupt-based human-in-the-loop review, or checkpointing
+  workflows that run for days. Covers graph design, interrupt() HITL, checkpointing,
+  3-tier model routing with fallback chains, confidence calibration, Cedar policy
+  enforcement, cost-aware pipeline design, Bedrock Foundation Models and Guardrails, MCP
+  tools via AgentCore Gateway, and observability with LangSmith and CloudWatch. Not for
+  insurance underwriting domain rules — see underwriting.
 ---
 
 # LangGraph + AgentCore Production Patterns
