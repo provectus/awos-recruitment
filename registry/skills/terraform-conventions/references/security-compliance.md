@@ -196,14 +196,13 @@ resource "aws_security_group_rule" "allow_all" {
 ### ✅ DO: Use Least-Privilege Security Groups
 
 ```hcl
-# Good: Restrict to specific ports and sources
-resource "aws_security_group_rule" "app_https" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = ["10.0.0.0/16"]  # ✅ Internal only
-  security_group_id = aws_security_group.this.id
+# Good: Restrict to a specific port and a source security group
+resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.alb.id # ✅ Only the ALB, not a CIDR
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
 }
 ```
 
@@ -377,7 +376,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true  # ✅ Always enable encryption
   }
 }
