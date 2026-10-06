@@ -8,4 +8,4 @@ config:
       - "run"
       - "-i"
       - "--rm"
-      - "hashicorp/terraform-mcp-server"
+      - "hashicorp/terraform-mcp-server:1.3.0"
