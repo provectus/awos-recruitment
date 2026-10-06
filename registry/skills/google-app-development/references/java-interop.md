@@ -5,6 +5,18 @@
 > **Always prefer Kotlin for new code.**
 
 
+## Contents
+- Calling Java from Kotlin — platform types, handling nullability
+- Calling Kotlin from Java — `@JvmStatic`, `@JvmField`, `@JvmOverloads`, `@JvmName`
+- SAM Conversions — Java functional interfaces, Kotlin `fun interface`
+- Nullability Annotations — recognized annotations, applying them, package-level defaults
+- Collection Interop — mutable vs immutable at the boundary, defensive copying
+- Type Mapping — primitives, arrays, `Unit` vs `void`
+- Coroutines and Java — calling suspend functions from Java, wrapping callbacks as coroutines and Flows
+- Migration Strategy — priorities, file-by-file approach, converter pitfalls
+- Mixed Codebase Patterns — wrapping Java builders, extension functions, adapting listeners to Flows
+- Common Pitfalls — platform type crashes, static access, checked exceptions, name conflicts, visibility
+
 ## Calling Java from Kotlin
 
 ### Platform Types
