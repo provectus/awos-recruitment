@@ -107,21 +107,15 @@ module "ecs" {
 **Examples:**
 ```
 environments/
-├── prod/                   # Composition
-│   ├── main.tf            # Complete production environment
+├── prod/                   # Composition (one root + state per env)
+│   ├── network.tf         # Registry module calls, one file per layer
+│   ├── dns.tf
+│   ├── data.tf
+│   ├── app.tf
 │   ├── backend.tf         # Remote state configuration
-│   ├── terraform.tfvars   # Production-specific values
-│   └── variables.tf
-├── staging/                # Composition
-│   ├── main.tf
-│   ├── backend.tf
-│   ├── terraform.tfvars
-│   └── variables.tf
-└── dev/                    # Composition
-    ├── main.tf
-    ├── backend.tf
-    ├── terraform.tfvars
-    └── variables.tf
+│   └── locals.tf          # Production-specific values (no tfvars)
+├── staging/                # same layout
+└── dev/                    # same layout
 ```
 
 ### Decision Tree: Which Module Type?
@@ -152,8 +146,7 @@ README.md      # Usage documentation
 
 **Conditional files:**
 ```
-terraform.tfvars  # ONLY at composition level (NEVER in modules)
-locals.tf         # For complex local value calculations
+locals.tf         # Root modules: all configuration (Provectus: no terraform.tfvars)
 data.tf           # Optional: Data sources (if main.tf gets large)
 backend.tf        # ONLY at composition level (remote state config)
 ```
@@ -169,6 +162,8 @@ backend.tf        # ONLY at composition level (remote state config)
 ## Architecture Principles
 
 ### 1. Smaller Scopes = Better Performance + Reduced Blast Radius
+
+> **Provectus default:** one root (state) per environment with one file per layer — see [AWS Stack Layout](aws-stack-layout.md#stack-layers). Split into separate roots only for a stated reason (separate teams, slow plans, an isolation the user asked for).
 
 **Benefits:**
 - Faster `terraform plan` and `terraform apply` operations
@@ -218,59 +213,47 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/networking/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"  # State locking
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true                # Encryption at rest
   }
 }
 ```
 
-### 3. Use terraform_remote_state as Glue
+### 3. Connect Stacks with Data-Source Lookups
 
-**Pattern:** Connect compositions via remote state data sources
+**Pattern (Provectus default):** a consumer stack reads what a producer stack created through provider data sources, by a name or tag the producer sets. See [AWS Stack Layout: Cross-Stack Wiring](aws-stack-layout.md#cross-stack-wiring-by-lookup).
 
 **Why:**
-- Loose coupling between infrastructure components
-- Teams can work independently
+- Consumers don't depend on another root's backend or need read access to its state
 - Changes to one stack don't require rebuilding others
-- Outputs from one stack become inputs to another
+- The contract (names, tags) is visible in both roots' `locals.tf`
 
 **Example:**
 
 ```hcl
-# environments/prod/networking/outputs.tf
-output "vpc_id" {
-  description = "ID of the production VPC"
-  value       = aws_vpc.this.id
-}
+# environments/prod/network — the vpc module tags the VPC Name = "myapp-prod"
 
-output "private_subnet_ids" {
-  description = "List of private subnet IDs"
-  value       = aws_subnet.private[*].id
-}
-
-# environments/prod/compute/main.tf
-data "terraform_remote_state" "networking" {
-  backend = "s3"
-  config = {
-    bucket = "my-terraform-state"
-    key    = "prod/networking/terraform.tfstate"
-    region = "us-east-1"
+# environments/prod/app/data.tf
+data "aws_vpc" "this" {
+  filter {
+    name   = "tag:Name"
+    values = ["myapp-prod"]
   }
 }
 
-module "ec2" {
-  source = "../../modules/ec2"
+data "aws_subnets" "private" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.this.id]
+  }
 
-  vpc_id     = data.terraform_remote_state.networking.outputs.vpc_id
-  subnet_ids = data.terraform_remote_state.networking.outputs.private_subnet_ids
+  tags = {
+    Tier = "private"
+  }
 }
 ```
 
-**Best practices:**
-- Use remote state for cross-team dependencies
-- Document which outputs are consumed by other stacks
-- Version outputs (don't break downstream consumers)
-- Consider using data sources instead for provider-managed resources
+**Use `terraform_remote_state` only** when the producer is owned by another team and publishes a deliberate, versioned output contract.
 
 ### 4. Keep Resource Modules Simple
 
