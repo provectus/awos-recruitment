@@ -1,14 +1,15 @@
 ---
 name: underwriting
 description: >-
-  Insurance underwriting domain knowledge for building automated submission
-  processing systems. Covers submission-to-bind lifecycle, document extraction
-  patterns, compliance gates (sanctions, licensing, clearance), human-in-the-loop
-  design for regulated financial services, confidence calibration for extracted
-  fields, operating mode progression (manual to automated), and evidence
-  traceability requirements. Use when designing or implementing underwriting
-  pipelines, extraction agents, compliance workflows, HITL review systems,
-  or decision package assembly for insurance or MGA operations.
+  Insurance underwriting domain knowledge for building automated submission-processing
+  systems. Use when designing or implementing underwriting pipelines,
+  document-extraction agents, compliance workflows, HITL review systems, or
+  decision-package assembly for insurance carriers or MGAs. Covers the
+  submission-to-bind lifecycle, document extraction patterns, compliance gates
+  (sanctions, licensing, clearance), human-in-the-loop design for regulated financial
+  services, confidence calibration for extracted fields, operating-mode progression from
+  manual to automated, and evidence traceability. Domain knowledge only — for LangGraph
+  and AgentCore implementation patterns see langgraph-agentcore.
 user-invocable: false
 ---
 
