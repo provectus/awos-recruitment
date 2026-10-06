@@ -1,6 +1,16 @@
 ---
 name: react-feature-sliced-design
-description: "Enforces Feature-Sliced Design (FSD) architecture in React/TypeScript projects by scaffolding compliant folder structures, validating layer boundaries and import directions, detecting and fixing layer violations, and teaching FSD conventions during code generation and review. Use when asked to 'create a page', 'add an entity', 'build a widget', 'scaffold FSD structure', 'refactor to FSD', 'where should I put this code', 'what layer does X go in', 'organize my React code', 'fix layer violation', or 'review my FSD structure'. Triggers on any React/TypeScript task involving FSD layers, slices, segments, cross-layer imports, or public API boundaries."
+description: >-
+  Enforces Feature-Sliced Design (FSD) architecture in React/TypeScript projects by
+  scaffolding compliant folder structures, validating layer boundaries and import
+  directions, detecting and fixing layer violations, and teaching FSD conventions during
+  code generation and review. Use when asked to 'create a page', 'add an entity', 'build
+  a widget', 'scaffold FSD structure', 'refactor to FSD', 'where should I put this
+  code', 'what layer does X go in', 'organize my React code', 'fix layer violation', or
+  'review my FSD structure'. Triggers on any React/TypeScript task involving FSD layers,
+  slices, segments, cross-layer imports, or public API boundaries. Covers code structure
+  and layer boundaries only — for rendering performance use react-best-practices, for
+  language and typing questions use typescript-development.
 version: 3.0.0
 ---
 
