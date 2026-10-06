@@ -1,7 +1,7 @@
 ---
 name: gh-watch-reviews
 description: Use when the user wants to watch the current GitHub repo for pull requests that need their review — new PRs, explicit review requests, re-requests after new commits — e.g. "watch for incoming reviews", "check PRs needing my review", or to set up a recurring check. GitHub-only (gh CLI). Not for reviewing one specific known PR (invoke pr-review directly).
-argument-hint: "[loop [interval] | reconfigure | exclude: <login>, ... | include-drafts]"
+argument-hint: "[loop [interval] | reconfigure | exclude: login, ... | include-drafts]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/scan.sh *)
 ---
