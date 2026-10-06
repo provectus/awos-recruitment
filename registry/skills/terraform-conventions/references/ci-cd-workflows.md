@@ -347,7 +347,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true
   }
 }
@@ -408,7 +408,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: v1.6.0
+    terraform_version: vX.Y.Z # same as the root's required_version; >= 1.10 for use_lockfile
     workflow: custom
 
 workflows:
@@ -416,8 +416,7 @@ workflows:
     plan:
       steps:
         - init
-        - plan:
-            extra_args: ["-lock", "false"]
+        - plan
     apply:
       steps:
         - apply
@@ -443,7 +442,7 @@ workflows:
 ```hcl
 # versions.tf - Pin exact versions (Provectus convention)
 terraform {
-  required_version = "= 1.9.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
