@@ -5,6 +5,6 @@ config:
     type: stdio
     command: uvx
     args:
-      - "fastmcp"
+      - "fastmcp@4.0.10"
       - "run"
       - "https://knowledge-mcp.global.api.aws"
