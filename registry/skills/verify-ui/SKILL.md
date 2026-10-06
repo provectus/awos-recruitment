@@ -1,9 +1,15 @@
 ---
 name: verify-ui
 context: fork
-argument-hint: "<feature or acceptance criteria to verify> <route or URL> <app base URL>"
-description: >
-  Verifies a web UI in a running browser by measuring the live DOM with bundled scripts — visibility, clickability, alignment, overflow, and the state a click leaves behind — instead of reading screenshots. Use when a change to a web UI needs verifying in the running app, when a UI bug is reported (something on screen is missing, misplaced, clipped, or unclickable), or when acceptance criteria describe on-screen behaviour. Prefer this over writing custom Playwright page.evaluate code.
+argument-hint: "[feature or acceptance criteria to verify] [route or URL] [app base URL]"
+description: >-
+  Verifies a web UI in a running browser by measuring the live DOM with bundled scripts
+  — visibility, clickability, alignment, overflow, and the state a click leaves behind —
+  instead of reading screenshots. Use when a change to a web UI needs verifying in the
+  running app, when a UI bug is reported (something on screen is missing, misplaced,
+  clipped, or unclickable), or when acceptance criteria describe on-screen behaviour.
+  Prefer this over writing custom Playwright page.evaluate code. Not for visual
+  appearance (colors, fonts, spacing), cross-browser behaviour, or accessibility checks.
 ---
 
 # Verify UI
