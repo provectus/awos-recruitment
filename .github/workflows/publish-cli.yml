@@ -19,10 +19,20 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  # One lint+test+build pass gates both npm scopes, so a runner flake cannot
+  # publish one scope and not the other. It reuses cli.yml so the release gate
+  # can never drift from the PR check.
+  check:
     if: |
       (github.event.pull_request.merged == true &&
        contains(github.event.pull_request.labels.*.name, 'release'))
+    uses: ./.github/workflows/cli.yml
+    with:
+      # The merge commit, not main's tip: other PRs may land while this runs.
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+  publish:
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -35,14 +45,14 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Pin to the merge commit so we read the package.json that
           # was actually merged — not whatever main looks like later
           # if other PRs land while this workflow is running.
           ref: ${{ github.event.pull_request.merge_commit_sha || github.ref }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
