@@ -1,6 +1,6 @@
 ---
 name: google-app-development
-description: "This skill should be used when the user asks to \"build an Android app\", \"create a Composable\", \"set up an Android project\", \"review Android code\", \"refactor Android\", \"add a screen\", \"create a Wear OS app\", \"build for Android TV\", \"build for Android Auto\", \"build for Android Automotive\", \"adapt for Meta Quest\", \"build for Fire TV\", \"build for Fire Tablet\", \"set up Room database\", \"add local storage\", \"use DataStore\", \"persist data\", \"add database migration\", \"encrypt storage\", \"add in-app purchases\", \"integrate Google Play Billing\", \"add subscriptions\", \"implement billing\", \"monetize app\", \"write Android tests\", \"test ViewModel\", \"test Composable\", \"set up Android testing\", \"add unit tests\", \"configure Android Lint\", \"add custom lint rule\", \"set up lint baseline\", or when generating any Kotlin code targeting Google/Android platforms (including AOSP-based devices). Provides modern Jetpack Compose-first best practices covering UI patterns, app lifecycle, navigation, local storage, billing/payments, testing, Android Lint, and platform-specific guidance. Use together with `kotlin-development` for language fundamentals. Always generates Kotlin unless the project explicitly requires Java."
+description: "Jetpack Compose-first Kotlin patterns for Google/Android platforms: phone, tablet/foldable, Wear OS, Android TV/Google TV, Android Auto, Android Automotive, and AOSP devices (Meta Quest, Fire TV, Fire Tablet). Use whenever the user asks to \"build an Android app\", \"create a Composable\" or \"add a screen\", \"set up an Android project\", \"review/refactor Android code\", \"build for Wear OS / TV / Auto / Automotive / Quest / Fire\", \"set up Room, DataStore, or local storage\" (including migrations and encryption), \"add in-app purchases / subscriptions / Play Billing\", \"write Android tests\" (ViewModel, Composable, Room), \"configure Android Lint\", or when generating any Kotlin code that targets Android — even if they only mention Jetpack, Compose, or ViewModel. Covers UI, lifecycle, navigation, concurrency, storage, networking, media, billing, testing, Lint, and per-platform guidance. Pairs with `kotlin-development` for language fundamentals. Always generates Kotlin unless the project explicitly requires Java."
 version: 0.1.0
 ---
 
@@ -15,6 +15,8 @@ For Kotlin language fundamentals (null safety, coroutines, data modeling, error 
 - **Always generate Kotlin.** Only write Java when the project explicitly requires it (legacy codebase, Java-only API). See `references/java-interop.md` for bridging patterns.
 - **Compose-first.** Use View-based UI only when Compose lacks the capability or the project has an existing View-based codebase. See `references/view-interop.md` for interop patterns.
 - **Check the project context.** Before applying patterns, check the `minSdk`, Compose BOM version, and existing architecture. Adapt recommendations accordingly.
+- **Placeholder convention.** In the reference files, `<latest>` (inside quoted version strings) and `<latest-stable-api>` (bare, e.g. `compileSdk = <latest-stable-api>`) are fill-in markers, not literal values. Replace them with the current stable version / API level before emitting code; the bare form is not valid Kotlin.
+- **Sibling skill.** This skill assumes the `kotlin-development` skill is also installed and defers Kotlin language topics (null safety, coroutines fundamentals, Detekt/ktlint, generic Gradle layout) to it. If that skill is not available, fall back to standard idiomatic Kotlin and the official Kotlin docs instead of following the dangling pointers.
 
 ## Reference Files
 
@@ -36,7 +38,7 @@ For Kotlin language fundamentals (null safety, coroutines, data modeling, error 
 - **`references/networking-api.md`** — Retrofit, OkHttp, Ktor Client, JSON serialization, repository pattern, error handling, interceptors, certificate pinning, caching, connectivity, pagination (custom + Paging 3), file upload/download, testing
 - **`references/fire-tv-patterns.md`** — Amazon Fire TV, Appstore, Amazon IAP, Alexa integration, missing Google Play Services
 - **`references/media-playback.md`** — Media3 / ExoPlayer, MediaSession, audio focus, Picture-in-Picture, offline downloads, DRM, streaming formats, caching
-- **`references/billing-payments.md`** — Google Play Billing Library (PBL 8), BillingClient, one-time purchases (consumable / non-consumable), subscriptions (base plans, offers, replacement modes), subscription offers (eligibility types, pricing phases, offer tags, developer-determined offers, winback offers, promo codes), purchase verification, RTDN, subscription lifecycle (grace period, account hold, pause), alternative billing, testing
+- **`references/billing-payments.md`** — Google Play Billing Library, BillingClient, one-time purchases (consumable / non-consumable), subscriptions (base plans, offers, replacement modes), subscription offers (eligibility types, pricing phases, offer tags, developer-determined offers, winback offers, promo codes), purchase verification, RTDN, subscription lifecycle (grace period, account hold, pause), alternative billing, testing
 - **`references/fire-tablet-patterns.md`** — Amazon Fire Tablets, device capabilities, Show Mode, Kids Edition, Special Offers
 - **`references/testing.md`** — JUnit 5, MockK, Turbine, ViewModel testing, Compose UI testing, Robolectric, Room in-memory testing, Hilt testing, Espresso, coroutine testing (`runTest`, `TestDispatcher`), test architecture (pyramid, MVI/MVVM strategies), fakes vs mocks, CI integration
 - **`references/code-quality.md`** — Android Lint configuration (`lint {}` block, `lint.xml`, severity levels), baseline management, suppression (`@SuppressLint`, `tools:ignore`), built-in check categories (correctness, security, performance, accessibility), Compose lint checks, custom lint rules (`Detector`, `Issue`, `IssueRegistry`), CI integration (SARIF, GitHub Code Scanning), multi-module convention plugin. For Detekt/ktlint, see `kotlin-development` skill's `references/static-analysis.md`
@@ -88,7 +90,7 @@ object AppSpacing {
 }
 ```
 
-**No magic numbers in UI code.** If a numeric value appears in UI, it must be either a Material theme token or an app-defined design constant. For theming details see `references/compose-patterns.md`.
+**No magic numbers in production UI code.** When a numeric value appears in app UI, prefer a Material theme token or an app-defined design constant so spacing and sizing stay consistent and changeable in one place. The snippets in this skill's reference files use literal `dp`/`sp` values for brevity — treat those as illustrations of the API, not as a licence to hardcode in generated code. For theming details see `references/compose-patterns.md`.
 
 ## Naming Conventions (Android-Specific)
 
@@ -122,7 +124,11 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    fun load() {
+    init {
+        load() // initial load belongs to the ViewModel, not to a LaunchedEffect in the UI
+    }
+
+    private fun load() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             repository.getItems()
@@ -153,6 +159,7 @@ Rules:
 - State hoisting — composables receive state and emit events, they don't own state.
 - Use `remember` for composable-local state, `rememberSaveable` for state surviving config changes.
 - Keep composables small. Extract when a composable exceeds ~40 lines.
+- Navigation uses **type-safe routes** (`@Serializable` route classes, `composable<Route>`, `navigate(Route(...))`) — not string routes. Every navigation snippet in this skill follows that style.
 
 For navigation, theming, side effects, lists, animations see `references/compose-patterns.md`.
 
@@ -189,7 +196,7 @@ Rules:
 - **`WhileSubscribed(5000)`** for `stateIn` — keeps upstream active 5s after last subscriber (survives rotation).
 - **WorkManager** for deferrable background work. **Foreground services** for user-visible ongoing tasks.
 
-For WorkManager, foreground services, and advanced patterns see `references/concurrency.md`.
+For WorkManager and advanced coroutine patterns see `references/concurrency.md`; for foreground services, background limits (Doze, App Standby) and AlarmManager see `references/android-background-work.md`.
 
 ## Architecture
 
@@ -207,7 +214,7 @@ data class HomeUiState(
 
 // 2. Intent — sealed interface of all user actions
 sealed interface HomeIntent {
-    data object LoadItems : HomeIntent
+    data object Refresh : HomeIntent
     data class DeleteItem(val id: String) : HomeIntent
     data object RetryLoad : HomeIntent
 }
@@ -220,9 +227,13 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    init {
+        loadItems() // initial load happens once per ViewModel, surviving recomposition and rotation
+    }
+
     fun onIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.LoadItems -> loadItems()
+            is HomeIntent.Refresh -> loadItems()
             is HomeIntent.DeleteItem -> deleteItem(intent.id)
             is HomeIntent.RetryLoad -> loadItems()
         }
@@ -249,8 +260,6 @@ class HomeViewModel @Inject constructor(
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) { viewModel.onIntent(HomeIntent.LoadItems) }
 
     when {
         uiState.isLoading -> LoadingIndicator()
@@ -344,12 +353,11 @@ Rules:
 ```kotlin
 class HomeViewModelTest {
     private val fakeRepository = FakeItemRepository()
-    private val viewModel = HomeViewModel(fakeRepository)
 
     @Test
-    fun `load items updates state`() = runTest {
+    fun `initial load populates items`() = runTest {
         fakeRepository.emit(listOf(Item("1", "Test")))
-        viewModel.load()
+        val viewModel = HomeViewModel(fakeRepository) // loads in init
         assertEquals(listOf(Item("1", "Test")), viewModel.uiState.value.items)
     }
 }
