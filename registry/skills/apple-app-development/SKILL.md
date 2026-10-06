@@ -1,6 +1,15 @@
 ---
 name: apple-app-development
-description: "This skill should be used when the user asks to \"create a SwiftUI view\", \"build an iOS app\", \"set up an Xcode project\", \"review Apple platform code\", \"add a widget\", \"create a watchOS app\", \"build for visionOS\", \"fix SwiftUI layout\", or when generating any Swift code targeting Apple platforms (iOS, iPadOS, macOS, tvOS, watchOS, visionOS). Provides modern SwiftUI-first best practices covering UI patterns, app lifecycle, navigation, project structure, and platform-specific guidance. Use together with `swift-development` for Swift language fundamentals. Always generates Swift unless the project explicitly requires Objective-C."
+description: >-
+  This skill should be used when the user asks to "create a SwiftUI view", "build an iOS
+  app", "set up an Xcode project", "review Apple platform code", "add a widget", "create
+  a watchOS app", "build for visionOS", "fix SwiftUI layout", or when generating any
+  Swift code targeting Apple platforms (iOS, iPadOS, macOS, tvOS, watchOS, visionOS).
+  Provides modern SwiftUI-first best practices covering UI patterns, app lifecycle,
+  navigation, project structure, and platform-specific guidance. Covers Apple platform
+  frameworks and app structure, not the language itself — for Swift language
+  fundamentals use `swift-development` alongside it. Always generates Swift unless the
+  project explicitly requires Objective-C.
 version: 0.1.0
 ---
 
