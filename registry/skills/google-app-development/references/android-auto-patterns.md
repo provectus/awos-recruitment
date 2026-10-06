@@ -2,7 +2,13 @@
 
 > Target: latest stable Car App Library
 
->[toc]
+## Contents
+- Media Apps — Media3 `MediaLibraryService`, browse tree, playback under projection
+- Messaging Apps — notification-based messaging
+- Navigation Apps — turn-by-turn navigation
+- POI and Charging Apps — point-of-interest templates
+- Testing — Desktop Head Unit (DHU)
+- Distribution — Play Store requirements for Android Auto
 
 Android Auto is a **phone projection protocol** — the app runs on the user's phone and projects its UI onto the car's display via USB or wireless connection. For the shared Car App Library API (CarAppService, Session, Screen, Templates, Constraints, Lifecycle, Testing), see `car-app-library.md`. This file covers Auto-specific patterns only.
 
