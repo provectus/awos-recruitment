@@ -1,6 +1,6 @@
 # Local operations — pr-review (local mode)
 
-> **Part of:** [pr-review](../SKILL.md). **Local mode** reviews your own working branch for yourself and writes the review to a file — it posts nothing to GitHub, GitLab, or any review platform. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets your own in-progress work rather than someone else's PR.
+> **Part of:** [pr-review](../SKILL.md). **Local mode** reviews your own working branch for yourself and writes the review to a file — it posts nothing to GitHub, GitLab, or any review platform. Use this when the request says "review my branch", "locally", "for myself", "just my branch", "don't post", or otherwise targets your own in-progress work rather than someone else's PR.
 
 ## resolve-base
 

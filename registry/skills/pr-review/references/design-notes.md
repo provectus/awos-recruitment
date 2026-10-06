@@ -1,6 +1,6 @@
 # Design notes — why pr-review is shaped this way
 
-> **Part of:** [pr-review](../SKILL.md). Background for maintainers: the incidents and reasoning behind rules that SKILL.md and [analysis.md](analysis.md) state without justification. Nothing here is needed to run a review — read it before changing a rule, not before following one.
+> **Part of:** [pr-review](../SKILL.md). Background for maintainers: the incidents and reasoning behind rules that SKILL.md and analysis.md state without justification. Nothing here is needed to run a review — read it before changing a rule, not before following one.
 
 ## No `context: fork`
 
@@ -14,11 +14,15 @@ A review is worth only as much as its independence, and the merge is where indep
 
 Observed in three consecutive sessions: the draft was composed in thinking, then the gate asked the user to approve "the draft above" while the message contained nothing. The model's memory of having printed is not evidence — only the step 4 `Write` call and text visible in the turn are. Hence: write the file before the gate, print the file's content, and put the path in the question so the user can open the draft even if the print is squeezed out. Session-wide brevity or compression modes are the usual cause of the squeeze, which is why the deliverable is exempt from them.
 
-The four items the step 5 self-check strikes (mechanism-first findings, multi-claim sentences, claimed executions, narration about the review) each reached a real MR before the check existed; [house-style.md](house-style.md) has the before/after examples.
+The four items the step 5 self-check strikes (mechanism-first findings, multi-claim sentences, claimed executions, narration about the review) each reached a real MR before the check existed; house-style.md has the before/after examples.
 
 ## Amendments re-enter the gate (step 7)
 
 Observed across six consecutive amendments in one session: each was drafted and posted in a single step, with the text shown to the user only afterwards. The gate that governed first delivery silently stopped applying to everything after it — and post-delivery is exactly when the user is most engaged and most likely to be surprised. A request to change something therefore approves the action, never the wording.
+
+## code-review runs in an engine subagent (analysis.md)
+
+Loading the `code-review` plugin through the Skill tool grants its `allowed-tools`, and those include `gh pr comment`. Run in the main context, a single prose line ("don't post") would be all that stood between the engine and a public comment ahead of the step 5 gate — and in local mode, whose contract is that it never calls `gh`, the plugin's own steps would call it to view the PR, read its history, and post. Running the plugin in a subagent whose only output is a findings list keeps that permission away from the gate and keeps the plugin's instructions out of the main context. The bundled fallback has the opposite trap: with no target it reviews the checked-out diff, not the PR, which is why public mode passes the PR as its target.
 
 ## Collecting engine results (analysis.md)
 

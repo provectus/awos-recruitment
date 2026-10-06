@@ -4,8 +4,8 @@ description: >-
   Authors a human-voice code review of someone else's pull request or merge request
   and posts it as a draft (pending) review for the user's approval — "review this PR",
   "do a code review on PR #N", "review this MR", "leave review comments". Also reviews
-  the user's own branch when the request says "review locally", "review for myself",
-  "just my branch", or "don't post": the review goes to a file and nothing is posted.
+  the user's own branch when the request says "review my branch", "review locally",
+  "review for myself", "just my branch", or "don't post": the review goes to a file and nothing is posted.
   Works on GitHub and GitLab. Finds issues by orchestrating the code-review and
   pr-review-toolkit plugins, drafts with no severity badges, and gates every post on
   the user's approval. This is the reviewer's side; to respond to feedback on a PR the
@@ -22,7 +22,7 @@ Produce a code review that reads like a sharp human wrote it and opens a convers
 Decide the mode before starting the workflow, and state it in one line — the workflow branches on it.
 
 - **public** (default): review a PR **someone else authored** on the hosting platform. Read the existing conversation, post the result as a **draft (pending) review** the user finalizes and submits. This is the primary use. Uses the platform reference selected below.
-- **local**: review **your own working branch** for yourself. Nothing is posted or published — produce the review as a file. Use this when the request says "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
+- **local**: review **your own working branch** for yourself. Nothing is posted or published — produce the review as a file. Use this when the request says "review my branch", "locally", "for myself", "just my branch", "don't post", or otherwise targets in-progress work rather than someone else's PR. The built-in `/review`-style tools also do this, but less reliably and without the human-gated, house-style flow here. Uses [references/local.md](references/local.md).
 
 **Choosing:** if the request clearly signals local (the trigger words above, or a bare branch with no PR), use local. If it clearly targets a specific remote PR (a PR URL or `owner/repo#N`), use public. If it's ambiguous, ask with `AskUserQuestion`, offering Public as the default.
 

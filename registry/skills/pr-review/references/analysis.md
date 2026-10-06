@@ -8,9 +8,17 @@ The two engines are independent until the merge — don't run them back to back.
 
 **Dependency:** the `code-review` plugin from the official marketplace — `claude plugin install code-review@claude-plugins-official`. It runs a strong generic recipe: an eligibility check, CLAUDE.md collection, a change summary, parallel review agents (CLAUDE.md adherence, obvious bugs, git history, prior-PR comments, code-comment guidance), and a 0–100 confidence score per issue filtered at 80. Reuse it for breadth, but take only its findings — not its output format or posting. Treat that score as a breadth filter, not a truth signal: a model's self-reported confidence is unreliable on its own, so this skill never leans on it alone — every finding is cross-checked by a second, independent engine (the `pr-review-toolkit` agents) and the human gate, which is the cross-review that actually raises quality.
 
-Invoke it through the Skill tool (`code-review:code-review`), which loads its instructions into this context. Follow its analysis steps to produce the scored, filtered findings list, with two departures: skip its eligibility gate (this skill has already decided to review, and in local mode there is no PR — hand it the local diff instead), and **do not perform its posting step** — this skill owns delivery, in its own voice. Keep the findings in memory: file, line, what, why, suggested fix, confidence, and flag reason. Don't locate or read the plugin's files on disk: the Skill tool is the interface, and the plugin's layout and step order are not this skill's to depend on.
+Run it inside an **engine subagent**, never in this context: dispatch one unnamed `Agent` call (`subagent_type: "general-purpose"`) whose only output is the findings list. Loading the plugin through the Skill tool also grants its `allowed-tools`, which pre-approve `gh pr comment`; in a subagent that only returns findings, that permission never sits next to the step 5 approval gate, and the plugin's instructions stay out of this context. Hand the subagent the PR reference (public) or the diff and base from `get-local-diff` (local), and tell it to:
 
-If the Skill tool lists only Claude Code's bundled `code-review` skill and not the plugin's namespaced one, the bundled skill can stand in for breadth: run it with no flags (no `--comment`, no `--fix`) so it reports and posts nothing, and treat its findings as unscored — judge confidence from how decisively each is verified, as for the toolkit agents.
+- invoke the plugin through the Skill tool (`code-review:code-review`) and follow its analysis steps to a scored, filtered findings list;
+- skip every eligibility check the plugin runs — the one at the start and the repeat just before posting — since this skill has already decided to review;
+- **never post**: no `gh pr comment` and no other write to a review platform, even though the plugin pre-approves it;
+- in local mode, run no `gh` command at all — every plugin step that views the PR or its history through `gh` is skipped, and the diff it was handed is the whole input;
+- return file, line, what, why, suggested fix, confidence, and flag reason for each finding, and nothing else.
+
+This skill owns delivery, in its own voice. Neither this context nor the subagent locates or reads the plugin's files on disk: the Skill tool is the interface, and the plugin's layout and step order are not this skill's to depend on.
+
+If the Skill tool lists only Claude Code's bundled `code-review` skill and not the plugin's namespaced one, the bundled skill can stand in for breadth, run the same way in the engine subagent. Without a target it reviews whatever diff is checked out, so: in public mode pass the PR number or URL as the target; in local mode pass no target. Name an effort level explicitly (e.g. `high`) so it doesn't reuse the last one the user typed. Never pass `--comment`, `--fix`, or `--post`. Treat its findings as unscored — judge confidence from how decisively each is verified, as for the toolkit agents.
 
 ## Engine 2: pr-review-toolkit agents (depth)
 
@@ -30,7 +38,7 @@ Give each agent the context its dimension needs, not just the diff: `pr-test-ana
 
 ## Collecting the engines' results
 
-Dispatching is the easy half; collection is where a review loses its wall-clock. The rules (the run that produced them is in [design-notes.md](design-notes.md)):
+Dispatching is the easy half; collection is where a review loses its wall-clock. The rules (the run that produced them is in design-notes.md, listed in SKILL.md):
 
 - **Dispatch engines as ordinary, unnamed `Agent` calls.** An unnamed call returns the output as the tool result and the harness notifies you when it finishes; a *named* agent runs as a background teammate whose completion can arrive long after the work is done.
 - **Don't poll.** No `sleep` loops, no `until [ -s <file> ]`, no watching an output file or re-listing a directory. A wait loop means the dispatch was wrong — fix the dispatch.
