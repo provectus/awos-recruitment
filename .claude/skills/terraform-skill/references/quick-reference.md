@@ -200,7 +200,7 @@ When creating modules, the binary is detected from the commands the repo actuall
 ```hcl
 # versions.tf - Pin versions exactly (Provectus convention)
 terraform {
-  required_version = "= 1.14.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
@@ -397,7 +397,9 @@ terraform validate
 - [ ] Root modules use `locals.tf` instead of `terraform.tfvars` (Provectus convention)
 - [ ] Remote state configured (never local state)
 - [ ] Resource modules don't hardcode values (use variables/data sources)
-- [ ] `terraform_remote_state` used for cross-composition dependencies
+- [ ] Values between roots read via data-source lookups by name/tag, not `terraform_remote_state` (Provectus convention)
+- [ ] Registry modules used for components they cover; every module `version` is exact
+- [ ] One root per environment, split into layer files (`network.tf`, `dns.tf`, `data.tf`, `app.tf`); stateful resources have deletion protection
 - [ ] File structure follows standard: main.tf, variables.tf, outputs.tf, versions.tf
 - [ ] All taggable resources include required tags: `Environment`, `Project`, `Owner`, `ManagedBy`
 - [ ] Tags defined via `local.required_tags` and merged per-resource
@@ -429,7 +431,7 @@ Required documentation for all modules:
 
 | Component | Recommendation | Example |
 |-----------|----------------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Terraform** | Pin exact version | `required_version = "= X.Y.Z"` |
 | **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
 | **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
@@ -506,11 +508,14 @@ git commit -m "Update provider versions"
 **Goal:** Move secrets out of Terraform state
 
 ```bash
+# Requires Terraform 1.11+ and AWS provider 5.88.0+;
+# otherwise use manage_master_user_password instead.
 # Step 1: Create secret in AWS Secrets Manager (outside Terraform)
 aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 
 # Step 2: Read it with an ephemeral lookup, not a data source (data is state)
-# Step 3: Use write-only argument (Terraform 1.11+)
+# Step 3: Pass it to the write-only argument (password_wo); an ephemeral
+#         value is accepted only there
 # Step 4: Remove random_password resource or variable
 # Step 5: Apply and verify secret not in state
 terraform show | grep -i password  # Should not appear

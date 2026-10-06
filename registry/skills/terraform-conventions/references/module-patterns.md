@@ -413,7 +413,7 @@ repo uses:**
 
    | Name | Version |
    |------|---------|
-   | [terraform/tofu] | = 1.14.8 |
+   | [terraform/tofu] | = X.Y.Z |
    | aws | = 6.41.0 |
    ```
 

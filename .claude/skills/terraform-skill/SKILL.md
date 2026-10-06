@@ -18,12 +18,14 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 >
 > | Component | Constraint | Example |
 > |-----------|-----------|---------|
-> | **Terraform** | Exact version | `required_version = "= 1.14.8"` |
+> | **Terraform** | Exact version | `required_version = "= X.Y.Z"` |
 > | **Providers** | Exact version | `version = "= 6.41.0"` |
 > | **Modules (prod)** | Exact version | `version = "5.1.2"` |
 > | **Modules (dev)** | Exact version | `version = "5.1.2"` |
 >
 > No pessimistic (`~>`) or range constraints. Pin everything. This prevents drift between environments and ensures reproducible builds.
+>
+> Version numbers in this skill are illustrative — never copy them. Terraform core: reuse the repo's existing `required_version` / `.terraform-version`; in a new repo, take the latest stable release from `https://api.releases.hashicorp.com/v1/releases/terraform/latest` and confirm it with the user. State locking: S3 native `use_lockfile = true` (Terraform >= 1.10), no DynamoDB lock table.
 
 > ### Root Module Configuration
 >
@@ -69,6 +71,40 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 > }
 > ```
 
+> ### Registry Modules First
+>
+> **For AWS components, use a public registry module (`terraform-aws-modules/*`), not raw `resource` blocks.** VPC, ALB, ECS, ACM, DynamoDB, S3, RDS, Lambda, security groups and IAM all have one. A raw `resource` is allowed only when no module covers it, the module would wrap a single resource (e.g. one Route53 alias record), or the module lacks a needed feature — state the reason in the design.
+>
+> Resolve every new module's version through the terraform MCP (`get_latest_module_version` → `get_module_details` for that exact version) and pin it exactly. "Latest" is a one-time lookup, never a constraint. Never bump an existing pin unless the user asks. This applies to every module in every root, including `bootstrap` and helper roots: a version not resolved through the MCP in this session is not written — never from memory, not even with a "verify later" note.
+
+> ### Layers
+>
+> **Directory layout `<infra|terraform>/<aws-account-id>/<env>/`**, env typically `dev` / `prod` / `shared`; the root name, accounts and environments are confirmed with the user at design time.
+>
+> **One root module (one state) per environment, organised by layer files:** `network.tf` (VPC), `dns.tf` (ACM + validation), `data.tf` (tables, secrets — deletion protection on), `app.tf` (ALB, compute, IAM, logs, alias record). Resources used by several environments go in the `shared` root. Never one module that holds every layer.
+>
+> The root calls registry modules **directly**; layers pass values through module outputs. A local module is justified only when it composes several modules/resources whose wiring must match across environments — never a pass-through around one registry module.
+>
+> Split a layer into its own root (state) only when there is a stated reason: separate owning teams, plans too slow, or a blast radius the user wants isolated. Not by default.
+
+> ### Cross-Root Wiring
+>
+> **Within a root, pass module outputs directly.** Between roots (an env reading `shared`, or a split-out layer), read through data sources by name or tag (`aws_vpc`, `aws_subnets`, `aws_acm_certificate`, `aws_ecr_repository`, `aws_route53_zone`), not `terraform_remote_state` — the one exception is a producer owned by another team that publishes a deliberate, versioned output contract.
+>
+> **Details, lookup table and a worked example:** [AWS Stack Layout](references/aws-stack-layout.md)
+
+> ### Least Privilege by Default
+>
+> **Workloads and data go in private subnets.** SG ingress names a port and a source SG, never a CIDR; only the public ALB takes 443 (and 80 to redirect) from `0.0.0.0/0`. IAM statements list exact actions and resource ARNs: never `Action = "*"`, and `Resource = "*"` only for actions without resource-level permissions (e.g. `ecr:GetAuthorizationToken`). Encryption at rest and TLS in transit are always on; secrets reach containers through `secrets`, never `environment`. A stricter module default is kept, not relaxed to match legacy. Every deviation is a reason written in the design, and `trivy` + `checkov` pass before a plan.
+>
+> **Per-component baseline:** [AWS Stack Layout → Security Baseline](references/aws-stack-layout.md#security-baseline)
+
+> ### Cost Review Before Build
+>
+> **Plan → cost review → build**, for a new stack and for every resource added later. The design carries a monthly cost table per environment, with prices looked up for the region, never from memory. Egress defaults to one NAT per VPC (prod included) plus free S3/DynamoDB gateway endpoints; NAT per AZ only on request. When the user asks for something and another option is better on security, usage fit or cost, propose both with the trade-offs; the user decides.
+>
+> **Levers and format:** [AWS Stack Layout → Cost Review](references/aws-stack-layout.md#cost-review)
+
 > ### Apply Workflow
 >
 > Use `plan -out` and get explicit approval before applying.
@@ -99,14 +135,12 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 **Directory Structure:**
 ```
 environments/        # Environment-specific configurations
-├── prod/
+├── prod/           # one root (state) per env: network.tf, dns.tf, data.tf, app.tf
 ├── staging/
 └── dev/
 
-modules/            # Reusable modules
-├── networking/
-├── compute/
-└── data/
+modules/            # Local modules — only for multi-module compositions
+└── app/            # registry modules are called directly from the roots
 
 examples/           # Module usage examples (also serve as tests)
 ├── complete/
@@ -418,6 +452,7 @@ checkov -d .
 - Use least-privilege security groups
 
 **For detailed security guidance, see:**
+- **[Security Baseline](references/aws-stack-layout.md#security-baseline)** - Provectus per-component AWS defaults (overrides the generic lists here)
 - **[Security & Compliance Guide](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
 
 ## Version Management
@@ -435,7 +470,7 @@ version = "5.1.2"        # Exact (alternative syntax for modules)
 
 | Component | Strategy | Example |
 |-----------|----------|---------|
-| **Terraform** | Pin exact version | `required_version = "= 1.14.8"` |
+| **Terraform** | Pin exact version | `required_version = "= X.Y.Z"` |
 | **Providers** | Pin exact version | `version = "= 6.41.0"` |
 | **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
 | **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
@@ -447,8 +482,10 @@ version = "5.1.2"        # Exact (alternative syntax for modules)
 terraform init              # Creates .terraform.lock.hcl — commit this file
 
 # Step 2: To update, change the exact version in versions.tf first,
-#         then re-resolve the lock file
+#         then re-resolve the lock file and commit the updated one
 terraform init -upgrade
+# Teams or CI on several OSes: record every platform's hashes
+terraform providers lock -platform=linux_amd64 -platform=darwin_arm64
 
 # Step 3: Review and test
 terraform plan
@@ -485,6 +522,7 @@ comparison (licensing, governance, feature parity), are in
 
 ## References
 
+- [`references/aws-stack-layout.md`](references/aws-stack-layout.md) — registry module selection, stack layers, cross-stack lookups, security baseline, cost review
 - [`references/code-patterns.md`](references/code-patterns.md) — block ordering, count vs for_each, modern features, version management, refactoring
 - [`references/module-patterns.md`](references/module-patterns.md) — module hierarchy, structure, variables, outputs, anti-patterns
 - [`references/testing-frameworks.md`](references/testing-frameworks.md) — static analysis, native tests, Terratest

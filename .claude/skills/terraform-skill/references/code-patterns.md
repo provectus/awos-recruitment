@@ -518,12 +518,10 @@ Read the secret through an `ephemeral` resource rather than a `data` source:
 Terraform writes data-source results to state, and `password_wo` protects only
 the resource attribute.
 
-Each resource also needs a provider version that implements the argument —
-`aws_db_instance.password_wo` landed in AWS provider 5.88.0. The canonical pins
-below (`= 1.14.8`, `= 6.41.0`) clear both floors, so this example applies as
-written; check the pins in `versions.tf` first, and see
-`references/security-compliance.md` for the fallback when a project pins older
-versions.
+This path requires Terraform 1.11+ and AWS provider 5.88.0+ (where
+`aws_db_instance.password_wo` landed). Check the pins in `versions.tf` first;
+below those floors, use `manage_master_user_password` instead (see Secrets
+Management in the Security & Compliance reference listed in SKILL.md).
 
 ```hcl
 # GOOD - External secret, ephemeral lookup, write-only argument
@@ -590,7 +588,7 @@ version = "5.1.2"
 # versions.tf
 terraform {
   # Pin to exact version
-  required_version = "= 1.14.8"
+  required_version = "= X.Y.Z"
 }
 ```
 
@@ -643,7 +641,7 @@ module "vpc" {
 ```hcl
 # Step 1: Lock versions in versions.tf
 terraform {
-  required_version = "= 1.14.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
@@ -658,7 +656,8 @@ terraform init
 # Creates .terraform.lock.hcl with exact versions used
 
 # Step 3: When updating, change the exact version in versions.tf first
-# Then run terraform init -upgrade
+# Then run terraform init -upgrade and commit the updated lock file
+# (multi-OS teams/CI: terraform providers lock -platform=linux_amd64 -platform=darwin_arm64)
 
 # Step 4: Review and test changes before committing
 terraform plan
@@ -669,7 +668,7 @@ terraform plan
 ```hcl
 terraform {
   # Terraform version - pinned exactly
-  required_version = "= 1.14.8"
+  required_version = "= X.Y.Z"
 
   # Provider versions - pinned exactly
   required_providers {
@@ -690,8 +689,10 @@ terraform {
   # Backend configuration (optional here, often in backend.tf)
   backend "s3" {
     bucket = "my-terraform-state"
-    key    = "infrastructure/terraform.tfstate"
-    region = "us-east-1"
+    key          = "infrastructure/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true # S3 native state locking (Terraform >= 1.10)
   }
 }
 ```
@@ -817,11 +818,13 @@ an application needs its ARN. This is not a way to keep using a pre-existing
 secret: RDS creates its own and ignores any other, so existing consumers have
 to be repointed.
 
-**Migration steps:**
+**Migration steps** (require Terraform 1.11+ and AWS provider 5.88.0+;
+otherwise use `manage_master_user_password` above):
 
 1. Create secret in AWS Secrets Manager (outside Terraform)
 2. Read the secret with an `ephemeral` lookup (not a `data` source)
-3. Use write-only argument (if Terraform 1.11+)
+3. Pass it to the write-only argument (`password_wo` + `password_wo_version`) —
+   Terraform accepts an ephemeral value only in a write-only argument
 4. Remove `random_password` resource or variable
 5. Run `terraform apply` to update
 6. Verify secret not in state: `terraform show` should not display password

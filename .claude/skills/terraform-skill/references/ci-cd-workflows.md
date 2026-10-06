@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
-          terraform_version: 1.14.8  # Same version as required_version
+          terraform_version: X.Y.Z  # Same version as required_version
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
-          terraform_version: 1.14.8  # Terraform is not on the runner image
+          terraform_version: X.Y.Z  # Terraform is not on the runner image
 
       - name: Run Terraform Tests
         run: terraform test
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
-          terraform_version: 1.14.8  # Without this the action installs latest
+          terraform_version: X.Y.Z  # Without this the action installs latest
 
       - name: Terraform Init
         run: terraform init
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
-          terraform_version: 1.14.8  # Must match the version that made the plan
+          terraform_version: X.Y.Z  # Must match the version that made the plan
 
       - name: Download Plan
         uses: actions/download-artifact@v8.0.1
@@ -163,8 +163,11 @@ variables:
   TF_ROOT: ${CI_PROJECT_DIR}
 
 .terraform_template:
-  # Pin the image tag to the same version as required_version in versions.tf
-  image: hashicorp/terraform:1.14.8
+  # Pin the image tag to the same version as required_version in versions.tf.
+  # The image's entrypoint is `terraform`; clear it so before_script runs.
+  image:
+    name: hashicorp/terraform:X.Y.Z
+    entrypoint: [""]
   before_script:
     - cd ${TF_ROOT}
     - terraform init
@@ -362,7 +365,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true
   }
 }
@@ -423,7 +426,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: v1.14.8  # Same version as required_version in versions.tf
+    terraform_version: vX.Y.Z # same as the root's required_version; >= 1.10 for use_lockfile
     workflow: custom
 
 workflows:
@@ -431,8 +434,7 @@ workflows:
     plan:
       steps:
         - init
-        - plan:
-            extra_args: ["-lock", "false"]
+        - plan
     apply:
       steps:
         - apply
@@ -458,7 +460,7 @@ workflows:
 ```hcl
 # versions.tf - Pin exact versions (Provectus convention)
 terraform {
-  required_version = "= 1.14.8"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {

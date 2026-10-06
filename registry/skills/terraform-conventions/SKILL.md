@@ -479,8 +479,10 @@ version = "5.1.2"        # Exact (alternative syntax for modules)
 terraform init              # Creates .terraform.lock.hcl — commit this file
 
 # Step 2: To update, change the exact version in versions.tf first,
-#         then re-resolve the lock file
+#         then re-resolve the lock file and commit the updated one
 terraform init -upgrade
+# Teams or CI on several OSes: record every platform's hashes
+terraform providers lock -platform=linux_amd64 -platform=darwin_arm64
 
 # Step 3: Review and test
 terraform plan

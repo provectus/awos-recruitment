@@ -334,6 +334,10 @@ resource "random_password" "db_password" {
   special = true
 }
 
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "prod/database/password"
+}
+
 resource "aws_secretsmanager_secret_version" "db_password" {
   secret_id     = aws_secretsmanager_secret.db_password.id
   secret_string = random_password.db_password.result
@@ -344,7 +348,7 @@ You will meet this in existing codebases. It is not the pattern to generate:
 `random_password.result` and `secret_string` are both stored in plaintext in
 the state file, so the Secrets Manager entry adds a second copy rather than
 protecting the first. For moving an existing configuration off it, see
-Secrets Remediation in `references/code-patterns.md`.
+Secrets Remediation in the Code Patterns reference listed in SKILL.md.
 
 ### Environment Variables
 

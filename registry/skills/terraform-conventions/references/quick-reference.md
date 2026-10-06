@@ -508,11 +508,14 @@ git commit -m "Update provider versions"
 **Goal:** Move secrets out of Terraform state
 
 ```bash
+# Requires Terraform 1.11+ and AWS provider 5.88.0+;
+# otherwise use manage_master_user_password instead.
 # Step 1: Create secret in AWS Secrets Manager (outside Terraform)
 aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 
 # Step 2: Read it with an ephemeral lookup, not a data source (data is state)
-# Step 3: Use write-only argument (Terraform 1.11+)
+# Step 3: Pass it to the write-only argument (password_wo); an ephemeral
+#         value is accepted only there
 # Step 4: Remove random_password resource or variable
 # Step 5: Apply and verify secret not in state
 terraform show | grep -i password  # Should not appear

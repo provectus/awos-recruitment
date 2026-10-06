@@ -196,14 +196,13 @@ resource "aws_security_group_rule" "allow_all" {
 ### ✅ DO: Use Least-Privilege Security Groups
 
 ```hcl
-# Good: Restrict to specific ports and sources
-resource "aws_security_group_rule" "app_https" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = ["10.0.0.0/16"]  # ✅ Internal only
-  security_group_id = aws_security_group.this.id
+# Good: Restrict to a specific port and a source security group
+resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.alb.id # ✅ Only the ALB, not a CIDR
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
 }
 ```
 
@@ -335,6 +334,10 @@ resource "random_password" "db_password" {
   special = true
 }
 
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "prod/database/password"
+}
+
 resource "aws_secretsmanager_secret_version" "db_password" {
   secret_id     = aws_secretsmanager_secret.db_password.id
   secret_string = random_password.db_password.result
@@ -345,7 +348,7 @@ You will meet this in existing codebases. It is not the pattern to generate:
 `random_password.result` and `secret_string` are both stored in plaintext in
 the state file, so the Secrets Manager entry adds a second copy rather than
 protecting the first. For moving an existing configuration off it, see
-Secrets Remediation in `references/code-patterns.md`.
+Secrets Remediation in the Code Patterns reference listed in SKILL.md.
 
 ### Environment Variables
 
@@ -377,7 +380,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true  # ✅ Always enable encryption
   }
 }
