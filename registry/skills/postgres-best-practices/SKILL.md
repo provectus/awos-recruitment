@@ -4,7 +4,8 @@ description: >-
   Postgres performance optimization and best practices. Use when writing or reviewing
   SQL queries, designing schemas, configuring connection pooling, fixing N+1 queries,
   creating indexes, implementing row-level security, diagnosing slow queries with
-  EXPLAIN ANALYZE, or optimizing database performance.
+  EXPLAIN ANALYZE, or optimizing database performance. Postgres only — for DynamoDB use
+  aws-dynamodb-best-practices; does not cover ORM- or migration-tool-specific APIs.
 ---
 
 # Postgres Best Practices
