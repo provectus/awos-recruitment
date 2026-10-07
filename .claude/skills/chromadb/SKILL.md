@@ -1,11 +1,11 @@
 ---
 name: chromadb
-description: Provides ChromaDB Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Does not cover the JavaScript client, Chroma Cloud, choosing an embedding model, or general RAG architecture.
+description: Provides Chroma Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Does not cover the JavaScript client, Chroma Cloud, choosing an embedding model, or general RAG architecture.
 ---
 
-# ChromaDB Python Skill
+# Chroma Python Skill
 
-ChromaDB is an open-source embedding database for building applications with semantic search and retrieval. This skill covers the Python client API for creating collections, storing documents with embeddings, and querying with semantic search and metadata filtering.
+This skill covers the Chroma Python client API (the `chromadb` package) for creating collections, storing records with embeddings, and querying with semantic search and metadata filtering.
 
 ## Client Initialization
 
@@ -77,7 +77,7 @@ collection.add(
 
 - `ids` — required, must be unique strings. An ID that already exists is **skipped silently**: no exception, no warning, and the stored record is left untouched. Use `upsert` whenever the data may already be indexed.
 - `documents` — raw text; Chroma uses the collection's embedding function to generate embeddings.
-- `metadatas` — optional dict per document for filtering.
+- `metadatas` — optional dict per record for filtering.
 
 ### Add pre-computed embeddings
 
@@ -141,7 +141,7 @@ results = collection.query(
 )
 ```
 
-Valid include values: `"documents"`, `"metadatas"`, `"distances"`, `"embeddings"`.
+Valid include values: `"documents"`, `"metadatas"`, `"distances"`, `"embeddings"`. The `Include` type also accepts `"uris"` and `"data"`, which only apply to multimodal collections (images, audio) and are out of this skill's text-only scope.
 
 `include` does not remove keys from the result — every key is always present, and unrequested ones are `None`. Check `results["included"]` to learn what was populated; `"embeddings" in results` is always `True` and tells you nothing.
 

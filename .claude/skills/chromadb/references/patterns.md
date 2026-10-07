@@ -1,4 +1,4 @@
-# ChromaDB Common Patterns
+# Chroma Common Patterns
 
 ## Contents
 
@@ -12,15 +12,15 @@
 
 ## Batch Ingestion
 
-ChromaDB has a maximum batch size limit. For large datasets, split into chunks:
+A single `add`/`upsert` call is capped at a per-client maximum batch size (5461 records on the local client in 1.5.x, but it depends on the backend and version). Read the limit from the client rather than hard-coding it, and split large writes into chunks of that size:
 
 ```python
-BATCH_SIZE = 5000
+batch_size = client.get_max_batch_size()
 
-for i in range(0, len(documents), BATCH_SIZE):
-    batch_ids = ids[i : i + BATCH_SIZE]
-    batch_docs = documents[i : i + BATCH_SIZE]
-    batch_meta = metadatas[i : i + BATCH_SIZE]
+for i in range(0, len(documents), batch_size):
+    batch_ids = ids[i : i + batch_size]
+    batch_docs = documents[i : i + batch_size]
+    batch_meta = metadatas[i : i + batch_size]
     collection.add(
         ids=batch_ids,
         documents=batch_docs,
@@ -36,7 +36,7 @@ built on `add` looks like it succeeded while leaving stale content in place.
 
 ### Use flat, typed metadata
 
-ChromaDB metadata values must be strings, integers, floats, booleans, or lists of these primitive types. Nested objects are not supported.
+Chroma metadata values must be strings, integers, floats, booleans, or lists of these primitive types. Nested objects are not supported.
 
 ```python
 # Correct — flat values

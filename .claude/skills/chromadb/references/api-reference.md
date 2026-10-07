@@ -1,4 +1,4 @@
-# ChromaDB Python API Reference
+# Chroma Python API Reference
 
 ## Contents
 
@@ -359,6 +359,8 @@ Controls which fields are returned. Applies to both `query()` and `get()`.
 | `"metadatas"` | Return metadata dicts |
 | `"distances"` | Return similarity distances (query only) |
 | `"embeddings"` | Return embedding vectors |
+
+The `Include` type also accepts `"uris"` and `"data"`; both apply only to multimodal collections (images, audio) and are out of this skill's text-only scope.
 
 Default for `query()`: `["documents", "metadatas", "distances"]`
 Default for `get()`: `["documents", "metadatas"]`

@@ -1,12 +1,11 @@
 # chromadb skill evaluations
 
-Three prompts that exercise the parts of the ChromaDB API most likely to drift
+Three prompts that exercise the parts of the Chroma API most likely to drift
 between releases: filter-operator placement and result shape, `add` vs `upsert`
 semantics, and embedding-function persistence across processes.
 
-They exist because the skill's API claims went stale without anyone noticing —
-the September 2026 audit found six factual errors that any one of these runs
-would have surfaced.
+They exist because the skill's API claims can go stale without anyone noticing;
+each prompt targets a claim that an earlier audit found to be wrong.
 
 ## When to run them
 
