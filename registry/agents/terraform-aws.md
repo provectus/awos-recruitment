@@ -107,5 +107,7 @@ End every run with these sections, in this order:
 - **Grounding** — the pinned provider and module versions you worked against, the AWS state you
   confirmed through `aws-api-mcp-server`, and any MCP server that was unavailable.
 - **Assumptions** — every gap you filled with a judgment call rather than a verified fact.
-- **Needs a decision** — whether to apply the plan, plus any version upgrade, destructive change, or
-  ambiguity that is the caller's call and not yours. Write "none" when there is nothing.
+- **Needs a decision** — when the run stopped at Phase 3, the full design (layout, component table,
+  security posture, cost review, alternatives) and the layout facts you could not discover; otherwise
+  whether to apply the plan. Plus any version upgrade, destructive change, or ambiguity that is the
+  caller's call and not yours. Write "none" when there is nothing.
