@@ -299,7 +299,9 @@ resource or prompt being accessed).
 FastMCP ships per-vendor providers under `fastmcp.server.auth.providers.*` —
 `github`, `google`, `azure`, `auth0`, `aws`, `clerk`, `descope`, `discord`,
 `huggingface`, `keycloak`, `oci`, `propelauth`, `scalekit`, `supabase`,
-`workos`. Each class is named `<Vendor>Provider`:
+`workos`. Most classes are named `<Vendor>Provider` (`GitHubProvider`,
+`GoogleProvider`, `Auth0Provider`, ...); the exceptions are `AWSCognitoProvider`,
+`KeycloakAuthProvider`, and `WorkOSProvider`/`AuthKitProvider`:
 
 ```python
 from fastmcp.server.auth.providers.github import GitHubProvider
