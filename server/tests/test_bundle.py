@@ -676,6 +676,33 @@ async def test_hook_valid_request_returns_tar_gz(hook_registry, client_factory):
     )
 
 
+async def test_skill_bundle_ships_assets_but_not_evals(tmp_path, client_factory):
+    """assets/ files are bundled alongside references/; evals/ is author-only and stays out."""
+    skill_dir = tmp_path / "skills" / "with-assets"
+    (skill_dir / "assets").mkdir(parents=True)
+    (skill_dir / "evals").mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: with-assets\ndescription: Ships a template.\n---\n\n# Body\n"
+    )
+    (skill_dir / "assets" / "template.html").write_text("<html></html>\n")
+    (skill_dir / "evals" / "evals.json").write_text('{"evals": []}\n')
+
+    async with client_factory(tmp_path) as client:
+        response = await client.post(
+            "/bundle/skills",
+            json={"names": ["with-assets"]},
+        )
+
+    names = tar_member_names(response.content)
+
+    assert "with-assets/assets/template.html" in names, (
+        f"Expected assets/template.html in archive, got {names}"
+    )
+    assert not any(n.startswith("with-assets/evals/") for n in names), (
+        f"Expected evals/ to be left out of the archive, got {names}"
+    )
+
+
 async def test_hook_entrypoint_carries_exec_bit(hook_registry, client_factory):
     """The bundled entrypoint .sh tar member must retain its executable bit."""
     async with client_factory(hook_registry) as client:

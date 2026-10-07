@@ -26,8 +26,18 @@ _XML_TAG = re.compile(r"</?[A-Za-z][\w.:-]*(\s[^<>]*)?/?>")
 DESCRIPTION_MAX_LENGTH = 1024
 
 
+def has_xml_tag(value: str) -> bool:
+    """True when *value* contains an XML-like tag such as ``<example>``.
+
+    Shared with the quality rules so every front-matter field uses the same
+    definition of "tag": bare comparison operators (``a < b``) do not count.
+    """
+
+    return _XML_TAG.search(value) is not None
+
+
 def _reject_xml_tags(value: str) -> str:
-    if _XML_TAG.search(value):
+    if has_xml_tag(value):
         raise ValueError(
             "must not contain XML tags (see 'Skill structure' in "
             f"{_BEST_PRACTICES_URL})"

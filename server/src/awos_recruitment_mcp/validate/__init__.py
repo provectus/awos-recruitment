@@ -19,19 +19,26 @@ from awos_recruitment_mcp.models import (
 from awos_recruitment_mcp.validate.quality import (
     check_description,
     check_description_yaml_comment,
+    check_frontmatter,
     check_skill_quality,
 )
 
 # Top-level entries permitted inside a skill directory. Kept in lockstep with
 # what the /bundle/skills endpoint actually ships: SKILL.md (file) and the flat
-# files under references/ or scripts/ (directories). README.md is allowed as
-# local docs even though it's not bundled. Type is enforced alongside name —
-# e.g. a file named "references" or a directory named "SKILL.md" is still
-# rejected, since the bundler would drop them for the same reason as any other
-# stray entry. The scripts/ directory only allows .js, .ts, .py, .sh files.
+# files under references/, scripts/ or assets/ (directories). README.md is
+# allowed as local docs even though it's not bundled, and evals/ holds the
+# skill's test cases (skill-creator's evals.json plus markdown notes) — also
+# not bundled, since evals are for the author, not the installer. Type is
+# enforced alongside name — e.g. a file named "references" or a directory
+# named "SKILL.md" is still rejected, since the bundler would drop them for
+# the same reason as any other stray entry. The scripts/ directory only
+# allows .js, .ts, .py, .sh files; evals/ only allows .json and .md.
 _ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
-_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references", "scripts"})
+_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset(
+    {"references", "scripts", "assets", "evals"}
+)
 _ALLOWED_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".js", ".ts", ".py", ".sh"})
+_ALLOWED_EVAL_EXTENSIONS: frozenset[str] = frozenset({".json", ".md"})
 
 # Hooks must stay pure POSIX sh with zero runtime dependencies (see
 # registry/hooks/CLAUDE.md) — helper scripts included. Skills keep the
@@ -206,7 +213,8 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                             message=(
                                 f"Unexpected file '{child.name}' in skill — "
                                 "the install bundle only ships SKILL.md and "
-                                "flat files under references/ or scripts/"
+                                "flat files under references/, scripts/ or "
+                                "assets/"
                             ),
                         )
                     )
@@ -235,7 +243,9 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         message=(
                             f"Unexpected directory '{child.name}/' in skill "
                             "— the install bundle only ships SKILL.md and "
-                            "flat files under references/"
+                            "flat files under references/, scripts/ or "
+                            "assets/; evals/ is allowed for the skill's "
+                            "test cases"
                         ),
                     )
                 )
@@ -259,20 +269,27 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         )
                     )
                     continue
-                # scripts/ only allows the extensions in the allowlist above.
-                if child.name == "scripts":
-                    if ref_child.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
-                        errors.append(
-                            ValidationError(
-                                file=relative_path,
-                                field=None,
-                                message=(
-                                    f"File '{child.name}/{ref_child.name}' has "
-                                    f"disallowed extension — scripts/ only "
-                                    f"allows {', '.join(sorted(_ALLOWED_SCRIPT_EXTENSIONS))}"
-                                ),
-                            )
+                # scripts/ and evals/ only allow the extensions in their
+                # allowlists above; references/ and assets/ take any file.
+                allowed_extensions = {
+                    "scripts": _ALLOWED_SCRIPT_EXTENSIONS,
+                    "evals": _ALLOWED_EVAL_EXTENSIONS,
+                }.get(child.name)
+                if (
+                    allowed_extensions is not None
+                    and ref_child.suffix not in allowed_extensions
+                ):
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"File '{child.name}/{ref_child.name}' has "
+                                f"disallowed extension — {child.name}/ only "
+                                f"allows {', '.join(sorted(allowed_extensions))}"
+                            ),
                         )
+                    )
 
         # Quality rules from Anthropic's skill-authoring guide. Hard limits
         # become errors; style guidance becomes warnings (see quality.py).
@@ -282,12 +299,19 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
             skill_md.read_text(encoding="utf-8"), "SKILL.md"
         )
         issues += check_description(metadata.get("description"))
+        issues += check_frontmatter(metadata)
         if post.content.strip():
             issues += check_skill_quality(entry, post.content)
         for issue in issues:
+            if issue.field is not None:
+                field_name = issue.field
+            elif issue.rule.startswith("description"):
+                field_name = "description"
+            else:
+                field_name = None
             finding = ValidationError(
                 file=f"{skill_root}/{issue.file}",
-                field="description" if issue.rule.startswith("description") else None,
+                field=field_name,
                 message=issue.message,
                 severity=issue.severity,
                 rule=issue.rule,

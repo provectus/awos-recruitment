@@ -137,6 +137,88 @@ def test_validator_reports_description_length_as_error(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
+# Front matter (XML tags in argument-hint, top-level version — warnings)
+# ---------------------------------------------------------------------------
+
+
+def _make_skill_with_frontmatter(tmp_path: Path, frontmatter: str) -> None:
+    """Like _make_skill, but with a verbatim front-matter block."""
+    skill_dir = tmp_path / "skills" / "widget-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\n{frontmatter}---\n\n# Widgets\n\nFormat them.\n"
+    )
+
+
+def test_xml_tag_in_description_is_error_via_validator(tmp_path: Path):
+    """Rule description-xml: a tag in the description fails validate_skills."""
+    _make_skill(tmp_path, description="Formats <csv> files. Use when asked.")
+    result = _only_result(tmp_path)
+    assert not result.valid, "description-xml: tagged description passed"
+    hits = [e for e in result.errors if e.field == "description" and "XML" in e.message]
+    assert hits and all(e.severity == "error" for e in hits), (
+        f"description-xml: expected a 'description' error, got {result.errors}"
+    )
+
+
+def test_xml_tag_in_argument_hint_warns(tmp_path: Path):
+    """Rule frontmatter-xml-tags: a <placeholder> hint warns but does not fail."""
+    _make_skill_with_frontmatter(
+        tmp_path,
+        f"name: widget-skill\ndescription: {json.dumps(GOOD_DESCRIPTION)}\n"
+        'argument-hint: "<run URL or job ID>"\n',
+    )
+    result = _only_result(tmp_path)
+    assert result.valid, f"frontmatter-xml-tags: hint made the skill invalid: {result.errors}"
+    hits = [w for w in result.warnings if w.rule == "frontmatter-xml-tags"]
+    assert [(w.severity, w.field) for w in hits] == [("warning", "argument-hint")], (
+        f"frontmatter-xml-tags: expected one argument-hint warning, got {result.warnings}"
+    )
+
+
+def test_square_bracket_argument_hint_passes(tmp_path: Path):
+    """Rule frontmatter-xml-tags: [placeholder] hints are the recommended form."""
+    _make_skill_with_frontmatter(
+        tmp_path,
+        f"name: widget-skill\ndescription: {json.dumps(GOOD_DESCRIPTION)}\n"
+        'argument-hint: "[run URL or job ID]"\n',
+    )
+    result = _only_result(tmp_path)
+    assert "frontmatter-xml-tags" not in _rules(result.warnings), (
+        f"frontmatter-xml-tags: square brackets flagged: {result.warnings}"
+    )
+
+
+def test_top_level_version_warns(tmp_path: Path):
+    """Rule version-top-level: a top-level version warns and points at metadata.version."""
+    _make_skill_with_frontmatter(
+        tmp_path,
+        f"name: widget-skill\ndescription: {json.dumps(GOOD_DESCRIPTION)}\nversion: 0.1.0\n",
+    )
+    result = _only_result(tmp_path)
+    assert result.valid, f"version-top-level: version made the skill invalid: {result.errors}"
+    hits = [w for w in result.warnings if w.rule == "version-top-level"]
+    assert [(w.severity, w.field) for w in hits] == [("warning", "version")], (
+        f"version-top-level: expected one warning, got {result.warnings}"
+    )
+    assert "metadata.version" in hits[0].message
+
+
+def test_metadata_version_passes(tmp_path: Path):
+    """Rule version-top-level: version under metadata is the spec's form."""
+    _make_skill_with_frontmatter(
+        tmp_path,
+        f"name: widget-skill\ndescription: {json.dumps(GOOD_DESCRIPTION)}\n"
+        "metadata:\n  version: 0.1.0\n  author: Provectus\n",
+    )
+    result = _only_result(tmp_path)
+    assert result.valid, f"version-top-level: metadata map rejected: {result.errors}"
+    assert "version-top-level" not in _rules(result.warnings), (
+        f"version-top-level: metadata.version flagged: {result.warnings}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # SKILL.md body length (error)
 # ---------------------------------------------------------------------------
 

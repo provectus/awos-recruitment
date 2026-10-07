@@ -24,5 +24,12 @@ jobs:
           cd server && uv run python -m awos_recruitment_mcp.validate
           --format github --summary "$GITHUB_STEP_SUMMARY"
 
+      # The skills copied into .claude/skills/ must match their registry
+      # source (pairs listed in validate/parity.py). This step is expected
+      # to fail until the open audit PRs that re-sync those copies merge.
+      - name: Check repo-local skill copies match the registry
+        continue-on-error: false
+        run: cd server && uv run python -m awos_recruitment_mcp.validate.parity
+
       - name: Run tests
         run: cd server && uv run pytest

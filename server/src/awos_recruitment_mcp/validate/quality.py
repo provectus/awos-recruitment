@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import unquote
 
+from awos_recruitment_mcp.models._frontmatter_fields import has_xml_tag
+
 BEST_PRACTICES_URL = (
     "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices"
 )
@@ -38,6 +40,8 @@ RULE_WINDOWS_PATH = "windows-path"
 RULE_FILE_ENCODING = "file-encoding"
 RULE_DESCRIPTION_YAML_COMMENT = "description-yaml-comment"
 # Rule ids — warnings.
+RULE_VERSION_TOP_LEVEL = "version-top-level"
+RULE_FRONTMATTER_XML_TAGS = "frontmatter-xml-tags"
 RULE_REFERENCE_TOC = "reference-toc"
 RULE_NESTED_REFERENCE = "nested-reference"
 RULE_DESCRIPTION_TRIGGER = "description-trigger"
@@ -153,6 +157,8 @@ class QualityIssue:
         rule: Stable rule id (one of the ``RULE_*`` constants).
         severity: ``"error"`` blocks merge, ``"warning"`` is reported only.
         message: Human-readable description, naming the guide section.
+        field: Front-matter field the finding is about, or ``None`` for
+            body and reference findings.
     """
 
     file: str
@@ -160,6 +166,7 @@ class QualityIssue:
     rule: str
     severity: Severity
     message: str
+    field: str | None = None
 
 
 def _cite(section: str, url: str = BEST_PRACTICES_URL) -> str:
@@ -277,7 +284,7 @@ def _check_links(
             else:
                 reason = (
                     "is not shipped in the install bundle (only SKILL.md, "
-                    "references/ and scripts/ are)"
+                    "references/, scripts/ and assets/ are)"
                 )
             issues.append(
                 QualityIssue(
@@ -523,11 +530,60 @@ def check_description(description: object) -> list[QualityIssue]:
     return issues
 
 
+def check_frontmatter(metadata: dict[str, object]) -> list[QualityIssue]:
+    """Warnings about front-matter fields the Pydantic model accepts.
+
+    ``name`` and ``description`` XML tags are hard errors raised by the model
+    (see ``models/_frontmatter_fields.py``). ``argument-hint`` is a Claude Code
+    field the Agent Skills spec does not cover, and ``<placeholder>`` is the
+    conventional way to write a hint, so a tag there only warns. A top-level
+    ``version`` is still accepted but the spec keeps catalog data under
+    ``metadata``.
+    """
+
+    issues: list[QualityIssue] = []
+
+    hint = metadata.get("argument-hint")
+    if isinstance(hint, str) and has_xml_tag(hint):
+        issues.append(
+            QualityIssue(
+                file="SKILL.md",
+                line=None,
+                rule=RULE_FRONTMATTER_XML_TAGS,
+                severity="warning",
+                message=(
+                    "argument-hint contains an XML-like tag — front matter "
+                    "should be plain text; use [brackets] for placeholders "
+                    f"{_cite('Skill structure')}"
+                ),
+                field="argument-hint",
+            )
+        )
+
+    if "version" in metadata:
+        issues.append(
+            QualityIssue(
+                file="SKILL.md",
+                line=None,
+                rule=RULE_VERSION_TOP_LEVEL,
+                severity="warning",
+                message=(
+                    "version is a top-level front-matter field; the Agent "
+                    "Skills spec keeps catalog data under metadata — move it "
+                    f"to metadata.version {_cite('Skill structure')}"
+                ),
+                field="version",
+            )
+        )
+
+    return issues
+
+
 def _bundled_files(skill_dir: Path) -> set[Path]:
-    """Files the install bundle ships: SKILL.md plus flat references/ and scripts/."""
+    """Files the install bundle ships: SKILL.md plus flat references/, scripts/ and assets/."""
 
     files = {(skill_dir / "SKILL.md").resolve()}
-    for sub in ("references", "scripts"):
+    for sub in ("references", "scripts", "assets"):
         directory = skill_dir / sub
         if directory.is_dir():
             files.update(p.resolve() for p in directory.iterdir() if p.is_file())
@@ -609,6 +665,7 @@ def check_skill_quality(skill_dir: Path, body: str) -> list[QualityIssue]:
                     rule=issue.rule,
                     severity=issue.severity,
                     message=issue.message,
+                    field=issue.field,
                 )
             issues.append(issue)
 
