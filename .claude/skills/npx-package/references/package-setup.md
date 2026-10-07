@@ -19,7 +19,7 @@
 {
   "name": "@scope/my-cli",
   "version": "1.0.0",
-  "description": "CLI tool for capability discovery and installation",
+  "description": "CLI tool for plugin discovery and installation",
   "type": "module",
   "bin": {
     "my-cli": "./dist/index.js"
@@ -45,7 +45,7 @@
   "engines": {
     "node": ">=24"
   },
-  "keywords": ["cli", "mcp", "capabilities"],
+  "keywords": ["cli", "plugins"],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -137,7 +137,7 @@ Scoped packages use the `@scope/name` format:
 
 ```json
 {
-  "name": "@awos/recruitment-cli"
+  "name": "@scope/my-cli"
 }
 ```
 
@@ -150,7 +150,7 @@ npm publish --access public
 Users run it with:
 
 ```bash
-npx @awos/recruitment-cli search "FastAPI agent"
+npx @scope/my-cli search "http client"
 ```
 
 ## Bundling with tsup
@@ -316,7 +316,6 @@ tar -tf my-cli-1.0.0.tgz
 After publishing, verify the package works via npx:
 
 ```bash
-# Clear npx cache and test
 npx --yes my-cli@latest --version
 npx --yes my-cli@latest search "test query"
 ```
