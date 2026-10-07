@@ -262,5 +262,5 @@ Run `npm version` before `npm publish` — it updates package.json and creates a
 ### Reference Files
 
 For detailed patterns and advanced configuration, consult:
-- **`references/patterns.md`** — Commander/yargs argument parsing, interactive prompts, spinner/progress bars, HTTP requests from CLI, error handling patterns, monorepo setup
-- **`references/package-setup.md`** — Advanced package.json fields, scoped packages, bundling with esbuild/tsup, dual CJS/ESM support, CI/CD publishing, npm provenance
+- **`references/patterns.md`** — Commander argument parsing, interactive prompts, spinner/progress indicator, HTTP requests from CLI, error handling patterns, file system and subprocess helpers, environment variables, testing CLI commands
+- **`references/package-setup.md`** — Advanced package.json fields, scoped packages, bundling with tsup, dual CJS/ESM support, CI/CD publishing, npm provenance, version management, verifying and post-publish testing

@@ -28,8 +28,8 @@
   "types": "./dist/lib.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/lib.js",
-      "types": "./dist/lib.d.ts"
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
     }
   },
   "files": [
@@ -98,18 +98,18 @@ Verify with `npm pack --dry-run` — inspect the file list before publishing.
 
 ### `exports`
 
-Defines the public API for consumers who `import` the package programmatically (not via CLI):
+Defines the public API for consumers who `import` the package programmatically (not via CLI). Conditions are matched in order, so `types` must come first or TypeScript may never reach it:
 
 ```json
 {
   "exports": {
     ".": {
-      "import": "./dist/lib.js",
-      "types": "./dist/lib.d.ts"
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
     },
     "./utils": {
-      "import": "./dist/utils.js",
-      "types": "./dist/utils.d.ts"
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js"
     }
   }
 }
@@ -200,9 +200,9 @@ If the package must support both `require()` and `import`:
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/lib.d.ts",
       "import": "./dist/lib.js",
-      "require": "./dist/lib.cjs",
-      "types": "./dist/lib.d.ts"
+      "require": "./dist/lib.cjs"
     }
   }
 }
