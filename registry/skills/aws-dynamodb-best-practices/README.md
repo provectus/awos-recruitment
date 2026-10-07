@@ -22,7 +22,7 @@ Out of scope by design: DynamoDB SDK/API reference and CloudFormation/Terraform 
 
 ## Evaluations
 
-These are the prompts to run when the description or the guidance changes. They are kept here (not under `references/`) because the install bundle ships only `SKILL.md` and flat files under `references/` — evaluation material should not land in a user's project.
+These are the prompts to run when the description or the guidance changes. They are kept here (not under `references/`) because the install bundle ships only `SKILL.md` and flat files under `references/` and `scripts/` — evaluation material should not land in a user's project.
 
 Run each prompt twice: once with the skill installed and once without, then compare. Trigger evals check whether the description fires on the right tasks; behaviour evals check whether the guidance actually changes the answer.
 
