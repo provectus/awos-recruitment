@@ -14,7 +14,7 @@ Run it inside an **engine subagent**, never in this context: dispatch one unname
 - skip every eligibility check the plugin runs — the one at the start and the repeat just before posting — since this skill has already decided to review;
 - **never post**: no `gh pr comment` and no other write to a review platform, even though the plugin pre-approves it;
 - in local mode, run no `gh` command at all — every plugin step that views the PR or its history through `gh` is skipped, and the diff it was handed is the whole input;
-- return file, line, what, why, suggested fix, confidence, and flag reason for each finding, and nothing else.
+- return file, line, what, why, suggested fix, confidence, and flag reason for each finding, and nothing else — except that a clean result is reported explicitly: when nothing clears the plugin's confidence filter, return `findings: [] (raw: N, filtered: 0)` rather than silence, so the caller can tell an empty sweep from one that never ran.
 
 This skill owns delivery, in its own voice. Neither this context nor the subagent locates or reads the plugin's files on disk: the Skill tool is the interface, and the plugin's layout and step order are not this skill's to depend on.
 
@@ -43,7 +43,7 @@ Dispatching is the easy half; collection is where a review loses its wall-clock.
 - **Dispatch engines as ordinary, unnamed `Agent` calls.** An unnamed call returns the output as the tool result and the harness notifies you when it finishes; a *named* agent runs as a background teammate whose completion can arrive long after the work is done.
 - **Don't poll.** No `sleep` loops, no `until [ -s <file> ]`, no watching an output file or re-listing a directory. A wait loop means the dispatch was wrong — fix the dispatch.
 - **Don't read agent transcripts to recover a result.** The `.jsonl` files under the session's `subagents/` directory are harness internals, not an API; scraping them returns partial results from runs still in flight.
-- **An engine that returns no findings is a failed engine**, not an empty one. Say so, degrade via *When a plugin is missing* below, and tell the user in the step 7 summary which engine didn't report. Don't reconstruct its output yourself and hand that to triage as engine findings — session-authored content in that channel destroys the independence the triage step exists for. If an engine produced nothing, the review has one engine, and the user should know it.
+- **An engine that returns no output is a failed engine**, not an empty one. An explicit empty result (`findings: []` with its raw/filtered counts, or a toolkit agent that says it found nothing) is a clean engine and counts as a full engine in triage. Missing output, an errored dispatch, or a result that is prose instead of a findings list is a failure: say so, degrade via *When a plugin is missing* below, and tell the user in the step 7 summary which engine didn't report. Don't reconstruct its output yourself and hand that to triage as engine findings — session-authored content in that channel destroys the independence the triage step exists for. If an engine produced nothing, the review has one engine, and the user should know it.
 
 ## Merge and carry forward
 
@@ -66,7 +66,7 @@ Apply the same skepticism to automated findings that a careful human reviewer ap
 
 Degrade gracefully; don't hard-fail.
 
-- **No `code-review` plugin:** rely on the `pr-review-toolkit` agents alone.
+- **No `code-review` plugin:** if the Skill tool lists Claude Code's bundled `code-review` skill, run it for breadth as described under Engine 1; otherwise rely on the `pr-review-toolkit` agents alone.
 - **No `pr-review-toolkit`:** rely on the `code-review` plugin alone.
 - **Neither installed:** tell the user, then do a lighter inline review yourself — read the diff from `fetch-pr-context`, scan changed lines for real bugs and convention violations, assign a rough confidence, and note in the summary that this was a lighter pass. The rest of the workflow (house style, approval gate, post) is unchanged.
 - **No Agent tool in this context** (rare: a subagent at the nesting depth limit, or a harness without agent dispatch — ordinary subagents and forked skills do have the Agent tool and should run the engines normally): same lighter inline pass as above, and tell the user the parallel engines were skipped and why — re-running the skill from a context with agent dispatch restores them.
