@@ -101,7 +101,7 @@ End every run with these sections, in this order:
 - **Files changed** — absolute path of every file created or modified, one line each, with a few words
   on what changed. Say so explicitly when you changed nothing.
 - **Commands run** — each command and its outcome: `terraform validate`, `terraform fmt`,
-  `terraform plan -out=plan.tfplan`. Quote the failure output when one failed.
+  `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Quote the failure output when one failed.
 - **Plan summary** — the add/change/destroy counts and the resources behind them, calling out anything
   destructive or anything that forces replacement. Say where `plan.tfplan` was written.
 - **Grounding** — the pinned provider and module versions you worked against, the AWS state you
