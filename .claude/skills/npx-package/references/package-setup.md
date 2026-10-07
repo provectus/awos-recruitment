@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "keywords": ["cli", "mcp", "capabilities"],
   "license": "MIT",
@@ -52,12 +52,14 @@
     "url": "https://github.com/org/my-cli"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "vitest": "^2.0.0"
+    "typescript": "^7",
+    "@types/node": "^24",
+    "vitest": "^5"
   }
 }
 ```
+
+The devDependency ranges are examples — install with `npm install -D typescript @types/node vitest` to get the latest majors rather than copying these pins. Keep the `@types/node` major equal to the `engines.node` floor.
 
 ## Key Fields Explained
 
@@ -122,12 +124,12 @@ Specifies the minimum Node.js version. npm will warn (and `--engine-strict` will
 ```json
 {
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   }
 }
 ```
 
-Use `>=18` for `fetch` support, `>=20` for latest stable features.
+Set the floor to the current Node LTS major (check the Node.js release schedule); every supported LTS line ships `fetch`, ESM, and `node:test`. Lower it only if you must support users on an older maintenance LTS line, and match `@types/node` and the tsup `target` to whatever floor you choose.
 
 ## Scoped Packages
 
@@ -176,7 +178,7 @@ export default defineConfig({
   format: ["esm"],
   dts: true,
   clean: true,
-  target: "node18",
+  target: "node24", // match engines.node
   banner: {
     js: "#!/usr/bin/env node",
   },
@@ -238,10 +240,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pin each action to its latest major
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "lts/*" # current Node LTS; or pin to the engines.node major
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm run build

@@ -1,6 +1,6 @@
 ---
 name: npx-package
-description: Provides patterns for building TypeScript CLI tools distributed via npx - package structure, the bin entry point and shebang, ESM-ready tsconfig, argument parsing, output and exit codes, local testing, and npm publishing. Use when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", or "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx.
+description: Provides patterns for building TypeScript CLI tools distributed via npx - package structure, the bin entry point and shebang, ESM-ready tsconfig, argument parsing, output and exit codes, local testing, and npm publishing. Use when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", or "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx. Does not cover general TypeScript style, type design, or non-CLI project layout - see the typescript skill for those.
 version: 0.1.0
 ---
 
@@ -43,14 +43,16 @@ my-cli/
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^7",
+    "@types/node": "^24"
   }
 }
 ```
+
+Set `engines.node` to the current Node LTS major and keep the `@types/node` major equal to it. The devDependency ranges above are examples — install with `npm install -D typescript @types/node` to get the latest majors rather than copying these pins.
 
 Key fields:
 

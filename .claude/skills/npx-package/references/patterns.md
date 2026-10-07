@@ -148,7 +148,7 @@ spinner.stop("Installed successfully");
 
 ## HTTP Requests from CLI
 
-### Using built-in fetch (Node.js 18+)
+### Using built-in fetch (available in every supported Node LTS)
 
 ```typescript
 async function fetchJson<T>(url: string): Promise<T> {
