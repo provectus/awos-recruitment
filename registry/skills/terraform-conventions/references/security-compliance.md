@@ -141,12 +141,16 @@ resource "aws_instance" "app" {
 resource "aws_vpc" "this" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
+
+  tags = local.required_tags
 }
 
 resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.this.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "us-east-1a"
+
+  tags = local.required_tags
 }
 ```
 
@@ -166,6 +170,8 @@ resource "aws_s3_bucket" "data" {
 # Good: Enable encryption
 resource "aws_s3_bucket" "data" {
   bucket = "my-data-bucket"
+
+  tags = local.required_tags
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
@@ -203,6 +209,8 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
   ip_protocol                  = "tcp"
   from_port                    = 8080
   to_port                      = 8080
+
+  tags = local.required_tags
 }
 ```
 

@@ -281,7 +281,7 @@ resource "aws_instance" "web" {
 # ✅ GOOD - Parameterized resource module
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]  # Canonical
+  owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
@@ -294,7 +294,7 @@ resource "aws_instance" "web" {
   instance_type = var.instance_type
   subnet_id     = var.subnet_id
 
-  tags = var.tags
+  tags = merge(local.required_tags, var.tags)
 }
 ```
 
@@ -542,9 +542,10 @@ resource "aws_instance" "server" {
   for_each = toset(["web", "api", "worker"])
 
   instance_type = "t3.micro"
-  tags = {
+
+  tags = merge(local.required_tags, {
     Name = each.key
-  }
+  })
 }
 ```
 
@@ -953,8 +954,10 @@ terraform plan
 
 **4. Integration testing:**
 ```bash
-# Apply and verify
-terraform apply -auto-approve
+# -auto-approve is for a throwaway test account in an automated test run,
+# where the resources are destroyed minutes later. Real environments follow
+# the Apply Workflow in SKILL.md: plan -out, review, explicit approval.
+terraform apply -auto-approve # ephemeral test account only
 
 # Verify resources exist (use AWS CLI, etc.)
 aws ec2 describe-vpcs --vpc-ids $(terraform output -raw vpc_id)
@@ -964,7 +967,7 @@ terraform plan
 # Expected: "No changes. Your infrastructure matches the configuration."
 
 # Clean up
-terraform destroy -auto-approve
+terraform destroy -auto-approve # ephemeral test account only
 ```
 
 ### Input Validation Testing
@@ -1008,7 +1011,7 @@ echo $SUBNET_IDS | jq 'length'  # Should match expected subnet count
 
 ```bash
 # Apply configuration
-terraform apply -auto-approve
+terraform apply -auto-approve # ephemeral test account only
 
 # Immediately run plan - should show no changes
 terraform plan -detailed-exitcode
@@ -1031,7 +1034,7 @@ Verify all resources are properly cleaned up:
 BEFORE_COUNT=$(terraform state list | wc -l)
 
 # Destroy
-terraform destroy -auto-approve
+terraform destroy -auto-approve # ephemeral test account only
 
 # After destroy - verify state is empty
 AFTER_COUNT=$(terraform state list | wc -l)

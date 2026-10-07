@@ -5,6 +5,8 @@
 
 This document provides detailed CI/CD workflow templates and optimization strategies for infrastructure-as-code pipelines.
 
+Action refs, tool versions and image tags in the templates below (`@vX.Y.Z`, `tflint_version`, `hashicorp/terraform:X.Y.Z`) are illustrative, like every version number in this skill: look up the current release before copying one, and never bump an existing pin unless the user asks.
+
 ---
 
 ## Table of Contents
@@ -50,7 +52,7 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      # tflint's curl | bash install script was removed from the repo (July 2026);
+      # tflint's curl | bash install script was removed from the repo;
       # the setup action is the supported installer. Pin the binary as well as
       # the action, otherwise `latest` changes what lints without a commit.
       - name: Setup TFLint
@@ -79,7 +81,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.21'
+          go-version-file: tests/go.mod  # The Go version the Terratest module declares
 
       - name: Run Terratest
         run: |
@@ -239,15 +241,22 @@ apply:
 # GitHub Actions
 test:
   runs-on: ubuntu-latest
+  permissions:
+    id-token: write  # OIDC token for configure-aws-credentials; no static keys
+    contents: read
   steps:
     - name: Run Unit Tests (Mocked)
       run: terraform test
 
+    - name: Configure AWS Credentials
+      if: github.ref == 'refs/heads/main'
+      uses: aws-actions/configure-aws-credentials@v6.3.0
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # CI role with OIDC trust scoped to this repo
+        aws-region: us-east-1
+
     - name: Run Integration Tests
       if: github.ref == 'refs/heads/main'
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd tests
         go test -v -timeout 30m
@@ -308,14 +317,16 @@ on:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # OIDC token for configure-aws-credentials; no static keys
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # CI role with OIDC trust scoped to this repo
           aws-region: us-east-1
 
       - name: Run Cleanup Script

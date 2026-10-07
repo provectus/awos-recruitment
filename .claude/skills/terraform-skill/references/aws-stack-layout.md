@@ -138,7 +138,7 @@ Each root's provider sets `allowed_account_ids = ["<account-id>"]` from its dire
 | Area | Lever | Trade-off |
 |------|-------|-----------|
 | egress | one NAT per VPC + free S3/DynamoDB gateway endpoints (default) | single-AZ egress; per-AZ NAT only on request |
-| egress | interface endpoints instead of a NAT | ~$7/month per endpoint per AZ; wins only with no internet egress and few endpoints |
+| egress | interface endpoints instead of a NAT | an hourly charge per endpoint per AZ plus data processing (look it up for the region); wins only with no internet egress and few endpoints |
 | compute | Graviton (`ARM64`) Fargate tasks | image must be built for arm64 |
 | compute | Fargate Spot for dev and interruptible workers | tasks can be stopped at 2 minutes' notice |
 | compute | right-size CPU/memory; scale dev to zero out of hours | needs usage data / a schedule |
@@ -161,7 +161,7 @@ Write a local `modules/<name>` only when **both** hold:
 - the stack composes **several** modules/resources with non-trivial wiring (e.g. ALB + ECS service + SG rules + IAM + alias record), **and**
 - that wiring must be identical in more than one environment.
 
-Local modules: provider constraints as `>=` minimums (the root's exact pin and `.terraform.lock.hcl` decide), registry module `version` still exact, no `provider` blocks.
+Local modules: the same exact provider pin as the root that calls them, bumped in the same commit (see Version Pinning in SKILL.md — never a `>=` minimum), registry module `version` still exact, no `provider` blocks.
 
 ---
 
@@ -240,7 +240,7 @@ module "vpc" {
   cidr = local.vpc_cidr
   azs  = local.azs
 
-  public_subnets      = local.public_subnet_cidrs  # ALB only
+  public_subnets      = local.public_subnet_cidrs # ALB only
   public_subnet_tags  = { Tier = "public" }
   private_subnets     = local.private_subnet_cidrs # ECS tasks
   private_subnet_tags = { Tier = "private" }
@@ -251,6 +251,8 @@ module "vpc" {
   enable_flow_log                      = true
   create_flow_log_cloudwatch_log_group = true
   create_flow_log_cloudwatch_iam_role  = true
+
+  tags = local.required_tags
 }
 
 module "vpc_endpoints" {
@@ -271,6 +273,8 @@ module "vpc_endpoints" {
       route_table_ids = module.vpc.private_route_table_ids
     }
   }
+
+  tags = local.required_tags
 }
 
 # 111111111111/dev/app.tf — same root, so outputs are passed directly (no lookups)
@@ -282,6 +286,8 @@ module "app" {
   service_subnet_ids = module.vpc.private_subnets # tasks never get a public IP
   certificate_arn    = module.acm.acm_certificate_arn
   table_arn          = module.table.dynamodb_table_arn
+
+  tags = local.required_tags
 }
 ```
 

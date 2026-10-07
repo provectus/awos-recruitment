@@ -23,7 +23,7 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 > | **Modules (prod)** | Exact version | `version = "5.1.2"` |
 > | **Modules (dev)** | Exact version | `version = "5.1.2"` |
 >
-> No pessimistic (`~>`) or range constraints. Pin everything. This prevents drift between environments and ensures reproducible builds.
+> No pessimistic (`~>`) or range constraints. Pin everything. This prevents drift between environments and ensures reproducible builds. Local modules under `modules/` are no exception: they carry the same exact provider pin as the roots that call them and are bumped in the same commit — never a `>=` minimum.
 >
 > Version numbers in this skill are illustrative — never copy them. Terraform core: reuse the repo's existing `required_version` / `.terraform-version`; in a new repo, take the latest stable release from `https://api.releases.hashicorp.com/v1/releases/terraform/latest` and confirm it with the user. State locking: S3 native `use_lockfile = true` (Terraform >= 1.10), no DynamoDB lock table.
 
