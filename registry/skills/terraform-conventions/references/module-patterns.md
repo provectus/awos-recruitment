@@ -106,7 +106,7 @@ module "ecs" {
 
 **Examples:**
 ```
-environments/
+infra/111111111111/         # one directory per AWS account
 ├── prod/                   # Composition (one root + state per env)
 │   ├── network.tf         # Registry module calls, one file per layer
 │   ├── dns.tf
@@ -114,15 +114,15 @@ environments/
 │   ├── app.tf
 │   ├── backend.tf         # Remote state configuration
 │   └── locals.tf          # Production-specific values (no tfvars)
-├── staging/                # same layout
-└── dev/                    # same layout
+├── dev/                    # same layout
+└── shared/                 # resources used by several environments
 ```
 
 ### Decision Tree: Which Module Type?
 
 ```
 Question 1: Is this environment-specific configuration?
-├─ YES → Composition (environments/prod/, environments/staging/)
+├─ YES → Composition (<account-id>/prod/, <account-id>/dev/)
 └─ NO  → Continue
 
 Question 2: Does it combine multiple infrastructure concerns?
@@ -232,9 +232,10 @@ terraform {
 **Example:**
 
 ```hcl
-# environments/prod/network — the vpc module tags the VPC Name = "myapp-prod"
+# producer root (111111111111/shared/, or a network root split out for a
+# stated reason) — its vpc module tags the VPC Name = "myapp-prod"
 
-# environments/prod/app/data.tf
+# consumer root: 111111111111/prod/data-sources.tf
 data "aws_vpc" "this" {
   filter {
     name   = "tag:Name"
@@ -303,32 +304,34 @@ resource "aws_instance" "web" {
 **Pattern:** Compositions provide concrete values, modules provide abstractions
 
 ```hcl
-# ✅ GOOD - Composition with environment-specific values
-# environments/prod/main.tf
+# ✅ GOOD - Composition with environment-specific values,
+# one root per environment with one file per layer
 
+# 111111111111/prod/network.tf
 module "vpc" {
   source = "../../modules/vpc"
 
-  cidr_block           = "10.0.0.0/16"
-  availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  enable_nat_gateway   = true
-  single_nat_gateway   = false  # HA for production
+  cidr_block         = "10.0.0.0/16"
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  enable_nat_gateway = true
+  single_nat_gateway = true # one NAT per VPC, prod included (see Security Baseline)
 
   tags = merge(local.required_tags, {
     CostCenter = "engineering"
   })
 }
 
+# 111111111111/prod/data.tf
 module "rds" {
   source = "../../modules/rds"
 
-  instance_class       = "db.r5.xlarge"  # Production sizing
-  allocated_storage    = 500             # Production sizing
-  multi_az             = true            # HA for production
-  backup_retention     = 30              # Long retention for prod
+  instance_class    = "db.r5.xlarge" # Production sizing
+  allocated_storage = 500            # Production sizing
+  multi_az          = true           # HA for production
+  backup_retention  = 30             # Long retention for prod
 
-  vpc_id               = module.vpc.vpc_id
-  subnet_ids           = module.vpc.private_subnet_ids
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnet_ids
 
   tags = local.required_tags
 }
@@ -570,12 +573,13 @@ resource "aws_instance" "server" {
 
 ```
 # Root module (environment-specific)
-prod/
-  main.tf          # Calls modules with prod-specific values
-  variables.tf     # Environment-specific variables
+111111111111/prod/
+  network.tf       # Calls modules with prod-specific values, one file per layer
+  app.tf
+  locals.tf        # Environment-specific values (no tfvars)
 
 # Reusable module
-modules/webapp/
+modules/app/
   main.tf          # Generic, parameterized resources
   variables.tf     # Configurable inputs
 ```
@@ -685,16 +689,14 @@ resource "aws_instance" "app" {
 
 **Problem:** Can't have separate state files, blast radius is huge.
 
-**Fix:** Use separate root modules:
+**Fix:** Use separate root modules — one per environment, one file per layer:
 
 ```
-environments/
+infra/111111111111/
   dev/
-    main.tf
-  staging/
-    main.tf
+    network.tf  dns.tf  data.tf  app.tf  locals.tf
   prod/
-    main.tf
+    network.tf  dns.tf  data.tf  app.tf  locals.tf
 ```
 
 ### ❌ DON'T: Use `terraform_remote_state` Everywhere

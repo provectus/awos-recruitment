@@ -442,7 +442,7 @@ security-scan:
 version: 3
 projects:
   - name: production
-    dir: environments/prod
+    dir: infra/111111111111/prod
     workspace: default
     terraform_version: vX.Y.Z # same as the root's required_version; >= 1.10 for use_lockfile
     workflow: custom

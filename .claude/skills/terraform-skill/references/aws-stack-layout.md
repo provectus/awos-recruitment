@@ -52,9 +52,9 @@ For every component, before writing code:
 
 **Existing code:** keep every pinned version as-is and read docs at *that* version. A newer version is reported, never applied, unless the user asks for an upgrade.
 
-**Registry MCP unreachable:** stop and tell the user. Never write versions or module inputs from memory.
+**Registry MCP unreachable:** fall back to the Terraform Registry HTTP API as the main skill's [Registry Modules First](../SKILL.md#registry-modules-first) convention describes (WebFetch the module's `/v1/modules/<namespace>/<name>/<provider>/versions` endpoint for the version, its registry docs page at that version for inputs and provider constraints). Never write versions or module inputs from memory.
 
-**Scope:** every module in every root — including `bootstrap` and other helper roots. A version you did not resolve through the MCP in this session does not get written, not even with a "verify later" note.
+**Scope:** every module in every root — including `bootstrap` and other helper roots. A version you did not resolve through the MCP or the Registry API in this session does not get written, not even with a "verify later" note.
 
 ---
 
@@ -303,7 +303,7 @@ module "app" {
 | `version = "~> 6.0"`, `">= 6.0"`, or no `version` on a registry module | `version = "X.Y.Z"` |
 | Replacing hand-written resources and trusting module defaults (a read-only root broke startup) | Diff module defaults against the live resource; set them explicitly |
 | Bumping an existing module pin "while you're there" | Keep it; report the newer version instead |
-| Version or inputs written from memory ("re-verify before apply") | Look them up via the terraform MCP; stop if it's unavailable |
+| Version or inputs written from memory ("re-verify before apply") | Look them up via the terraform MCP, or the Registry HTTP API when the MCP is unavailable |
 | A separate root (state) per layer with no stated reason | One root per environment; split only for separate teams, slow plans, or an isolation the user asked for |
 | `terraform state mv` between backends to refactor | `moved {}` blocks inside the one state, reviewed in a plan |
 | Copying `required_version` from a skill example | Reuse the repo's pin; in a new repo resolve the latest release and confirm |
