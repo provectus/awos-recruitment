@@ -126,6 +126,57 @@ def test_description_comparison_operators_pass(model):
     )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("argument-hint", "[loop | exclude: <login>, ...]"),
+        ("argument-hint", "<route or URL> <app base URL>"),
+        ("allowed-tools", "Bash(gh:*) <tool>"),
+        ("version", "1.0.0<br/>"),
+        ("context", "</fork>"),
+    ],
+)
+def test_skill_text_fields_reject_xml_tags(field: str, value: str):
+    """Rule frontmatter-xml: every free-text field rejects XML tags, not just name/description."""
+    with pytest.raises(ValidationError) as exc_info:
+        SkillMetadata.model_validate(
+            {"name": "ok-name", "description": GOOD_DESCRIPTION, field: value}
+        )
+    assert any("XML tags" in m for m in _model_messages(exc_info)), (
+        f"frontmatter-xml: expected {field}={value!r} to be rejected"
+    )
+
+
+def test_skill_text_fields_without_tags_pass():
+    """Rule frontmatter-xml: brackets, comparisons and plain words are accepted."""
+    meta = SkillMetadata.model_validate(
+        {
+            "name": "ok-name",
+            "description": GOOD_DESCRIPTION,
+            "argument-hint": "[loop [interval] | exclude: login, ... | n > 3]",
+            "allowed-tools": "Bash(${CLAUDE_SKILL_DIR}/scripts/scan.sh *)",
+            "version": "1.0.0",
+        }
+    )
+    assert meta.argument_hint == "[loop [interval] | exclude: login, ... | n > 3]"
+
+
+def test_validator_reports_argument_hint_tag_on_its_field(tmp_path: Path):
+    """Rule frontmatter-xml surfaces through validate_skills naming the field."""
+    skill_dir = _make_skill(tmp_path)
+    skill_md = skill_dir / "SKILL.md"
+    skill_md.write_text(
+        skill_md.read_text().replace(
+            "---\n\n", 'argument-hint: "exclude: <login>"\n---\n\n', 1
+        )
+    )
+    result = _only_result(tmp_path)
+    assert not result.valid, "frontmatter-xml: '<login>' in argument-hint passed"
+    assert any("argument" in (e.field or "") for e in result.errors), (
+        f"frontmatter-xml: expected an argument-hint error, got {result.errors}"
+    )
+
+
 def test_validator_reports_description_length_as_error(tmp_path: Path):
     """Rule description-length surfaces through validate_skills as an error."""
     _make_skill(tmp_path, description="Use when x. " + "a" * 1024)

@@ -70,3 +70,8 @@ FrontmatterDescription = Annotated[
     AfterValidator(_check_description_length),
     AfterValidator(_reject_xml_tags),
 ]
+
+# Any other free-text front-matter value. The whole front matter is loaded
+# into the system prompt, so the XML-tag ban covers every string in it, not
+# just name and description: an argument-hint such as "<login>" is a tag too.
+FrontmatterText = Annotated[str, AfterValidator(_reject_xml_tags)]

@@ -9,11 +9,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from awos_recruitment_mcp.models._frontmatter_fields import (
     FrontmatterDescription,
     FrontmatterName,
+    FrontmatterText,
 )
 
 
 class SkillMetadata(BaseModel):
     """Validated representation of the YAML front matter in a SKILL.md file.
+
+    Every free-text string field rejects XML tags, not just name and
+    description: the whole front matter is loaded into the system prompt.
 
     Attributes:
         name: Kebab-case identifier for the skill (1-64 chars, lowercase
@@ -41,15 +45,15 @@ class SkillMetadata(BaseModel):
     name: FrontmatterName = Field(...)
     description: FrontmatterDescription = Field(...)
 
-    version: str | None = Field(None)
-    argument_hint: str | None = Field(None, alias="argument-hint")
+    version: FrontmatterText | None = Field(None)
+    argument_hint: FrontmatterText | None = Field(None, alias="argument-hint")
     disable_model_invocation: bool | None = Field(
         None, alias="disable-model-invocation"
     )
     user_invocable: bool | None = Field(None, alias="user-invocable")
-    allowed_tools: str | None = Field(None, alias="allowed-tools")
-    model: str | None = Field(None)
+    allowed_tools: FrontmatterText | None = Field(None, alias="allowed-tools")
+    model: FrontmatterText | None = Field(None)
     effort: Literal["low", "medium", "high", "xhigh", "max"] | None = Field(None)
-    context: str | None = Field(None)
-    agent: str | None = Field(None)
+    context: FrontmatterText | None = Field(None)
+    agent: FrontmatterText | None = Field(None)
     hooks: dict | None = Field(None)
