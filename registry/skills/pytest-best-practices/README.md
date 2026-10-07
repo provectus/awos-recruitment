@@ -52,8 +52,8 @@ references/patterns.md
 ## Trigger evaluation
 
 The registry bundler ships only `SKILL.md` and the flat files under
-`references/`, so the trigger prompts live here rather than in an `evals/`
-directory. Re-run them after any edit to the `description` front matter — the
+`references/` and `scripts/`, so the trigger prompts live here rather than in an
+`evals/` directory. Re-run them after any edit to the `description` front matter — the
 "should not trigger" rows are the ones that catch an over-broad description.
 
 **Should trigger**
