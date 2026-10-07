@@ -42,6 +42,9 @@ All commands run from the **repository root** via `just`:
 | `just test tests/test_validate.py` | Run a specific test file |
 | `just validate-registry` | Validate all registry entries |
 | `just validate-registry --format json` | Validate with JSON output (for CI) |
+| `just validate-registry --format github --summary out.md` | Validate with GitHub workflow annotations plus a markdown summary file (what CI runs) |
+| `just validate-registry --strict` | Treat skill-quality warnings as errors |
+| `just check-skill-parity` | Check that the skills copied into `.claude/skills/` match their `registry/skills/` source |
 | `just build-cli` | Build the CLI (TypeScript → `cli/dist/`) |
 | `just test-cli` | Run CLI tests |
 | `just publish-cli` | Bump patch version and publish CLI to npm |
