@@ -127,11 +127,7 @@ type Decorator[**P, R] = Callable[[Callable[P, R]], Callable[P, R]]
 type Shape[*Ts] = tuple[*Ts]
 ```
 
-### Advantages over legacy TypeAlias
-
-- Lazily evaluated — forward references work without quotes
-- Supports inline generic parameters (no separate `TypeVar` declaration)
-- Clear, dedicated syntax distinguishable from variable assignment
+Prefer `type` over `TypeAlias`: it is lazily evaluated (forward references need no quotes) and takes inline generic parameters.
 
 ## Exception Groups (3.11+)
 

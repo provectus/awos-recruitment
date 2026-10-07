@@ -45,23 +45,7 @@ project-name/
 
 ## Why src Layout
 
-The `src/` layout prevents a class of bugs where the package in the working directory shadows the installed package. Without it, running `python` from the project root imports the local directory instead of the installed package, leading to subtle test failures and import issues.
-
-```
-# Without src layout — dangerous
-project/
-├── mypackage/     # This gets imported instead of the installed one
-│   └── ...
-└── tests/
-    └── test_foo.py  # `import mypackage` imports the local dir, not installed
-
-# With src layout — safe
-project/
-├── src/
-│   └── mypackage/  # Not directly importable from project root
-└── tests/
-    └── test_foo.py  # `import mypackage` always imports the installed one
-```
+The `src/` layout keeps the package out of the project root, so `import mypackage` always resolves to the installed package rather than the local directory.
 
 ## pyproject.toml
 
@@ -71,6 +55,8 @@ Scaffold with this toolchain — `hatchling` to build, `ruff` to lint and format
 to type-check, `pytest` to test — so a generated `pyproject.toml` runs as written. If
 the project already configures a different build backend or tool set, keep what is
 there; the point is to have a working default, not to standardise every repository.
+Set `requires-python`, `target-version`, and `python_version` to the project's actual
+floor; `3.12` below is the minimum this skill assumes.
 
 ```toml
 [project]

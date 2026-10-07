@@ -340,10 +340,7 @@ class Point:
         self.y = y
 ```
 
-Benefits:
-- Lower memory usage per instance
-- Faster attribute access
-- Prevents accidental attribute creation
+Slots lower per-instance memory and prevent accidental attribute creation.
 
 Prefer `@dataclass(slots=True)` over manual `__slots__` when using dataclasses.
 
