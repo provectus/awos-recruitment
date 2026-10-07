@@ -456,11 +456,13 @@ moved {
 
 ```hcl
 # AWS provider function example
-data "aws_region" "current" {}
+data "aws_partition" "current" {}
 
 locals {
-  # Provider function (Terraform 1.8+)
-  bucket_name = provider::aws::arn_build("s3", "my-bucket", data.aws_region.current.name)
+  # Provider function (Terraform 1.8+):
+  # arn_build(partition, service, region, account_id, resource)
+  # S3 bucket ARNs carry no region or account, so those two are empty strings.
+  bucket_arn = provider::aws::arn_build(data.aws_partition.current.partition, "s3", "", "", "my-bucket")
 }
 
 # Check provider documentation for available functions
@@ -790,8 +792,9 @@ ephemeral "aws_secretsmanager_secret_version" "db_password" {
 }
 
 resource "aws_db_instance" "this" {
-  engine   = "mysql"
-  username = "admin"
+  engine         = "mysql"
+  instance_class = "db.t3.micro"
+  username       = "admin"
 
   # write-only: Sent to AWS, not stored in state.
   # password_wo_version is required alongside password_wo; bump it to rotate.
@@ -806,8 +809,9 @@ resource "aws_db_instance" "this" {
 # GOOD - AWS generates the password, stores it in Secrets Manager,
 # and Terraform never sees the value
 resource "aws_db_instance" "this" {
-  engine   = "mysql"
-  username = "admin"
+  engine         = "mysql"
+  instance_class = "db.t3.micro"
+  username       = "admin"
 
   manage_master_user_password = true # Cannot be combined with password/password_wo
 }

@@ -50,9 +50,16 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # tflint's curl | bash install script was removed from the repo (July 2026);
+      # the setup action is the supported installer. Pin the binary as well as
+      # the action, otherwise `latest` changes what lints without a commit.
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6.3.2
+        with:
+          tflint_version: v0.64.0
+
       - name: TFLint
         run: |
-          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --init
           tflint
 

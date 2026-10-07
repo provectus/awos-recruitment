@@ -386,7 +386,7 @@ terraform validate
 ### Modern Features Check
 
 - [ ] Using `try()` not `element(concat())`
-- [ ] Secrets use write-only arguments or external data sources (not in state)
+- [ ] Secrets reach resources through write-only arguments fed by `ephemeral` lookups, never `data` sources (data-source results are stored in state)
 - [ ] `nullable = false` set on non-null variables
 - [ ] `optional()` used in object types where applicable (Terraform 1.3+)
 - [ ] Variable validation blocks added where constraints needed

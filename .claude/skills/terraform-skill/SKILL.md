@@ -75,7 +75,7 @@ Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production
 >
 > **For AWS components, use a public registry module (`terraform-aws-modules/*`), not raw `resource` blocks.** VPC, ALB, ECS, ACM, DynamoDB, S3, RDS, Lambda, security groups and IAM all have one. A raw `resource` is allowed only when no module covers it, the module would wrap a single resource (e.g. one Route53 alias record), or the module lacks a needed feature — state the reason in the design.
 >
-> Resolve every new module's version through the terraform MCP (`get_latest_module_version` → `get_module_details` for that exact version) and pin it exactly. "Latest" is a one-time lookup, never a constraint. Never bump an existing pin unless the user asks. This applies to every module in every root, including `bootstrap` and helper roots: a version not resolved through the MCP in this session is not written — never from memory, not even with a "verify later" note.
+> Resolve every new module's version through the terraform MCP (`terraform-mcp-server:get_latest_module_version` → `terraform-mcp-server:get_module_details` for that exact version) and pin it exactly. "Latest" is a one-time lookup, never a constraint. Never bump an existing pin unless the user asks. This applies to every module in every root, including `bootstrap` and helper roots: a version not resolved through the MCP in this session is not written — never from memory, not even with a "verify later" note.
 
 > ### Layers
 >

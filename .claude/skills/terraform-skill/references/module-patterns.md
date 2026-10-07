@@ -174,19 +174,20 @@ backend.tf        # ONLY at composition level (remote state config)
 **Example:**
 
 ```hcl
-# ❌ BAD - One massive composition with everything
-environments/prod/
-  main.tf  # 2000 lines, manages VPC, EC2, RDS, S3, IAM, everything
+# ❌ BAD - One root (state) for every environment
+infra/
+  main.tf  # 2000 lines: dev and prod VPCs, RDS, ECS, IAM, everything
   # Takes 10+ minutes to plan
-  # One mistake affects entire infrastructure
+  # A mistake in dev can touch prod
 
-# ✅ GOOD - Separated by concern
-environments/prod/
-  networking/     # VPC, subnets, route tables
-  compute/        # EC2, ASG, ALB
-  data/           # RDS, ElastiCache
-  storage/        # S3, EFS
-  iam/            # IAM roles, policies
+# ✅ GOOD - One root (state) per environment, one file per layer
+infra/111111111111/prod/
+  network.tf    # VPC, subnets, endpoints
+  dns.tf        # ACM certificate + validation records
+  data.tf       # RDS, DynamoDB, secrets
+  app.tf        # ALB, ECS/Lambda, IAM task roles, log groups
+  # Layers pass values through module outputs inside the root.
+  # Split a layer into its own root only for a stated reason.
 ```
 
 ### 2. Always Use Remote State
@@ -221,7 +222,7 @@ terraform {
 
 ### 3. Connect Stacks with Data-Source Lookups
 
-**Pattern (Provectus default):** a consumer stack reads what a producer stack created through provider data sources, by a name or tag the producer sets. See [AWS Stack Layout: Cross-Stack Wiring](aws-stack-layout.md#cross-stack-wiring-by-lookup).
+**Pattern (Provectus default):** a consumer stack reads what a producer stack created through provider data sources, by a name or tag the producer sets. See [AWS Stack Layout: Cross-Stack Wiring](aws-stack-layout.md#cross-root-wiring-by-lookup).
 
 **Why:**
 - Consumers don't depend on another root's backend or need read access to its state
