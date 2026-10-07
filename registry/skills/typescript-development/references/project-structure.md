@@ -207,15 +207,22 @@ Set `declaration: true` when the package is consumed by other TypeScript code (l
 
 ### Custom type declarations
 
-For untyped modules or global augmentation:
+For untyped modules or global augmentation — two separate files, because the two forms need
+opposite file kinds:
 
 ```typescript
-// src/types/global.d.ts
+// src/types/modules.d.ts — a script file: no import/export at top level.
+// With one, `declare module` becomes an augmentation of a module tsc must resolve.
 declare module "untyped-module" {
   export function doSomething(input: string): Promise<void>;
 }
+```
 
-// Augment global scope
+```typescript
+// src/types/global.d.ts — a module file: `declare global` is only legal inside one,
+// so the empty export is what makes it compile.
+export {};
+
 declare global {
   interface Window {
     appConfig: AppConfig;

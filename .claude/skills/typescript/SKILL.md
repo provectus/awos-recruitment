@@ -1,6 +1,6 @@
 ---
 name: typescript
-description: Modern TypeScript conventions for library-agnostic code — strict mode, naming, type annotations, the type system (generics, utility types, conditional and mapped types), discriminated unions, error handling, async patterns, immutability, and project structure. Use when the user asks to "write TypeScript code", "create a TypeScript module", "define TypeScript types", "add type annotations", "use generics", "handle errors in TypeScript", "set up tsconfig" or "organize a TypeScript project", or whenever writing any TypeScript that is not tied to a specific library or framework.
+description: Modern TypeScript conventions for library-agnostic code — strict mode, naming, type annotations, the type system (generics, utility types, conditional and mapped types), discriminated unions, error handling, async patterns, immutability, and project structure. Use when the user asks to "write TypeScript code", "create a TypeScript module", "define TypeScript types", "add type annotations", "use generics", "handle errors in TypeScript", "set up tsconfig" or "organize a TypeScript project", or whenever writing any TypeScript that is not tied to a specific library or framework. Does not cover React or other UI frameworks (react-best-practices, react-feature-sliced-design), CLI packaging and npm publishing (npx-package), plain JavaScript with no types, or service-specific APIs such as DynamoDB (aws-dynamodb-best-practices).
 ---
 
 # TypeScript Development
@@ -24,9 +24,9 @@ Key strict behaviors:
 | Classes | PascalCase | `UserService`, `HttpClient` |
 | Interfaces | PascalCase (no `I` prefix) | `User`, not `IUser` |
 | Type aliases | PascalCase | `ApiResponse`, `EventMap` |
-| Constants | camelCase or UPPER_SNAKE | `maxRetries` or `MAX_RETRIES` |
+| Constants | camelCase by default; UPPER_SNAKE only for module-level primitives that never change (limits, env keys) | `maxRetries` inside a function; `MAX_RETRIES = 3` at module scope |
 | Enum-like objects | PascalCase key, camelCase/string values | `Status.Active` |
-| Generic parameters | Single uppercase or descriptive | `T`, `TResult`, `K extends keyof T` |
+| Generic parameters | Single uppercase `T` when there is one; `T`-prefixed descriptive names once there are two or more, or when `T` alone would not say what it holds | `T`; `TKey, TValue`; `K extends keyof T` |
 | File names | kebab-case | `user-service.ts`, `api-client.ts` |
 | Boolean variables | Prefix with `is`, `has`, `can`, `should` | `isValid`, `hasPermission` |
 
@@ -98,23 +98,24 @@ type LoadingState<T> =
   | { status: "error"; error: Error };
 ```
 
-Always include an exhaustive check using `never`:
+Always include an exhaustive check using `never`, so adding a variant is a compile error
+until every switch handles it:
 
 ```typescript
-function assertNever(value: never): never {
-  throw new Error(`Unexpected value: ${value}`);
-}
-
 function render<T>(state: LoadingState<T>): string {
   switch (state.status) {
     case "idle": return "Ready";
     case "loading": return "Loading...";
     case "success": return String(state.data);
     case "error": return state.error.message;
-    default: return assertNever(state);
+    default: return assertNever(state); // defined in references/patterns.md
   }
 }
 ```
+
+`assertNever` and the inline `const _exhaustive: never = state` form are in
+`references/patterns.md` (Assertion Functions) and `references/type-system.md`
+(Discriminated Unions).
 
 ## Error Handling
 
@@ -142,15 +143,10 @@ name the subclass rather than `Error`. The full `AppError` / `NotFoundError` /
 
 ### Result type over exceptions
 
-For expected failure paths, prefer a typed `Result` over throwing:
-
-```typescript
-type Result<T, E = Error> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
-```
-
-The `ok()` / `err()` constructors and a worked example are in `references/patterns.md`.
+For expected failure paths, prefer a typed `Result` over throwing: a discriminated union of
+`{ ok: true; value: T }` and `{ ok: false; error: E }`, so the caller must check `ok`
+before touching either side. The type, its `ok()` / `err()` constructors and a worked
+example are in `references/patterns.md` (Error Handling Patterns).
 
 ## Const Objects Over Enums
 
@@ -196,14 +192,11 @@ async function fetchUserData(id: string): Promise<UserData> {
 
 ## Type-Only Imports
 
-Use `import type` for imports used only as types:
-
-```typescript
-import type { User } from "./models.js";
-import { createUser } from "./models.js";
-```
-
-This prevents circular dependency issues and ensures types are erased at compile time.
+Use `import type { User } from "./models.js"` (or the inline `import { createUser, type User }`
+form) for imports used only as types. This prevents circular dependency issues at runtime
+and ensures types are erased at compile time. The full rules, including the
+`verbatimModuleSyntax` flag that enforces them, are in `references/project-structure.md`
+(Import Organization).
 
 ## ESM Import Rule
 
@@ -235,7 +228,7 @@ import { helper } from "./utils";      // Wrong — fails at runtime
 
 Each topic lives in exactly one file — open the one that owns it:
 
-- **`references/type-system.md`** — how to *write* a type: generics, built-in utility types, conditional types, mapped types, template literal types, type guards and assertion predicates, discriminated unions and exhaustive matching, branded types, the `satisfies` operator, const assertions, declaration merging.
+- **`references/type-system.md`** — how to *write* a type: generics, built-in utility types, conditional types, mapped types, template literal types, type guards and custom predicates, discriminated unions and exhaustive matching, branded types, the `satisfies` operator, const assertions, declaration merging.
 - **`references/type-inference.md`** — what TypeScript works out *without* a type: variable, return and generic inference, contextual typing, the `infer` keyword (nested, tuple and template-literal extraction), control-flow narrowing, and when to annotate instead of letting inference work.
 - **`references/patterns.md`** — applied patterns: immutability, the error-class hierarchy and `Result` constructors, async (concurrency, async iterators), builder, typed event emitter, overloads, module and barrel patterns, why const objects beat `enum`, assertion functions, and the `in` / truthiness / `Array.isArray` narrowing idioms.
 - **`references/project-structure.md`** — everything outside the code: tsconfig (strict and extra safety flags), ESM/CJS module config, directory layout, organizing types, barrel exports, declaration files, import order, path aliases, gitignore.

@@ -5,7 +5,7 @@
     {
       "id": 1,
       "name": "unknown-over-any-on-untrusted-input",
-      "prompt": "I've got a webhook handler in src/webhook.ts that takes the raw parsed JSON body and pulls out an `eventName` string and a `retryCount` number. Right now the body param is typed `any` and it's leaking everywhere downstream. Can you rewrite it so it's actually type safe?",
+      "prompt": "I've got a webhook handler that takes the raw parsed JSON body and pulls out an `eventName` string and a `retryCount` number. Right now it's this:\n\n```ts\nexport function handleWebhook(body: any) {\n  const eventName = body.eventName;\n  const retryCount = body.retryCount;\n  return { eventName, retryCount };\n}\n```\n\nThe `any` is leaking everywhere downstream. Can you rewrite it so it's actually type safe?",
       "expected_output": "A handler whose input is typed `unknown` (not `any`), narrowed with an explicit type guard or assertion predicate before any property access, with an explicit return type, and an error path that throws or returns a typed Result rather than returning a partially-typed object.",
       "should_trigger": true,
       "assertions": [
@@ -45,7 +45,7 @@
   ],
   "should_not_trigger": [
     {
-      "prompt": "The types in our React components are a mess — can you convert these class components in src/components/ to function components with hooks?",
+      "prompt": "The types in our React components are a mess — can you convert our class components to function components with hooks?",
       "why": "Framework-specific work; react-best-practices / react-feature-sliced-design own this, not the language-level skill."
     },
     {

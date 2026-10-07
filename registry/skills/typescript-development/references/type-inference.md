@@ -66,12 +66,15 @@ function getUser(id: string) {
   return { id, name: "John", active: true };
 } // return type: { id: string; name: string; active: boolean }
 
-// Async function inference
-async function fetchData(): Promise<Data> {
-  const response = await fetch("/api/data");
-  return response.json() as Promise<Data>;
-}
+// An async function's inferred return type is wrapped in Promise automatically
+async function countUsers() {
+  const users = await Promise.resolve(["ann", "bob"]);
+  return users.length;
+} // return type: Promise<number>
 ```
+
+SKILL.md still asks for an explicit return type on every exported function; inference is
+what you rely on for locals and for checking that the annotation you wrote is true.
 
 ### Generic Inference
 
@@ -263,14 +266,30 @@ function greet(name: string): void {
 // Good: annotate when inference would be too wide — a `let` would widen to string
 let status: "active" | "inactive" = "active";
 
-// Good: annotate a return that inference cannot reach — JSON.parse returns any
+// Good: annotate where inference would give `any` — JSON.parse returns any, so pin
+// the result to `unknown` and narrow with a guard instead of asserting `as User`
 interface User {
   id: string;
   name: string;
 }
 
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" && // `in` narrowed value to object & Record<"id", unknown>
+    "name" in value &&
+    typeof value.name === "string"
+  );
+}
+
 function parseUser(json: string): User {
-  return JSON.parse(json) as User;
+  const parsed: unknown = JSON.parse(json);
+  if (!isUser(parsed)) {
+    throw new Error("Invalid user payload");
+  }
+  return parsed; // narrowed to User by the guard
 }
 ```
 

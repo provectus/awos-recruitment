@@ -147,6 +147,7 @@ async function fetchData(id: string): Promise<Data> {
   if (!response.ok) {
     throw new AppError("Fetch failed", "FETCH_ERROR", response.status);
   }
+  // Trust boundary: json() is Promise<any>; the API contract is ours. Narrow with a guard instead if the payload is untrusted.
   return response.json() as Promise<Data>;
 }
 ```
@@ -246,33 +247,29 @@ class QueryBuilder<T> {
 ```typescript
 type EventMap = Record<string, unknown[]>;
 
-class TypedEmitter<Events extends EventMap> {
-  private listeners = new Map<keyof Events, Set<Function>>();
+type Handler<Args extends unknown[]> = (...args: Args) => void;
 
-  on<K extends keyof Events>(
-    event: K,
-    handler: (...args: Events[K]) => void,
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(handler);
+// One Set per event, each typed to that event's argument tuple — no `Function`,
+// no non-null `!`: a missing Set is created on first use with `??=`.
+type ListenerSets<Events extends EventMap> = {
+  [K in keyof Events]?: Set<Handler<Events[K]>>;
+};
+
+class TypedEmitter<Events extends EventMap> {
+  private listeners: ListenerSets<Events> = {};
+
+  on<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
+    (this.listeners[event] ??= new Set()).add(handler);
   }
 
   emit<K extends keyof Events>(event: K, ...args: Events[K]): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      for (const handler of handlers) {
-        handler(...args);
-      }
+    for (const handler of this.listeners[event] ?? []) {
+      handler(...args);
     }
   }
 
-  off<K extends keyof Events>(
-    event: K,
-    handler: (...args: Events[K]) => void,
-  ): void {
-    this.listeners.get(event)?.delete(handler);
+  off<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
+    this.listeners[event]?.delete(handler);
   }
 }
 
