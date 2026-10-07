@@ -189,17 +189,23 @@ Python 3.13, so on a 3.12 target `from typing import TypeIs` raises `ImportError
 ```python
 from typing import TypeIs
 
-def is_positive_int(val: int | str) -> TypeIs[int]:
-    return isinstance(val, int) and val > 0
+def is_int(val: int | str) -> TypeIs[int]:
+    return isinstance(val, int)
 
 def handle(val: int | str) -> None:
-    if is_positive_int(val):
+    if is_int(val):
         # val is int
         print(val + 1)
     else:
         # val is str (narrowed in else branch too)
         print(val.upper())
 ```
+
+Because the `else` branch is narrowed too, a `TypeIs` predicate must return `True`
+exactly when the value is of the narrowed type. A predicate like
+`isinstance(val, int) and val > 0` would send `-1` down the `else` branch typed as
+`str` and crash at runtime; a value check like that belongs in a `TypeGuard` or a
+plain `bool` function, not a `TypeIs`.
 
 Prefer `TypeIs` when the project targets 3.13+ — it provides stronger guarantees.
 Otherwise use `TypeGuard`.

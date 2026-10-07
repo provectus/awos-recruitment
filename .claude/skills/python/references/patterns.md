@@ -48,10 +48,10 @@ class BaseProcessor(ABC):
     def fetch(self) -> bytes: ...
 
     @abstractmethod
-    def process(self, data: bytes) -> dict: ...
+    def process(self, data: bytes) -> dict[str, object]: ...
 
     @abstractmethod
-    def store(self, result: dict) -> None: ...
+    def store(self, result: dict[str, object]) -> None: ...
 ```
 
 Use ABC when subclasses genuinely need shared logic (template method pattern). Use Protocol everywhere else.
@@ -111,10 +111,11 @@ match user.status:
 ### Using `contextlib.contextmanager`
 
 ```python
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 @contextmanager
-def temporary_directory():
+def temporary_directory() -> Iterator[Path]:
     path = Path(tempfile.mkdtemp())
     try:
         yield path
@@ -139,22 +140,24 @@ class DatabaseTransaction:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool:
+    ) -> None:
         if exc_type is None:
             self._cursor.execute("COMMIT")
         else:
             self._cursor.execute("ROLLBACK")
         self._cursor.close()
-        return False  # Do not suppress exceptions
+        # Returning None never suppresses the exception. Annotate `-> bool` only
+        # when the manager really may return True to swallow it.
 ```
 
 ### Async context manager
 
 ```python
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
-async def managed_connection(url: str):
+async def managed_connection(url: str) -> AsyncIterator[Connection]:
     conn = await connect(url)
     try:
         yield conn

@@ -284,8 +284,9 @@ SUPPORTED_FORMATS: frozenset[str] = frozenset({"json", "csv", "xml"})
 # src/package_name/config.py
 """Application configuration."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from os import environ
+from typing import Self
 
 @dataclass(frozen=True, slots=True)
 class Config:
@@ -294,7 +295,7 @@ class Config:
     debug: bool = False
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Self:
         return cls(
             host=environ.get("APP_HOST", "localhost"),
             port=int(environ.get("APP_PORT", "8080")),
