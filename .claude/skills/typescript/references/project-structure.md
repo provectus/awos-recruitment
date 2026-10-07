@@ -178,15 +178,15 @@ Use `index.ts` files to create clean public APIs:
 
 ```typescript
 // domain/index.ts
-export { User, createUser } from "./user.js";
-export { Order, createOrder } from "./order.js";
+export { type User, createUser } from "./user.js";
+export { type Order, createOrder } from "./order.js";
 export type { UserFilter } from "./user.js";
 ```
 
 **Guidelines for barrel exports:**
 - Use barrel files at module boundaries (one level deep)
 - Avoid deep nesting of barrel files (re-exporting from re-exports)
-- Use `export type` for type-only re-exports
+- Use `export type` (or an inline `type` modifier) for type-only re-exports — under the `isolatedModules: true` recommended above, re-exporting a type without it is an error
 
 ## Declaration Files
 

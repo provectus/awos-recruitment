@@ -117,16 +117,11 @@ type StringOrNumber<T> = T extends string ? string : number;
 type ElementType<T> = T extends (infer E)[] ? E : T;
 // ElementType<string[]> → string
 // ElementType<number>   → number
-
-type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
-// UnwrapPromise<Promise<string>> → string
-
-// The placeholder parameter list must be `never[]`: parameters are checked
-// contravariantly, so `(...args: unknown[])` matches almost nothing and would
-// resolve to `never`. See `type-inference.md` for the full explanation.
-type FunctionReturn<T> = T extends (...args: never[]) => infer R ? R : never;
-// FunctionReturn<(a: string) => boolean> → boolean
 ```
+
+Extracting return types, tuple elements and template-literal parts with `infer` — including
+why a function placeholder must be `(...args: never[])`, not `unknown[]` — is covered in
+`type-inference.md`.
 
 ### Distributive conditional types
 
@@ -340,7 +335,7 @@ function createOrderId(id: string): OrderId {
   return id as OrderId;
 }
 
-function fetchUser(id: UserId): Promise<User> { /* ... */ }
+declare function fetchUser(id: UserId): Promise<User>;
 
 const userId = createUserId("u-123");
 const orderId = createOrderId("o-456");
@@ -406,7 +401,7 @@ interface Config {
 
 ```typescript
 // Extend an existing module's types
-declare module "./types" {
+declare module "./types.js" {
   interface AppConfig {
     newFeatureFlag: boolean;
   }

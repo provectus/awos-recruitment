@@ -260,8 +260,8 @@ function greet(name: string): void {
   console.log(`Hello, ${name}`);
 }
 
-// Good: annotate when inference would be too wide
-const status: "active" | "inactive" = "active";
+// Good: annotate when inference would be too wide — a `let` would widen to string
+let status: "active" | "inactive" = "active";
 
 // Good: annotate a return that inference cannot reach — JSON.parse returns any
 interface User {
