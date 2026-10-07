@@ -1,6 +1,6 @@
 ---
 name: fastmcp
-description: Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment. Use when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package.
+description: Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment. Use when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package. Does not cover the MCP protocol spec, the TypeScript MCP SDK, or configuring MCP servers in Claude Code settings.
 metadata:
   version: "0.1.0"
 ---
@@ -10,6 +10,8 @@ metadata:
 FastMCP is a Python framework for building Model Context Protocol (MCP) servers. It provides a decorator-based API for exposing tools, resources, and prompts to AI assistants. This skill covers the core API for building production-ready MCP servers.
 
 ## Server Initialization
+
+Install with `uv add "fastmcp>=4"` (or `pip install "fastmcp>=4"`); this skill targets fastmcp 4.x.
 
 ```python
 from fastmcp import FastMCP
