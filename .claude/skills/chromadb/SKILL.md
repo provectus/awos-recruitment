@@ -1,6 +1,6 @@
 ---
 name: chromadb
-description: Provides ChromaDB Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package.
+description: Provides ChromaDB Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Does not cover the JavaScript client, Chroma Cloud, choosing an embedding model, or general RAG architecture.
 ---
 
 # ChromaDB Python Skill
@@ -113,7 +113,7 @@ results = collection.query(
 )
 ```
 
-Returns a dict with keys: `ids`, `documents`, `metadatas`, `distances`, `embeddings`. Each value is a **list of lists** (one inner list per query). Lower distance = more similar.
+Returns a dict that always has the keys `ids`, `embeddings`, `documents`, `uris`, `included`, `data`, `metadatas`, `distances`. Fields not requested via `include` are present but set to `None`; `results["included"]` lists which fields were populated. Each populated value is a **list of lists** (one inner list per query). Lower distance = more similar.
 
 **Important:** `query()` returns nested lists, while `get()` returns flat lists. This is a common source of bugs:
 
@@ -142,6 +142,8 @@ results = collection.query(
 ```
 
 Valid include values: `"documents"`, `"metadatas"`, `"distances"`, `"embeddings"`.
+
+`include` does not remove keys from the result — every key is always present, and unrequested ones are `None`. Check `results["included"]` to learn what was populated; `"embeddings" in results` is always `True` and tells you nothing.
 
 ### Get by ID (no search)
 

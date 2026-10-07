@@ -133,13 +133,16 @@ results = collection.query(
     "documents": [["doc1", "doc2"]],
     "metadatas": [[{...}, {...}]],
     "distances": [[0.12, 0.34]],
-    "embeddings": [[[...], [...]]],     # only if requested in include
+    "embeddings": None,                 # key present; None unless "embeddings" in include
+    "uris": None,
+    "data": None,
+    "included": ["metadatas", "documents", "distances"],  # what was populated
 }
 ```
 
 - Lower distance = more similar.
 - Multiple queries return multiple inner lists.
-- Fields only appear if requested via `include` (except `ids`, always returned).
+- Every key is always present; fields not requested via `include` are `None`, not missing. Check `results["included"]` rather than `"embeddings" in results` (which is always `True`).
 
 ### get()
 
@@ -179,11 +182,14 @@ results = collection.get(
     "ids": ["id1", "id2"],          # flat list (not nested)
     "documents": ["doc1", "doc2"],
     "metadatas": [{...}, {...}],
-    "embeddings": [[...], [...]],
+    "embeddings": None,             # key present; None unless "embeddings" in include
+    "uris": None,
+    "data": None,
+    "included": ["metadatas", "documents"],
 }
 ```
 
-Note: `get()` returns flat lists, while `query()` returns nested lists.
+Note: `get()` returns flat lists, while `query()` returns nested lists. As with `query()`, every key is always present (there is no `distances` key on `get()` results) and unrequested fields are `None`; check `results["included"]`.
 
 ### update()
 
@@ -357,7 +363,7 @@ Controls which fields are returned. Applies to both `query()` and `get()`.
 Default for `query()`: `["documents", "metadatas", "distances"]`
 Default for `get()`: `["documents", "metadatas"]`
 
-`ids` are always returned regardless of `include`.
+`include` controls which fields are populated, not which keys exist. The result dict always has every key (`ids`, `embeddings`, `documents`, `uris`, `included`, `data`, `metadatas`, plus `distances` on `query()`); `ids` is always populated, unrequested fields are `None`, and `results["included"]` lists the populated ones.
 
 ## Embedding Functions
 
