@@ -26,22 +26,14 @@ create policy orders_user_policy on orders
 -- Force RLS even for table owners
 alter table orders force row level security;
 
--- Set user context and query
-set app.current_user_id = '123';
-select * from orders;  -- Only returns orders for user 123
-```
-
-Set the user context inside a transaction when connections are pooled:
-
-```sql
--- `set` is session-scoped: on a pooled connection the value survives into
--- whichever client is handed that connection next. `set local` is discarded
--- at commit or rollback, so it cannot leak.
+-- Set user context for this transaction only, then query
 begin;
-set local app.current_user_id = '456';
-select * from orders;  -- Only returns orders for user 456
+set local app.current_user_id = '123';
+select * from orders;  -- Only returns orders for user 123
 commit;
 ```
+
+Use `set local` inside a transaction, not plain `set`. `set` is session-scoped, so on a pooled connection (PgBouncer, an application pool) the value survives into whichever client is handed that connection next. `set local` is discarded at commit or rollback, so it cannot leak.
 
 A `for all` policy with only `using` applies the same predicate as `with check`, so inserts and updates that would hand a row to another user are rejected as well. Add an explicit `with check` only when the read and write predicates should differ.
 
