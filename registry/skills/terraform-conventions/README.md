@@ -2,7 +2,7 @@
 
 Local documentation for people editing this skill. It is not part of the
 install bundle (`/bundle/skills` ships `SKILL.md` plus the flat files under
-`references/`), so nothing here costs runtime tokens.
+`references/` and `scripts/`), so nothing here costs runtime tokens.
 
 ## Evaluations
 
