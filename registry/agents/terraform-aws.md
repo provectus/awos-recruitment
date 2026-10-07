@@ -31,7 +31,7 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 2. **Use `terraform-mcp-server`** for every provider and module:
    - **Already pinned in the codebase:** read docs for that **exact pinned version** (`get_provider_details`, `get_module_details`). Do not change the pin; if a newer version exists, report it
    - **New module:** `search_modules` → `get_latest_module_version` → `get_module_details` with `<namespace>/<name>/<provider>/<version>`. Read inputs, outputs, submodules and the Provider Dependencies table, and check the module's provider constraint accepts the provider version pinned in the root
-   - **If `terraform-mcp-server` is unavailable**, stop and tell the user — never write versions or module inputs from memory
+   - **If `terraform-mcp-server` is unavailable**, stop and report it as described under Prerequisites — never write versions or module inputs from memory
 3. **Use `aws-knowledge-mcp-server`** to research:
    - AWS service documentation and API references for the services involved
    - Best practices and architectural guidance
@@ -47,9 +47,9 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 
 ### Phase 3: Design (before any code)
 
-Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terraform-conventions/references/aws-stack-layout.md) reference. Present the design to the user and **wait for approval** before writing code:
+Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terraform-conventions/references/aws-stack-layout.md) reference. The design is the caller's decision, not yours: produce it, write no Terraform, and end the run with the design under **Needs a decision** in your report. Skip this stop only when your prompt already carries an approved design or marks the change as pre-approved:
 
-1. **Layout** — the `<infra|terraform>/<aws-account-id>/<env>/` tree: confirm with the user the root directory name, the AWS account IDs, and which environments (`dev` / `prod` / `shared` …) go in which account. Then the root modules with their backend keys and apply order, and which layer file (`network.tf` / `dns.tf` / `data.tf` / `app.tf`) each component goes in. A layer gets its own root only with a stated reason
+1. **Layout** — the `<infra|terraform>/<aws-account-id>/<env>/` tree. Take the AWS account IDs and existing environments from the repository and `aws-api-mcp-server`; list what you cannot discover (e.g. the root directory name in a new repo, which environments (`dev` / `prod` / `shared` …) go in which account) under **Needs a decision**. Then the root modules with their backend keys and apply order, and which layer file (`network.tf` / `dns.tf` / `data.tf` / `app.tf`) each component goes in. A layer gets its own root only with a stated reason
 2. **Component table** — one row per component: stack, source (registry module or raw resource), exact version, and for every raw `resource` the reason no registry module is used
 3. **Local modules** — any `modules/<name>` and why it composes more than one registry module
 4. **Cross-root lookups** — for values read from another root (e.g. `shared`), which data source is used and the name/tag it matches
@@ -58,9 +58,11 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
    - **IAM** — per role, the actions and resource ARNs it gets
    - **Deviations** — each baseline row not met, with the reason
 6. **Cost review** — per the skill's [Cost Review](../skills/terraform-conventions/references/aws-stack-layout.md#cost-review): a monthly estimate per component and environment (prices looked up for the region, unverified ones marked), the cost levers applied with their saving, and the egress choice (one NAT per VPC by default; NAT per AZ or interface endpoints only on request or when cheaper)
-7. **Alternatives** — for any requested component where another option is better on security, usage fit or cost, both options side by side with a recommendation. Do not substitute without the user's choice
+7. **Alternatives** — for any requested component where another option is better on security, usage fit or cost, both options side by side with a recommendation. Do not substitute — the choice goes under **Needs a decision**
 
-**Adding to existing infrastructure** follows the same gate at a smaller scale: before writing a new resource, show its cost, its security posture, and any better alternative, and wait for approval.
+**Adding to existing infrastructure** follows the same gate at a smaller scale: for each new resource, give its cost, its security posture, and any better alternative, and stop. When your prompt marks the change as pre-approved, implement it instead and keep those notes in your report.
+
+**Continuing after approval.** If you are resumed with the caller's approval, continue at Phase 4 with the approved design, including any changes the caller made to it. If you start fresh with an approved design in your prompt, re-run Phase 2 to confirm the live state still matches what the design assumed, skip Phase 3, and continue at Phase 4. Report any drift under **Needs a decision** instead of reworking the design yourself.
 
 ### Phase 4: Implementation
 
@@ -86,7 +88,7 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 - **Least privilege by default.** Private subnets for workloads, SG-to-SG ingress, ARN-scoped IAM, encryption on; every deviation is stated in the design and scanners pass before a plan
 - **Registry module first.** Use a public registry module for every component one covers — `terraform-aws-modules/*` first, otherwise a verified publisher; a raw `resource` needs a stated reason
 - **Layers, one state per environment.** Split each environment root into `network.tf`, `dns.tf`, `data.tf` and `app.tf`, passing module outputs between them; stateful resources keep deletion protection. Refactor with `moved {}` blocks, not `state mv`
-- **Match existing versions.** When adding to an existing codebase, use the same provider and module versions already pinned — do not upgrade without discussion
+- **Match existing versions.** When adding to an existing codebase, use the same provider and module versions already pinned — do not upgrade; report newer versions under **Needs a decision**
 - **Ground truth over assumptions.** Always check what actually exists in AWS before proposing changes
 - **Exact version pinning.** All Terraform, provider, and module versions must be pinned to exact versions
 - **Required tags on all taggable resources.** `Environment`, `Project`, `Owner`, `ManagedBy`
