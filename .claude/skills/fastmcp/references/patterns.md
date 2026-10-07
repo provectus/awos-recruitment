@@ -124,7 +124,7 @@ main.mount(proxy_to_local, namespace="local")
 Use proxies to:
 - Aggregate multiple remote MCP servers behind a single endpoint.
 - Test against a local instance that mirrors production.
-- Bridge STDIO-based servers to HTTP.
+- Bridge `stdio`-based servers to HTTP.
 
 ## OpenAPI / FastAPI Import
 

@@ -34,7 +34,7 @@ All parameters are optional. `name` defaults to `"FastMCP"` if omitted.
 ```python
 @mcp.tool
 def my_tool(param: str) -> str:
-    """Tool description shown to the AI."""
+    """Tool description shown to the client."""
     return result
 ```
 
@@ -187,7 +187,7 @@ role, and passing `role="system"` raises a `pydantic.ValidationError`. Put any
 
 ## Context Object
 
-The `Context` object is injected by adding a `ctx: Context` parameter to any tool. It is not exposed to the AI.
+The `Context` object is injected by adding a `ctx: Context` parameter to any tool. It is not exposed to the client.
 
 ```python
 from fastmcp.server.context import Context
@@ -232,8 +232,8 @@ mcp = FastMCP("MyServer", lifespan=app_lifespan)
 ```
 
 For the full pattern — database pools, cleanup ordering, and when to prefer
-lifespan over per-tool connections — use the Lifespan Management reference
-listed in SKILL.md.
+lifespan over per-tool connections — see
+[patterns.md#lifespan-management](patterns.md#lifespan-management).
 
 ## Authentication
 
@@ -338,7 +338,7 @@ oidc_auth = OIDCProxy(
 ### Transport options
 
 ```python
-# STDIO — default, for local integrations
+# stdio — default, for local integrations
 mcp.run()
 mcp.run(transport="stdio")
 
