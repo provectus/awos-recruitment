@@ -210,7 +210,8 @@ collection.update(
 )
 ```
 
-Issues a warning if an ID is not found (does not raise).
+An ID that does not exist is ignored silently — no error, no warning, and no
+record is created. Use `upsert` when the record may be missing.
 
 ### upsert()
 
@@ -460,8 +461,10 @@ Two details that bite:
 - `@register_embedding_function` matters for *reading*, not writing. Chroma
   registers the class automatically when the collection is created, so a
   round-trip inside one process works either way. A different process that
-  opens the collection only has the stored name, and without the decorator (and
-  an import of the module that defines the class) `get_collection` raises
+  opens the collection only has the stored name. Without the decorator (and an
+  import of the module that defines the class) `get_collection` itself still
+  returns normally — the function is rebuilt lazily, so the failure lands on
+  the first `add`, `query` or `collection.configuration` access instead:
   `ValueError: Embedding function my_embedding_function not found. Add
   @register_embedding_function decorator to the class definition.`
 - `get_config()` output is stored in plain text alongside the collection. Pass

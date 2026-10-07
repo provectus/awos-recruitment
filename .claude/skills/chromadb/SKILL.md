@@ -309,7 +309,7 @@ Useful for inspecting collection contents during development.
 | `add` silently does nothing | The ID already exists — the write is dropped with no error and no warning | Use `upsert` when re-indexing; `count()` will not move and the stored record keeps its old content |
 | Dimension mismatch | Embedding size differs from collection | Ensure consistent embedding model |
 | `ValueError` on `delete` | No criteria given | Provide `ids`, `where`, or `where_document` |
-| `ValueError: Embedding function <name> not found` on `get_collection` | A custom embedding function's class is not registered in this process | Import the module that defines it and decorate the class with `@register_embedding_function` |
+| `ValueError: Embedding function <name> not found` on the first `add`, `query` or `collection.configuration` access after `get_collection` (which itself returns normally) | A custom embedding function's class is not registered in this process | Import the module that defines it and decorate the class with `@register_embedding_function` |
 | `Collection expecting embedding with dimension of N, got 384` after reopening | Collection was created with a *legacy* custom embedding function, so Chroma fell back to the default ONNX model | Give the function `name()` / `get_config()` / `build_from_config()`, or pass it to `get_collection` every time |
 
 ### Embedding function persistence
