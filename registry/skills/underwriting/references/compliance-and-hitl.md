@@ -300,7 +300,7 @@ read the evidence for each task type:
 ## Operating Mode Transitions
 
 Operating modes (Manual → Shadow → Assisted → Selective → Automated, defined
-in SKILL.md) are advanced one step at a time, per workflow type:
+in SKILL.md) are set per workflow type. The documented transitions:
 
 - **Manual → Shadow**: Admin approval, agent deployed and tested.
 - **Shadow → Assisted**: N validated shadow outcomes (configurable, default 50)

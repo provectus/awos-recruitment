@@ -305,11 +305,12 @@ Introduce automation gradually through five operating modes, managed
 
 ### Transitions and Firebreaks
 
-Every mode transition needs explicit admin approval plus evidence (for
-example a configurable number of validated shadow outcomes before Shadow →
-Assisted) and is recorded in an immutable audit ledger. Firebreak controls
-can force any workflow back to Manual at any time, and lifting a firebreak
-never auto-restores the previous mode. The per-transition requirements and
+Moving a workflow up a mode needs admin approval, and the documented steps
+also need evidence (for example a configurable number of validated shadow
+outcomes before Shadow → Assisted). Every transition is recorded in an
+immutable audit ledger. Firebreak controls can force any workflow back to
+Manual at any time, and lifting a firebreak never auto-restores the previous
+mode. The per-transition requirements and
 the four firebreak levels are in the "Operating Mode Transitions" and
 "Firebreak Controls" sections of `references/compliance-and-hitl.md`.
 

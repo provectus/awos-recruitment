@@ -173,8 +173,8 @@ preparation. Only reached by submissions that passed Wave 1.
    sanctions lists using the 3-gate escalation pattern: cheap exact-match
    watchlist lookup, then fuzzy/alias screening, then a blocking human
    compliance review (detailed in the "Sanctions Screening — 3-Gate
-   Escalation" section of `references/compliance-and-hitl.md`, linked from
-   SKILL.md).
+   Escalation" section of the Compliance Gates and HITL Patterns reference
+   listed in SKILL.md).
 9. **Company Sanctions Check** — Same pattern for insured company entity.
 10. **Advanced Licensing & Clearance** — Re-run with full extracted data
     (Wave 1 used preliminary data). Cache results to avoid duplicate API calls.
