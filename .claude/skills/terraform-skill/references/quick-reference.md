@@ -14,6 +14,10 @@ This document provides quick lookup tables, command references, and decision flo
 3. [Version-Specific Guidance](#version-specific-guidance)
 4. [Troubleshooting Guide](#troubleshooting-guide)
 5. [Migration Paths](#migration-paths)
+6. [Pre-Commit Checklist](#pre-commit-checklist)
+7. [Version Management Quick Reference](#version-management-quick-reference)
+8. [Refactoring Quick Reference](#refactoring-quick-reference)
+9. [Common Patterns](#common-patterns)
 
 ---
 
@@ -147,7 +151,7 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform vs OpenTofu Comparison
 
-Both Terraform and OpenTofu are fully supported by this skill. The choice depends on your requirements:
+This skill targets Terraform. OpenTofu is largely compatible, but verify feature floors under it before relying on anything listed as 1.6+ or newer. The choice depends on your requirements:
 
 **Quick Decision Matrix:**
 
@@ -159,7 +163,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 | **Mock Providers** | 1.7+ | 1.7+ |
 | **Feature Parity** | Reference implementation | Compatible fork with some additions |
 | **Enterprise Support** | HCP Terraform, Terraform Cloud | Multiple vendors |
-| **Migration Path** | N/A | Drop-in replacement for Terraform <=1.5 |
+| **Migration Path** | N/A | Compatible with Terraform <=1.5; diverged since 1.6 |
 
 **When to choose Terraform:**
 - Using HashiCorp Terraform Cloud or HCP Terraform
@@ -176,7 +180,7 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 - Commands are shown for both: `terraform` and `tofu`
 - Most patterns work identically, though differences exist (see release notes)
 - Version-specific features noted (1.6+, 1.7+, etc.)
-- **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
+- **Note:** Since 1.6 the platforms have diverged; features this skill relies on, such as `ephemeral` resources and write-only arguments, need their own version check under OpenTofu
 
 When creating modules, the binary is detected from the commands the repo actually runs (CI config, README, Makefile) and from OpenTofu-only markers such as `*.tofu` files or a `registry.opentofu.org` host in `.terraform.lock.hcl` — the mere presence of that lock file is not evidence, since both tools write it. Detection defaults to Terraform; specify a preference to override it.
 
@@ -323,12 +327,9 @@ tests/
 
 ### From Terraform -> OpenTofu
 
-**Good news:** OpenTofu is a drop-in replacement!
+Terraform and OpenTofu have diverged since 1.6, so check the OpenTofu release notes for every feature this skill relies on (notably `ephemeral` resources and write-only arguments) before switching; the version floors in this skill are Terraform's.
 
-1. **No code changes needed**
-   - All Terraform syntax works
-   - Same provider ecosystem
-   - Compatible state files
+1. **Check feature floors** against the OpenTofu release notes for your target version
 
 2. **Update CI/CD:**
    ```bash

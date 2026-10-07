@@ -14,6 +14,9 @@ This document provides security hardening guidance and compliance automation str
 3. [Compliance Testing](#compliance-testing)
 4. [Secrets Management](#secrets-management)
 5. [State File Security](#state-file-security)
+6. [IAM Best Practices](#iam-best-practices)
+7. [Compliance Checklists](#compliance-checklists)
+8. [Resources](#resources)
 
 ---
 

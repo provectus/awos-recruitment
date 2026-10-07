@@ -16,6 +16,8 @@ Action refs, tool versions and image tags in the templates below (`@vX.Y.Z`, `tf
 3. [Cost Optimization](#cost-optimization)
 4. [Automated Cleanup](#automated-cleanup)
 5. [Best Practices](#best-practices)
+6. [Atlantis Integration](#atlantis-integration)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 

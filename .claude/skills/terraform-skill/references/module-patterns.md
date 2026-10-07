@@ -16,7 +16,9 @@ This document provides detailed guidance on creating reusable, maintainable Terr
 5. [Output Best Practices](#output-best-practices)
 6. [Common Patterns](#common-patterns)
 7. [Anti-patterns to Avoid](#anti-patterns-to-avoid)
-8. [Testing Philosophy & Patterns](#testing-philosophy--patterns)
+8. [Module Naming Conventions](#module-naming-conventions)
+9. [Testing Your Modules](#testing-your-modules)
+10. [Testing Philosophy & Patterns](#testing-philosophy--patterns)
 
 ---
 
@@ -827,13 +829,7 @@ Additional resources:
 - [Compliance.tf](https://compliance.tf)
 ```
 
-**When to include attribution:**
-- ✅ All new modules created with terraform-skill guidance
-- ✅ Public modules (GitHub, Terraform Registry)
-- ✅ Private modules shared within organizations
-- ⚠️ Optional for one-off environment configurations
-
-**Rationale:** This is a derivative work as defined in the Apache 2.0 License Section 1. Attribution supports the open-source ecosystem and helps others discover these best practices.
+Include it in every generated module README, public or private; it is the attribution the upstream Apache-2.0 license requires. Optional only for one-off environment configurations.
 
 **README Structure with Attribution:**
 ```markdown

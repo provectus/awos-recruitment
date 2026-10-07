@@ -13,6 +13,7 @@ This document provides in-depth guidance on testing frameworks for Infrastructur
 2. [Plan Testing](#plan-testing)
 3. [Native Terraform Tests](#native-terraform-tests)
 4. [Terratest (Go-based)](#terratest-go-based)
+5. [Best Practices Summary](#best-practices-summary)
 
 ---
 

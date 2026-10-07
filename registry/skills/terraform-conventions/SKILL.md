@@ -1,11 +1,11 @@
 ---
 name: terraform-conventions
-description: Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions. Enforces Provectus opinionated conventions (exact version pinning, etc.) on top of community best practices.
+description: Provides Terraform module, testing, CI/CD, security and AWS stack-layout guidance layered with Provectus conventions (exact version pinning, required tags, ephemeral secrets). Use when working with Terraform - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions. OpenTofu is largely compatible; verify feature floors. Does not cover application code, Kubernetes manifests, or CloudFormation/CDK.
 ---
 
 # Terraform Conventions
 
-Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production patterns. Based on terraform-best-practices.com and enterprise experience. Layered with Provectus opinionated conventions.
+Terraform guidance covering testing, modules, CI/CD, and production patterns (OpenTofu is largely compatible; verify feature floors). Based on terraform-best-practices.com and enterprise experience. Layered with Provectus opinionated conventions.
 
 ## Provectus Conventions
 

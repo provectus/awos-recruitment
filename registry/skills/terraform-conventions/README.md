@@ -1,8 +1,13 @@
 # terraform-conventions — maintainer notes
 
 Local documentation for people editing this skill. It is not part of the
-install bundle (`/bundle/skills` ships `SKILL.md` plus the flat files under
-`references/` and `scripts/`), so nothing here costs runtime tokens.
+install bundle (`/bundle/skills` ships `SKILL.md` plus the seven reference
+files under `references/`; the skill has no `scripts/`), so nothing here
+costs runtime tokens.
+
+`.claude/skills/terraform-skill/` in this repository is a generated local copy
+of this skill (audit decision FB04-15): edit here, then re-copy so the two stay
+identical apart from `name:` and the provenance comment in `SKILL.md`.
 
 ## Evaluations
 
