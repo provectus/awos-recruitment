@@ -203,7 +203,7 @@ __all__ = [
 - Always define `__all__` to declare the public surface.
 - Do not put implementation code in `__init__.py`.
 - Sub-packages should have their own `__init__.py` with their own `__all__`.
-- Avoid circular imports by importing symbols, not modules (use `from .models import User`, not `from . import models`).
+- If two modules need each other, break the cycle: move the shared piece to a third module, import the module (`from . import models`, then `models.User`) instead of the symbol, or import inside the function that needs it. Otherwise prefer importing symbols directly.
 
 ### Empty `__init__.py`
 
