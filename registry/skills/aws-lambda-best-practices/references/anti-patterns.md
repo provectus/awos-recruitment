@@ -2,6 +2,15 @@
 
 These anti-patterns describe situations where Lambda **feels like the right choice** but leads to suboptimal, costly, or fragile architectures. Recognizing them early avoids expensive rework.
 
+## Contents
+
+- The Lambda Monolith
+- Lambda as Orchestrator
+- Lambda Calling Lambda (Synchronous Chains)
+- Recursive Patterns That Cause Invocation Loops
+- Synchronous Waiting Within a Single Function
+- Anti-Pattern Decision Matrix
+
 ## The Lambda Monolith
 
 ### The monolith pattern
