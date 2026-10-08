@@ -1,5 +1,14 @@
 # Function Design Best Practices
 
+## Contents
+
+- Handler Design Principles
+- Execution Environment Reuse
+- Idempotency
+- Connection Management
+- Recursive Invocations
+- Environment Variables
+
 ## Handler Design Principles
 
 The handler is Lambda's entry point. A well-designed handler is thin, testable, and separates concerns:
@@ -142,7 +151,7 @@ For low-concurrency functions (e.g., cron jobs, admin tools), a module-level con
 
 ## Recursive Invocations
 
-See `anti-patterns.md` for full analysis of why recursive patterns feel right, impact tables, and safeguards. This section provides a quick prevention checklist.
+See `references/anti-patterns.md` for full analysis of why recursive patterns feel right, impact tables, and safeguards. This section provides a quick prevention checklist.
 
 A recursive invocation occurs when a Lambda function directly or indirectly triggers itself:
 
