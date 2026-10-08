@@ -1,5 +1,15 @@
 # Mocking Reference
 
+## Contents
+- Basic Mock (`mocker.patch`)
+- Side Effects (sequences and raised errors)
+- Mocking Context Managers and `open()`
+- Mocking Async Functions
+- Mocking Properties
+- Environment Variables (prefer `monkeypatch`)
+- Spying on Real Functions
+- Mock Assertions
+
 <basic_mock>
 
 Use pytest-mock's `mocker` fixture:
@@ -106,14 +116,31 @@ def test_property(mocker):
 
 <mock_environment>
 
-Mock environment variables:
+Use the built-in `monkeypatch` fixture for environment variables — it sets and
+deletes single keys and reverts them at teardown, so no cleanup code is needed:
 
 ```python
-def test_env_var(mocker):
-    mocker.patch.dict("os.environ", {"API_KEY": "test-key"})
+def test_env_var(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test-key")
 
     result = get_api_key()
     assert result == "test-key"
+
+def test_env_var_missing(monkeypatch):
+    monkeypatch.delenv("API_KEY", raising=False)
+
+    with pytest.raises(KeyError):
+        get_api_key()
+```
+
+`mocker.patch.dict("os.environ", ...)` also works, and is the right tool when
+you need to replace the whole mapping (`clear=True`) rather than adjust keys:
+
+```python
+def test_env_isolated(mocker):
+    mocker.patch.dict("os.environ", {"API_KEY": "test-key"}, clear=True)
+
+    assert get_api_key() == "test-key"
 ```
 
 </mock_environment>
