@@ -1,14 +1,17 @@
 ---
-name: FastMCP Server Development
-description: This skill should be used when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package. Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment.
-version: 0.1.0
+name: fastmcp
+description: Provides up-to-date FastMCP API patterns for tools, resources, prompts, server composition, authentication, and deployment. Use when the user asks to "create an MCP server", "build an MCP tool", "add an MCP resource", "define MCP prompts", "set up FastMCP", "run an MCP server", "expose tools via MCP", "mount MCP sub-servers", "configure MCP transport", "add authentication to MCP", "test an MCP server", "use the MCP client", or when writing any Python code that uses the fastmcp package. Does not cover the MCP protocol spec, the TypeScript MCP SDK, or configuring MCP servers in Claude Code settings.
+metadata:
+  version: "0.1.0"
 ---
 
 # FastMCP Server Development
 
-FastMCP is a Python framework for building Model Context Protocol (MCP) servers. It provides a decorator-based API for exposing tools, resources, and prompts to AI assistants. This skill covers the core API for building production-ready MCP servers.
+This skill covers the core FastMCP API for building production-ready MCP servers.
 
 ## Server Initialization
+
+Install with `uv add "fastmcp>=4"` (or `pip install "fastmcp>=4"`); this skill targets fastmcp 4.x.
 
 ```python
 from fastmcp import FastMCP
@@ -21,12 +24,12 @@ mcp = FastMCP(
 ```
 
 - `name` — display name for the server.
-- `instructions` — system-level guidance for AI assistants connecting to this server.
+- `instructions` — system-level guidance for the client connecting to this server.
 - `version` — semantic version string.
 
 ## Tools
 
-Tools are functions that AI assistants can invoke. Decorate with `@mcp.tool`.
+Tools are functions that the client can invoke. Decorate with `@mcp.tool`.
 
 ### Basic tool
 
@@ -37,11 +40,13 @@ def add(a: int, b: int) -> int:
     return a + b
 ```
 
-FastMCP auto-generates the JSON schema from the function signature and docstring. The docstring becomes the tool description shown to the AI.
+FastMCP auto-generates the JSON schema from the function signature and docstring. The docstring becomes the tool description shown to the client.
 
 ### Async tool
 
 ```python
+import httpx
+
 @mcp.tool
 async def fetch_data(url: str) -> dict:
     """Fetch JSON data from a URL."""
@@ -103,14 +108,14 @@ async def process_files(file_paths: list[str], ctx: Context) -> dict:
 
 Context methods:
 - `ctx.info(msg)`, `ctx.debug(msg)`, `ctx.warning(msg)`, `ctx.error(msg)` — structured logging.
-- `ctx.report_progress(current, total, message)` — progress updates.
+- `ctx.report_progress(progress, total, message)` — progress updates.
 - `ctx.lifespan_context` — dict of resources from the lifespan handler.
 
-Add `ctx: Context` as any parameter — FastMCP injects it automatically (it is not exposed to the AI).
+Add `ctx: Context` as any parameter — FastMCP injects it automatically (it is not exposed to the client).
 
 ## Resources
 
-Resources expose data that AI assistants can read. Decorate with `@mcp.resource`.
+Resources expose data that the client can read. Decorate with `@mcp.resource`.
 
 ### Static resource
 
@@ -141,7 +146,7 @@ async def get_user_profile(user_id: str) -> dict:
     return {"id": user_id, "name": f"User {user_id}"}
 ```
 
-The AI sees a URI template and can fill in the parameter to read specific resources.
+The client sees a URI template and can fill in the parameter to read specific resources.
 
 ## Prompts
 
@@ -167,14 +172,14 @@ def analyze_code(language: str, code: str) -> str:
 
 ## Running the Server
 
-### STDIO transport (default)
+### `stdio` transport (default)
 
 ```python
 if __name__ == "__main__":
     mcp.run()
 ```
 
-STDIO is the default transport. Use for local integrations (e.g., Claude Desktop).
+`stdio` is the default transport. Use for local integrations (e.g., Claude Desktop).
 
 ### HTTP transport (Streamable HTTP)
 
@@ -183,7 +188,7 @@ if __name__ == "__main__":
     mcp.run(transport="http", host="0.0.0.0", port=8000)
 ```
 
-Use HTTP for remote/deployed servers. Clients connect to `http://host:port/mcp`.
+Use HTTP for remote/deployed servers. The client connects to `http://host:port/mcp`.
 
 ## Server Composition
 
@@ -222,16 +227,17 @@ main.mount(text_server)                      # tools: uppercase (no prefix)
 | Reusable prompts | `@mcp.prompt` with parameters |
 | Modular server | `main.mount(sub_server, namespace="ns")` |
 | Shared resources (DB, HTTP) | Lifespan handler + `ctx.lifespan_context` |
-| Auth | `JWTAuthProvider` or `OAuth2ProxyProvider` |
+| Auth | `JWTVerifier` for JWTs, `OAuthProxy`/`OIDCProxy` for OAuth |
+| Per-tool authorization | `@mcp.tool(auth=require_scopes("admin"))` |
 
 ## Key Rules
 
 1. **Always type-annotate** tool parameters and return types — FastMCP generates the schema from them.
-2. **Write clear docstrings** — the docstring becomes the tool/resource/prompt description visible to the AI.
+2. **Write clear docstrings** — the docstring becomes the tool/resource/prompt description visible to the client.
 3. **Use `ctx: Context`** for logging and progress — do not use `print()`.
 4. **Prefer Pydantic models** for tools with 4+ parameters or when input validation is needed.
 5. **Use `namespace`** when mounting sub-servers to avoid tool name collisions.
-6. **Choose the right transport** — STDIO for local, HTTP for remote/deployed servers.
+6. **Choose the right transport** — `stdio` for local, HTTP for remote/deployed servers.
 
 ## Additional Resources
 
