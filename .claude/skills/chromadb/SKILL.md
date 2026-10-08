@@ -1,12 +1,11 @@
 ---
-name: ChromaDB
-description: This skill should be used when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Provides up-to-date API patterns, filtering syntax, collection configuration, and embedding function integration.
-version: 0.1.0
+name: chromadb
+description: Provides Chroma Python client patterns — collection creation and configuration, add/upsert/query, metadata and document filtering syntax, and embedding function integration. Use when the user asks to "set up ChromaDB", "create a Chroma collection", "add embeddings to ChromaDB", "query ChromaDB", "search vectors", "semantic search with ChromaDB", "filter ChromaDB results", "ChromaDB metadata filtering", "configure Chroma", "use ChromaDB persistent client", "delete from ChromaDB", or when writing any code that interacts with the chromadb Python package. Does not cover the JavaScript client, Chroma Cloud, choosing an embedding model, or general RAG architecture.
 ---
 
-# ChromaDB Python Skill
+# Chroma Python Skill
 
-ChromaDB is an open-source embedding database for building applications with semantic search and retrieval. This skill covers the Python client API for creating collections, storing documents with embeddings, and querying with semantic search and metadata filtering.
+This skill covers the Chroma Python client API (the `chromadb` package) for creating collections, storing records with embeddings, and querying with semantic search and metadata filtering.
 
 ## Client Initialization
 
@@ -44,11 +43,11 @@ Connects to a standalone Chroma server. Use for production deployments.
 collection = client.get_or_create_collection(
     name="my_collection",
     embedding_function=embedding_fn,
-    metadata={"hnsw:space": "cosine"}
+    configuration={"hnsw": {"space": "cosine"}},
 )
 ```
 
-- `get_or_create_collection` — idempotent; creates if absent, returns existing if present.
+- `get_or_create_collection` — idempotent; creates if absent, returns existing if present. `configuration` applies **only on creation**: against an existing collection it is ignored silently, so the returned collection keeps whatever `space` it was built with. Read `collection.configuration["hnsw"]` back if the metric matters, and recreate the collection to change it.
 - `create_collection` — raises if the collection already exists.
 - `get_collection` — raises if the collection does not exist.
 
@@ -76,9 +75,9 @@ collection.add(
 )
 ```
 
-- `ids` — required, must be unique strings.
+- `ids` — required, must be unique strings. An ID that already exists is **skipped silently**: no exception, no warning, and the stored record is left untouched. Use `upsert` whenever the data may already be indexed.
 - `documents` — raw text; Chroma uses the collection's embedding function to generate embeddings.
-- `metadatas` — optional dict per document for filtering.
+- `metadatas` — optional dict per record for filtering.
 
 ### Add pre-computed embeddings
 
@@ -114,7 +113,7 @@ results = collection.query(
 )
 ```
 
-Returns a dict with keys: `ids`, `documents`, `metadatas`, `distances`, `embeddings`. Each value is a **list of lists** (one inner list per query). Lower distance = more similar.
+Returns a dict that always has the keys `ids`, `embeddings`, `documents`, `uris`, `included`, `data`, `metadatas`, `distances`. Fields not requested via `include` are present but set to `None`; `results["included"]` lists which fields were populated. Each populated value is a **list of lists** (one inner list per query). Lower distance = more similar.
 
 **Important:** `query()` returns nested lists, while `get()` returns flat lists. This is a common source of bugs:
 
@@ -142,7 +141,9 @@ results = collection.query(
 )
 ```
 
-Valid include values: `"documents"`, `"metadatas"`, `"distances"`, `"embeddings"`.
+Valid include values: `"documents"`, `"metadatas"`, `"distances"`, `"embeddings"`. The `Include` type also accepts `"uris"` and `"data"`, which only apply to multimodal collections (images, audio) and are out of this skill's text-only scope.
+
+`include` does not remove keys from the result — every key is always present, and unrequested ones are `None`. Check `results["included"]` to learn what was populated; `"embeddings" in results` is always `True` and tells you nothing.
 
 ### Get by ID (no search)
 
@@ -226,7 +227,23 @@ ef = OpenAIEmbeddingFunction(model_name="text-embedding-3-small")
 collection = client.create_collection("my_col", embedding_function=ef)
 ```
 
-Requires the `OPENAI_API_KEY` environment variable.
+Requires the `openai` package and an API key. The key is read from
+`CHROMA_OPENAI_API_KEY` — note the `CHROMA_` prefix, which is the default for
+every hosted provider wrapper (`CHROMA_COHERE_API_KEY`,
+`CHROMA_HUGGINGFACE_API_KEY`, …). The unprefixed `OPENAI_API_KEY` is still
+honoured and takes precedence when set, even over an explicit
+`api_key_env_var`. To read from somewhere else:
+
+```python
+ef = OpenAIEmbeddingFunction(
+    model_name="text-embedding-3-small",
+    api_key_env_var="MY_OPENAI_KEY",   # persisted with the collection
+)
+```
+
+Passing `api_key="sk-…"` inline also works but raises a `DeprecationWarning`
+and is deliberately **not** stored in the collection configuration, so the key
+is lost the next time the collection is opened. Prefer an environment variable.
 
 ### Default embedding function
 
@@ -236,7 +253,7 @@ If no `embedding_function` is specified, Chroma uses its built-in default (all-M
 
 ### Distance metrics
 
-Set via the `hnsw:space` metadata key at creation time:
+Set via the `space` key of the `configuration` argument at creation time:
 
 | Metric | Value | Use case |
 |---|---|---|
@@ -247,9 +264,13 @@ Set via the `hnsw:space` metadata key at creation time:
 ```python
 collection = client.create_collection(
     name="my_col",
-    metadata={"hnsw:space": "cosine"},
+    configuration={"hnsw": {"space": "cosine"}},
 )
 ```
+
+The pre-1.x form `metadata={"hnsw:space": "cosine"}` still works and produces
+the same configuration. The metric cannot be changed afterwards — `modify`
+rejects it, so switching metrics means recreating the collection.
 
 For HNSW tuning parameters and advanced configuration, consult `references/patterns.md`.
 
@@ -285,14 +306,28 @@ Useful for inspecting collection contents during development.
 
 ## Common Errors
 
-| Error | Cause | Fix |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `ValueError` on `add` | Duplicate ID | Use `upsert` instead |
+| `add` silently does nothing | The ID already exists — the write is dropped with no error and no warning | Use `upsert` when re-indexing; `count()` will not move and the stored record keeps its old content |
 | Dimension mismatch | Embedding size differs from collection | Ensure consistent embedding model |
-| Wrong results after `get_collection` | Missing `embedding_function` | Always pass the same `embedding_function` used at creation |
 | `ValueError` on `delete` | No criteria given | Provide `ids`, `where`, or `where_document` |
+| `ValueError: Embedding function <name> not found` on the first `add`, `query` or `collection.configuration` access after `get_collection` (which itself returns normally) | A custom embedding function's class is not registered in this process | Import the module that defines it and decorate the class with `@register_embedding_function` |
+| `Collection expecting embedding with dimension of N, got 384` after reopening | Collection was created with a *legacy* custom embedding function, so Chroma fell back to the default ONNX model | Give the function `name()` / `get_config()` / `build_from_config()`, or pass it to `get_collection` every time |
 
-Chroma does not persist the embedding function. Omitting it when calling `get_collection` causes `query(query_texts=...)` to silently use the default ONNX model, producing incorrect results.
+### Embedding function persistence
+
+Chroma stores the *configuration* of the embedding function with the
+collection, so `get_collection` rebuilds it automatically and passing
+`embedding_function` again is optional. This works for the built-in wrappers
+(OpenAI, SentenceTransformer, Cohere, …) and for custom functions that
+implement `name()`, `get_config()` and `build_from_config()` — those are saved
+as `{"type": "known", "name": …, "config": {…}}`.
+
+A custom function that implements only `__call__` is saved as
+`{"type": "legacy"}` and cannot be rebuilt. Reopening that collection silently
+falls back to the default ONNX model, which is where the wrong-results and
+dimension-mismatch failures come from. Either upgrade the function (see
+`references/api-reference.md`) or pass it on every `get_collection` call.
 
 ## Additional Resources
 
