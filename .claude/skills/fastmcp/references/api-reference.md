@@ -180,10 +180,15 @@ def debug_session(error: str) -> list[Message]:
     ]
 ```
 
-`Message.role` accepts only `"user"` or `"assistant"` — MCP prompts have no system
-role, and passing `role="system"` raises a `pydantic.ValidationError`. Put any
-"act as an expert" framing in the first user message, or in the server's
-`instructions` if it should apply to every interaction.
+`Message.role` accepts only `"user"` or `"assistant"`. MCP prompts do not have a
+system role. If you give `role="system"`, the code raises a
+`pydantic.ValidationError`.
+
+Put instructions such as "act as an expert" in one of these locations:
+
+- In the first user message.
+- In the `instructions` of the server, if the instructions must apply to all
+  interactions.
 
 ## Context Object
 
@@ -296,12 +301,19 @@ resource or prompt being accessed).
 
 ### OAuth providers
 
-FastMCP ships per-vendor providers under `fastmcp.server.auth.providers.*` —
+FastMCP has a provider for each of these vendors in
+`fastmcp.server.auth.providers.*`:
+
 `github`, `google`, `azure`, `auth0`, `aws`, `clerk`, `descope`, `discord`,
-`huggingface`, `keycloak`, `oci`, `propelauth`, `scalekit`, `supabase`,
-`workos`. Most classes are named `<Vendor>Provider` (`GitHubProvider`,
-`GoogleProvider`, `Auth0Provider`, ...); the exceptions are `AWSCognitoProvider`,
-`KeycloakAuthProvider`, and `WorkOSProvider`/`AuthKitProvider`:
+`huggingface`, `keycloak`, `oci`, `propelauth`, `scalekit`, `supabase`, `workos`
+
+The name of most provider classes is `<Vendor>Provider`, for example
+`GitHubProvider`, `GoogleProvider`, and `Auth0Provider`. These classes have
+different names:
+
+- `AWSCognitoProvider`
+- `KeycloakAuthProvider`
+- `WorkOSProvider` and `AuthKitProvider`
 
 ```python
 from fastmcp.server.auth.providers.github import GitHubProvider
@@ -315,9 +327,11 @@ github_auth = GitHubProvider(
 mcp = FastMCP("GitHubServer", auth=github_auth)
 ```
 
-For an identity provider with no bundled class, use `OIDCProxy` (discovers
-endpoints from the well-known config) or `OAuthProxy` (endpoints supplied
-explicitly):
+If the identity provider does not have a bundled class, use one of these
+classes:
+
+- `OIDCProxy`: it finds the endpoints from the well-known configuration.
+- `OAuthProxy`: you give the endpoints explicitly.
 
 ```python
 from fastmcp.server.auth import OIDCProxy
