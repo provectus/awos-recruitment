@@ -1,5 +1,15 @@
 # FSD Segments Reference
 
+## Contents
+
+- [`ui/`](#ui) — components
+- [`model/`](#model) — hooks, state, types
+- [`api/`](#api) — requests, DTOs, mappers
+- [`lib/`](#lib) — pure helpers and generic hooks
+- [`config/`](#config) — constants and configuration
+- [`index.ts` (Public API)](#indexts-public-api)
+- [Best Practices](#best-practices) — flat segments, one responsibility per file, no wildcard re-exports
+
 Within each slice, code is organized into segments:
 
 | Segment    | Purpose                                | Naming                        |
@@ -119,5 +129,3 @@ export * from './model';
 export { useCustomer, useCustomerList } from './model';
 export type { Customer, CustomerStatus } from './model';
 ```
-
-> See `examples/slice-examples.md` for directory trees and public APIs across all layers.
