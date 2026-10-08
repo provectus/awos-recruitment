@@ -1,26 +1,26 @@
 ---
 name: terraform-conventions
-description: Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions. Enforces Provectus opinionated conventions (exact version pinning, etc.) on top of community best practices.
+description: Provides Terraform module, testing, CI/CD, security and AWS stack-layout guidance layered with Provectus conventions (exact version pinning, required tags, ephemeral secrets). Use when working with Terraform - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions. OpenTofu is largely compatible; verify feature floors. Does not cover application code, Kubernetes manifests, or CloudFormation/CDK.
 ---
 
-# Terraform Skill for Claude
+# Terraform Conventions
 
-Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, and production patterns. Based on terraform-best-practices.com and enterprise experience. Layered with Provectus opinionated conventions.
+Terraform guidance covering testing, modules, CI/CD, and production patterns (OpenTofu is largely compatible; verify feature floors). Based on terraform-best-practices.com and enterprise experience. Layered with Provectus opinionated conventions.
 
 ## Provectus Conventions
 
 > ### Version Pinning
 >
-> **All Terraform, provider, and module versions MUST be pinned to exact versions.**
+> Pin every Terraform, provider, and module version to an exact version.
 >
 > | Component | Constraint | Example |
 > |-----------|-----------|---------|
 > | **Terraform** | Exact version | `required_version = "= X.Y.Z"` |
-> | **Providers** | Exact version | `version = "= 5.82.2"` |
+> | **Providers** | Exact version | `version = "= 6.41.0"` |
 > | **Modules (prod)** | Exact version | `version = "5.1.2"` |
 > | **Modules (dev)** | Exact version | `version = "5.1.2"` |
 >
-> No pessimistic (`~>`) or range constraints. Pin everything. This prevents drift between environments and ensures reproducible builds.
+> No pessimistic (`~>`) or range constraints. Pin everything. This prevents drift between environments and ensures reproducible builds. Local modules under `modules/` are no exception: they carry the same exact provider pin as the roots that call them and are bumped in the same commit — never a `>=` minimum.
 >
 > Version numbers in this skill are illustrative — never copy them. Terraform core: reuse the repo's existing `required_version` / `.terraform-version`; in a new repo, take the latest stable release from `https://api.releases.hashicorp.com/v1/releases/terraform/latest` and confirm it with the user. State locking: S3 native `use_lockfile = true` (Terraform >= 1.10), no DynamoDB lock table.
 
@@ -34,12 +34,13 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 >   environment = "prod"
 >   project     = "my-project"
 >   region      = "us-east-1"
+>   owner       = "platform-team"
 > }
 > ```
 
 > ### Required Resource Tags
 >
-> **All taggable resources MUST include these four tags:**
+> Include these four tags on every taggable resource:
 >
 > | Tag | Description | Example |
 > |-----|-------------|---------|
@@ -71,7 +72,7 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 >
 > **For AWS components, use a public registry module (`terraform-aws-modules/*`), not raw `resource` blocks.** VPC, ALB, ECS, ACM, DynamoDB, S3, RDS, Lambda, security groups and IAM all have one. A raw `resource` is allowed only when no module covers it, the module would wrap a single resource (e.g. one Route53 alias record), or the module lacks a needed feature — state the reason in the design.
 >
-> Resolve every new module's version through the terraform MCP (`get_latest_module_version` → `get_module_details` for that exact version) and pin it exactly. "Latest" is a one-time lookup, never a constraint. Never bump an existing pin unless the user asks. This applies to every module in every root, including `bootstrap` and helper roots: a version not resolved through the MCP in this session is not written — never from memory, not even with a "verify later" note.
+> Resolve every new module's version through the terraform MCP (`terraform-mcp-server:get_latest_module_version` → `terraform-mcp-server:get_module_details` for that exact version) and pin it exactly. "Latest" is a one-time lookup, never a constraint. Never bump an existing pin unless the user asks. When the MCP server is not available in the session, resolve the version from the Terraform Registry HTTP API instead: WebFetch `https://registry.terraform.io/v1/modules/<namespace>/<name>/<provider>/versions` for a module (`https://registry.terraform.io/v1/providers/<namespace>/<name>/versions` for a provider), pin the newest release it lists, and read the module's inputs from its registry docs page at that version. This applies to every module in every root, including `bootstrap` and helper roots: a version not resolved in this session through the MCP or the Registry API is not written — never from memory, not even with a "verify later" note.
 
 > ### Layers
 >
@@ -103,7 +104,7 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 
 > ### Apply Workflow
 >
-> **Always use `plan -out` and get explicit approval before applying.**
+> Use `plan -out` and get explicit approval before applying.
 >
 > ```bash
 > terraform plan -out=plan.tfplan    # Step 1: Generate saved plan
@@ -112,23 +113,7 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 > terraform apply plan.tfplan        # Step 4: Apply the saved plan
 > ```
 >
-> Never run `terraform apply` without a saved plan file. This ensures what was reviewed is exactly what gets applied.
-
-## When to Use This Skill
-
-**Activate this skill when:**
-- Creating new Terraform or OpenTofu configurations or modules
-- Setting up testing infrastructure for IaC code
-- Deciding between testing approaches (validate, plan, frameworks)
-- Structuring multi-environment deployments
-- Implementing CI/CD for infrastructure-as-code
-- Reviewing or refactoring existing Terraform/OpenTofu projects
-- Choosing between module patterns or state management approaches
-
-**Don't use this skill for:**
-- Basic Terraform/OpenTofu syntax questions (Claude knows this)
-- Provider-specific API reference (link to docs instead)
-- Cloud platform questions unrelated to Terraform/OpenTofu
+> Applying without a saved plan file applies whatever the config produces now, not what was reviewed.
 
 ## Core Principles
 
@@ -144,24 +129,24 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, CI/CD, 
 
 **Hierarchy:** Resource → Resource Module → Infrastructure Module → Composition
 
-**Directory Structure:**
+**Directory Structure** (the layout mandated in [Layers](#layers); full tree in [AWS Stack Layout → Stack Layers](references/aws-stack-layout.md#stack-layers)):
 ```
-environments/        # Environment-specific configurations
-├── prod/           # one root (state) per env: network.tf, dns.tf, data.tf, app.tf
-├── staging/
-└── dev/
-
-modules/            # Local modules — only for multi-module compositions
-└── app/            # registry modules are called directly from the roots
-
-examples/           # Module usage examples (also serve as tests)
-├── complete/
-└── minimal/
+infra/                       # or terraform/ — confirmed at design time
+├── modules/
+│   └── app/                 # local modules only for multi-module compositions
+├── 111111111111/            # one directory per AWS account
+│   ├── bootstrap/           # state bucket, local state
+│   ├── shared/              # zone, ECR, OIDC — used by several envs
+│   └── dev/                 # one root (state) per env, one file per layer
+│       ├── network.tf  dns.tf  data.tf  app.tf
+│       └── backend.tf  versions.tf  providers.tf  locals.tf  outputs.tf
+└── 222222222222/
+    └── prod/                # same layout
 ```
 
 **Key principle from terraform-best-practices.com:**
-- Separate **environments** (prod, staging) from **modules** (reusable components)
-- Use **examples/** as both documentation and integration test fixtures
+- Separate **environment roots** (`<account-id>/<env>/`) from **modules** (reusable components)
+- In reusable modules, use **examples/** as both documentation and integration test fixtures
 - Keep modules small and focused (single responsibility)
 
 **For detailed module architecture, see:** [Code Patterns: Module Types & Hierarchy](references/code-patterns.md)
@@ -171,34 +156,20 @@ examples/           # Module usage examples (also serve as tests)
 **Resources:**
 ```hcl
 # Good: Descriptive, contextual
-resource "aws_instance" "web_server" { }
-resource "aws_s3_bucket" "application_logs" { }
+resource "aws_instance" "web_server" {}
+resource "aws_s3_bucket" "application_logs" {}
 
 # Good: "this" for singleton resources (only one of that type)
-resource "aws_vpc" "this" { }
-resource "aws_security_group" "this" { }
+resource "aws_vpc" "this" {}
+resource "aws_security_group" "this" {}
 
 # Avoid: Generic names for non-singletons
-resource "aws_instance" "main" { }
-resource "aws_s3_bucket" "bucket" { }
+resource "aws_instance" "main" {}
+resource "aws_s3_bucket" "bucket" {}
+
+# Avoid: "this" when the module creates several of that type (e.g. subnets)
+resource "aws_subnet" "this" {}
 ```
-
-**Singleton Resources:**
-
-Use `"this"` when your module creates only one resource of that type:
-
-DO:
-```hcl
-resource "aws_vpc" "this" {}           # Module creates one VPC
-resource "aws_security_group" "this" {}  # Module creates one SG
-```
-
-DON'T use "this" for multiple resources:
-```hcl
-resource "aws_subnet" "this" {}  # If creating multiple subnets
-```
-
-Use descriptive names when creating multiple resources of the same type.
 
 **Variables:**
 ```hcl
@@ -248,10 +219,11 @@ var.database_instance_class # Not just "instance_class"
 
 **Before generating test code:**
 
-1. **Validate schemas with Terraform MCP:**
-   ```
-   Search provider docs → Get resource schema → Identify block types
-   ```
+1. **Confirm the resource schema** — which nested blocks are sets and which are
+   lists. With the `terraform-mcp-server` MCP server, call
+   `terraform-mcp-server:search_providers` then
+   `terraform-mcp-server:get_provider_details`; without it, read the provider's
+   registry docs page for the pinned version.
 
 2. **Choose correct command mode:**
    - `command = plan` - Fast, for input validation
@@ -275,8 +247,9 @@ var.database_instance_class # Not just "instance_class"
 
 ### Resource Block Ordering
 
-**Strict ordering for consistency:**
-1. `count` or `for_each` FIRST (blank line after)
+Order arguments consistently so diffs stay readable:
+
+1. `count` or `for_each` first (blank line after)
 2. Other arguments
 3. `tags` as last real argument
 4. `depends_on` after tags (if needed)
@@ -290,9 +263,9 @@ resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.this[0].id
   subnet_id     = aws_subnet.public[0].id
 
-  tags = {
+  tags = merge(local.required_tags, {
     Name = "${var.name}-nat"
-  }
+  })
 
   depends_on = [aws_internet_gateway.this]
 
@@ -304,24 +277,24 @@ resource "aws_nat_gateway" "this" {
 
 ### Variable Block Ordering
 
-1. `description` (ALWAYS required)
+1. `description` (always required)
 2. `type`
 3. `default`
-4. `validation`
+4. `sensitive` (when setting to true)
 5. `nullable` (when setting to false)
+6. `validation`
 
 ```hcl
 variable "environment" {
   description = "Environment name for resource tagging"
   type        = string
   default     = "dev"
+  nullable    = false
 
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be one of: dev, staging, prod."
   }
-
-  nullable = false
 }
 ```
 
@@ -373,45 +346,12 @@ resource "aws_subnet" "private" {
 
 ## Locals for Dependency Management
 
-**Use locals to ensure correct resource deletion order:**
+Where destroy order matters — VPCs with secondary CIDR blocks are the usual
+case — route the reference through a `local` built with `try()` instead of
+pointing at the resource directly. That creates the implicit dependency which
+makes Terraform delete subnets before the CIDR association.
 
-```hcl
-# Problem: Subnets might be deleted after CIDR blocks, causing errors
-# Solution: Use try() in locals to hint deletion order
-
-locals {
-  # References secondary CIDR first, falling back to VPC
-  # Forces Terraform to delete subnets before CIDR association
-  vpc_id = try(
-    aws_vpc_ipv4_cidr_block_association.this[0].vpc_id,
-    aws_vpc.this.id,
-    ""
-  )
-}
-
-resource "aws_vpc" "this" {
-  cidr_block = "10.0.0.0/16"
-}
-
-resource "aws_vpc_ipv4_cidr_block_association" "this" {
-  count = var.add_secondary_cidr ? 1 : 0
-
-  vpc_id     = aws_vpc.this.id
-  cidr_block = "10.1.0.0/16"
-}
-
-resource "aws_subnet" "public" {
-  vpc_id     = local.vpc_id  # Uses local, not direct reference
-  cidr_block = "10.1.0.0/24"
-}
-```
-
-**Why this matters:**
-- Prevents deletion errors when destroying infrastructure
-- Ensures correct dependency order without explicit `depends_on`
-- Particularly useful for VPC configurations with secondary CIDR blocks
-
-**For detailed examples, see:** [Code Patterns: Locals for Dependency Management](references/code-patterns.md#locals-for-dependency-management)
+**For the worked example, see:** [Code Patterns: Locals for Dependency Management](references/code-patterns.md#locals-for-dependency-management)
 
 ## Module Development
 
@@ -454,10 +394,12 @@ my-module/
 
 ### Recommended Workflow Stages
 
+A pipeline is optional, and so are its plan and apply stages. Many projects keep plan and apply local ([Apply Workflow](#apply-workflow)) because a CI role that can change infrastructure is a bigger risk than an engineer applying a reviewed plan. Follow what the repo already does; add a pipeline, or plan/apply jobs in one, only when the user asks.
+
 1. **Validate** - Format check + syntax validation + linting
 2. **Test** - Run automated tests (native or Terratest)
-3. **Plan** - Generate and review execution plan
-4. **Apply** - Execute changes (with approvals for production)
+3. **Plan** (optional) - Generate and review execution plan
+4. **Apply** (optional) - Execute changes (with approvals for production)
 
 ### Cost Optimization Strategy
 
@@ -480,58 +422,11 @@ trivy config .
 checkov -d .
 ```
 
-### Common Issues to Avoid
-
-**Don't:**
-- Store secrets in variables
-- Use default VPC
-- Skip encryption
-- Open security groups to 0.0.0.0/0
-
-**Do:**
-- Use AWS Secrets Manager / Parameter Store
-- Create dedicated VPCs
-- Enable encryption at rest
-- Use least-privilege security groups
+The rules are the [Least Privilege by Default](#least-privilege-by-default) convention above, plus: never the default VPC — every stack gets its own; secrets come from Secrets Manager / Parameter Store, never from variables.
 
 **For detailed security guidance, see:**
-- **[Security Baseline](references/aws-stack-layout.md#security-baseline)** - Provectus per-component AWS defaults (overrides the generic lists here)
+- **[Security Baseline](references/aws-stack-layout.md#security-baseline)** - Provectus per-component AWS defaults
 - **[Security & Compliance Guide](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
-
-## Version Management
-
-> **Provectus Convention: All versions must be pinned to exact versions. No pessimistic (`~>`) or range constraints.**
-
-### Version Constraint Syntax
-
-```hcl
-version = "= 5.82.2"    # Exact (required by Provectus convention)
-version = "5.1.2"        # Exact (alternative syntax for modules)
-```
-
-### Strategy by Component
-
-| Component | Strategy | Example |
-|-----------|----------|---------|
-| **Terraform** | Pin exact version | `required_version = "= X.Y.Z"` |
-| **Providers** | Pin exact version | `version = "= 5.82.2"` |
-| **Modules (prod)** | Pin exact version | `version = "5.1.2"` |
-| **Modules (dev)** | Pin exact version | `version = "5.1.2"` |
-
-### Update Workflow
-
-```bash
-# Lock versions initially
-terraform init              # Creates .terraform.lock.hcl
-
-# Update to latest within constraints
-terraform init -upgrade     # Updates providers
-
-# Review and test
-terraform plan
-```
-
-**For detailed version management, see:** [Code Patterns: Version Management](references/code-patterns.md#version-management)
 
 ## Modern Terraform Features (1.0+)
 
@@ -549,69 +444,22 @@ terraform plan
 | Cross-variable validation | 1.9+ | Validate relationships between variables |
 | Write-only arguments | 1.11+ | Secrets never stored in state |
 
-### Quick Examples
+Check the pinned `required_version` before using a feature from this table — a
+pin below the listed version rejects it at parse time.
 
-```hcl
-# try() - Safe fallbacks (0.13+)
-output "sg_id" {
-  value = try(aws_security_group.this[0].id, "")
-}
+**For worked examples of each, see:** [Code Patterns: Modern Terraform Features](references/code-patterns.md#modern-terraform-features-10)
 
-# optional() - Optional attributes with defaults (1.3+)
-variable "config" {
-  type = object({
-    name    = string
-    timeout = optional(number, 300)  # Default: 300
-  })
-}
+**Lock-file and upgrade workflow (`terraform init`, `init -upgrade`, multi-platform `providers lock`):** [Code Patterns: Version Management](references/code-patterns.md#version-management) · **Testing support per version and Terraform vs OpenTofu:** [Quick Reference: Version-Specific Guidance](references/quick-reference.md#version-specific-guidance)
 
-# Cross-variable validation (1.9+)
-variable "environment" { type = string }
-variable "backup_days" {
-  type = number
-  validation {
-    condition     = var.environment == "prod" ? var.backup_days >= 7 : true
-    error_message = "Production requires backup_days >= 7"
-  }
-}
-```
+## References
 
-**For complete patterns and examples, see:** [Code Patterns: Modern Terraform Features](references/code-patterns.md#modern-terraform-features-10)
-
-## Version-Specific Guidance
-
-### Terraform 1.0-1.5
-- Use Terratest for testing
-- No native testing framework available
-- Focus on static analysis and plan validation
-
-### Terraform 1.6+ / OpenTofu 1.6+
-- **New:** Native `terraform test` / `tofu test` command
-- Consider migrating from external frameworks for simple tests
-- Keep Terratest only for complex integration tests
-
-### Terraform 1.7+ / OpenTofu 1.7+
-- **New:** Mock providers for unit testing
-- Reduce cost by mocking external dependencies
-- Use real integration tests for final validation
-
-### Terraform vs OpenTofu
-
-Both are fully supported by this skill. For licensing, governance, and feature comparison, see [Quick Reference: Terraform vs OpenTofu](references/quick-reference.md#terraform-vs-opentofu-comparison).
-
-## Detailed Guides
-
-This skill uses **progressive disclosure** - essential information is in this main file, detailed guides are available when needed:
-
-**Reference Files:**
-- **[AWS Stack Layout](references/aws-stack-layout.md)** - Registry module selection, stack layers, cross-stack lookups (Provectus conventions)
-- **[Testing Frameworks](references/testing-frameworks.md)** - In-depth guide to static analysis, native tests, and Terratest
-- **[Module Patterns](references/module-patterns.md)** - Module structure, variable/output best practices, DO vs DON'T patterns
-- **[CI/CD Workflows](references/ci-cd-workflows.md)** - GitHub Actions, GitLab CI templates, cost optimization, automated cleanup
-- **[Security & Compliance](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, compliance testing
-- **[Quick Reference](references/quick-reference.md)** - Command cheat sheets, decision flowcharts, troubleshooting guide
-
-**How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand to provide comprehensive guidance.
+- [`references/aws-stack-layout.md`](references/aws-stack-layout.md) — registry module selection, stack layers, cross-stack lookups, security baseline, cost review
+- [`references/code-patterns.md`](references/code-patterns.md) — block ordering, count vs for_each, modern features, version management, refactoring
+- [`references/module-patterns.md`](references/module-patterns.md) — module hierarchy, structure, variables, outputs, anti-patterns
+- [`references/testing-frameworks.md`](references/testing-frameworks.md) — static analysis, native tests, Terratest
+- [`references/ci-cd-workflows.md`](references/ci-cd-workflows.md) — GitHub Actions, GitLab CI, Atlantis, cost control
+- [`references/security-compliance.md`](references/security-compliance.md) — trivy/checkov, secrets management, state security
+- [`references/quick-reference.md`](references/quick-reference.md) — command cheat sheets, pre-commit checklist, troubleshooting
 
 ## License
 
