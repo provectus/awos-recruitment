@@ -2,6 +2,17 @@
 
 > **Part of:** [pr-review](../SKILL.md). The analysis engines find issues; this file governs how the review is written. A review should read like a thoughtful senior engineer left it — and open a conversation, not deliver a verdict.
 
+## Contents
+
+- [Formatting rules](#formatting-rules)
+- [Voice](#voice)
+- [What never goes in a posted review](#what-never-goes-in-a-posted-review)
+- [The opening](#the-opening)
+- [Pushback and discussion](#pushback-and-discussion)
+- [Architectural notes](#architectural-notes)
+- [The summary body](#the-summary-body)
+- [Examples](#examples)
+
 ## Formatting rules
 
 - **No severity badges.** No `CRITICAL`/`HIGH`/`MEDIUM`/`LOW`, no `major`/`minor`, no colored dots. If something blocks merge, say why in a sentence — that carries more than a label.
