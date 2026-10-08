@@ -397,10 +397,12 @@ my-module/
 
 ### Recommended Workflow Stages
 
+A pipeline is optional, and so are its plan and apply stages. Many projects keep plan and apply local ([Apply Workflow](#apply-workflow)) because a CI role that can change infrastructure is a bigger risk than an engineer applying a reviewed plan. Follow what the repo already does; add a pipeline, or plan/apply jobs in one, only when the user asks.
+
 1. **Validate** - Format check + syntax validation + linting
 2. **Test** - Run automated tests (native or Terratest)
-3. **Plan** - Generate and review execution plan
-4. **Apply** - Execute changes (with approvals for production)
+3. **Plan** (optional) - Generate and review execution plan
+4. **Apply** (optional) - Execute changes (with approvals for production)
 
 ### Cost Optimization Strategy
 

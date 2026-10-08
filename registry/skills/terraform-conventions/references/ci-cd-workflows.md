@@ -90,6 +90,8 @@ jobs:
           cd tests
           go test -v -timeout 30m -parallel 4
 
+  # plan and apply are optional: drop both jobs when the project plans and
+  # applies locally (see Recommended Workflow Stages in SKILL.md)
   plan:
     needs: test
     runs-on: ubuntu-latest
@@ -131,33 +133,6 @@ jobs:
         run: terraform apply tfplan
 ```
 
-### With Cost Estimation (Infracost)
-
-```yaml
-  cost-estimate:
-    needs: plan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v4.2.0
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Generate Cost Estimate
-        run: |
-          infracost breakdown --path . \
-            --format json \
-            --out-file /tmp/infracost.json
-
-      - name: Post Cost Comment
-        uses: infracost/actions/comment@v4.2.0
-        with:
-          path: /tmp/infracost.json
-          behavior: update
-```
-
 ---
 
 ## GitLab CI Template
@@ -167,8 +142,8 @@ jobs:
 stages:
   - validate
   - test
-  - plan
-  - apply
+  - plan   # plan and apply are optional: drop both stages and jobs
+  - apply  # when the project plans and applies locally
 
 variables:
   TF_ROOT: ${CI_PROJECT_DIR}
