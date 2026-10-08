@@ -1,5 +1,15 @@
 # Security Best Practices
 
+## Contents
+
+- IAM Least Privilege
+- Code Signing
+- VPC Configuration
+- Secrets Management
+- Security Monitoring
+- Data Protection
+- Governance
+
 ## IAM Least Privilege
 
 ### Execution role design
@@ -90,7 +100,7 @@ Code signing ensures that only trusted code runs in your Lambda function.
 - Use **at least 2 subnets** across different AZs for availability
 - Reuse the same **subnet + security-group combination** across functions: Lambda creates one shared Hyperplane ENI per unique combination (not per concurrent execution) and functions sharing a combination share ENIs
 - Don't over-size subnets for Lambda's own ENI usage -- typically only a handful of ENIs per function; Lambda adds ENIs only when connection demand requires it (~65,000 connections per ENI)
-- Monitor the ENI quota -- default 250 network interfaces per VPC, shared with other services in the same VPC (raise via Service Quotas)
+- Monitor the ENI quota -- default 3,000 network interfaces per VPC, shared with other services in the same VPC (raise via Service Quotas)
 
 ## Secrets Management
 
