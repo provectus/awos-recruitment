@@ -33,7 +33,7 @@ The auto modes never publish anything unattended — `pr-review`'s own gates sti
 - **Stop watching** (asked mode, or the user says so) → stop processing, tell the user how to end the recurring check itself (it is a `/loop`, so stopping the loop stops the checks), and clear the marker so no later pass reports the check as stopped-unexpectedly:
 
   ```bash
-  bash "<skill-base-dir>/scripts/scan.sh" --mark-stopped
+  ${CLAUDE_SKILL_DIR}/scripts/scan.sh --mark-stopped   # the same scan.sh path SKILL.md gave you
   ```
 While you're writing state anyway, prune entries whose PRs are closed or merged.
 
