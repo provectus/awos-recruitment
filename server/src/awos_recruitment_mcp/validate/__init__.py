@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 import frontmatter
 import yaml
@@ -15,17 +16,29 @@ from awos_recruitment_mcp.models import (
     McpDefinition,
     SkillMetadata,
 )
+from awos_recruitment_mcp.validate.quality import (
+    check_description,
+    check_description_yaml_comment,
+    check_frontmatter,
+    check_skill_quality,
+)
 
 # Top-level entries permitted inside a skill directory. Kept in lockstep with
 # what the /bundle/skills endpoint actually ships: SKILL.md (file) and the flat
-# files under references/ or scripts/ (directories). README.md is allowed as
-# local docs even though it's not bundled. Type is enforced alongside name —
-# e.g. a file named "references" or a directory named "SKILL.md" is still
-# rejected, since the bundler would drop them for the same reason as any other
-# stray entry. The scripts/ directory only allows .js, .ts, .py, .sh files.
+# files under references/, scripts/ or assets/ (directories). README.md is
+# allowed as local docs even though it's not bundled, and evals/ holds the
+# skill's test cases (skill-creator's evals.json plus markdown notes) — also
+# not bundled, since evals are for the author, not the installer. Type is
+# enforced alongside name — e.g. a file named "references" or a directory
+# named "SKILL.md" is still rejected, since the bundler would drop them for
+# the same reason as any other stray entry. The scripts/ directory only
+# allows .js, .ts, .py, .sh files; evals/ only allows .json and .md.
 _ALLOWED_SKILL_FILES: frozenset[str] = frozenset({"SKILL.md", "README.md"})
-_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset({"references", "scripts"})
+_ALLOWED_SKILL_DIRS: frozenset[str] = frozenset(
+    {"references", "scripts", "assets", "evals"}
+)
 _ALLOWED_SCRIPT_EXTENSIONS: frozenset[str] = frozenset({".js", ".ts", ".py", ".sh"})
+_ALLOWED_EVAL_EXTENSIONS: frozenset[str] = frozenset({".json", ".md"})
 
 # Hooks must stay pure POSIX sh with zero runtime dependencies (see
 # registry/hooks/CLAUDE.md) — helper scripts included. Skills keep the
@@ -51,11 +64,19 @@ class ValidationError:
         file: Relative path to the file with the problem.
         field: Name of the problematic field, or ``None`` for file-level issues.
         message: Human-readable description of the problem.
+        severity: ``"error"`` fails validation; ``"warning"`` is reported but
+            only fails under ``--strict``.
+        rule: Stable id of the quality rule that fired, or ``None`` for
+            schema and layout checks.
+        line: 1-based line in *file*, when the problem has one.
     """
 
     file: str
     field: str | None
     message: str
+    severity: Literal["error", "warning"] = "error"
+    rule: str | None = None
+    line: int | None = None
 
 
 @dataclass(slots=True)
@@ -64,13 +85,15 @@ class ValidationResult:
 
     Attributes:
         file: Relative path to the validated file.
-        valid: ``True`` when no errors were found.
+        valid: ``True`` when no errors were found. Warnings do not affect it.
         errors: List of individual validation errors (empty when valid).
+        warnings: Quality findings that are reported but do not block.
     """
 
     file: str
     valid: bool
     errors: list[ValidationError] = field(default_factory=list[ValidationError])
+    warnings: list[ValidationError] = field(default_factory=list[ValidationError])
 
 
 def validate_skills(registry_path: Path) -> list[ValidationResult]:
@@ -190,7 +213,8 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                             message=(
                                 f"Unexpected file '{child.name}' in skill — "
                                 "the install bundle only ships SKILL.md and "
-                                "flat files under references/ or scripts/"
+                                "flat files under references/, scripts/ or "
+                                "assets/"
                             ),
                         )
                     )
@@ -219,7 +243,9 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         message=(
                             f"Unexpected directory '{child.name}/' in skill "
                             "— the install bundle only ships SKILL.md and "
-                            "flat files under references/"
+                            "flat files under references/, scripts/ or "
+                            "assets/; evals/ is allowed for the skill's "
+                            "test cases"
                         ),
                     )
                 )
@@ -243,26 +269,62 @@ def validate_skills(registry_path: Path) -> list[ValidationResult]:
                         )
                     )
                     continue
-                # scripts/ only allows the extensions in the allowlist above.
-                if child.name == "scripts":
-                    if ref_child.suffix not in _ALLOWED_SCRIPT_EXTENSIONS:
-                        errors.append(
-                            ValidationError(
-                                file=relative_path,
-                                field=None,
-                                message=(
-                                    f"File '{child.name}/{ref_child.name}' has "
-                                    f"disallowed extension — scripts/ only "
-                                    f"allows {', '.join(sorted(_ALLOWED_SCRIPT_EXTENSIONS))}"
-                                ),
-                            )
+                # scripts/ and evals/ only allow the extensions in their
+                # allowlists above; references/ and assets/ take any file.
+                allowed_extensions = {
+                    "scripts": _ALLOWED_SCRIPT_EXTENSIONS,
+                    "evals": _ALLOWED_EVAL_EXTENSIONS,
+                }.get(child.name)
+                if (
+                    allowed_extensions is not None
+                    and ref_child.suffix not in allowed_extensions
+                ):
+                    errors.append(
+                        ValidationError(
+                            file=relative_path,
+                            field=None,
+                            message=(
+                                f"File '{child.name}/{ref_child.name}' has "
+                                f"disallowed extension — {child.name}/ only "
+                                f"allows {', '.join(sorted(allowed_extensions))}"
+                            ),
                         )
+                    )
+
+        # Quality rules from Anthropic's skill-authoring guide. Hard limits
+        # become errors; style guidance becomes warnings (see quality.py).
+        warnings: list[ValidationError] = []
+        skill_root = str(entry.relative_to(registry_path))
+        issues = check_description_yaml_comment(
+            skill_md.read_text(encoding="utf-8"), "SKILL.md"
+        )
+        issues += check_description(metadata.get("description"))
+        issues += check_frontmatter(metadata)
+        if post.content.strip():
+            issues += check_skill_quality(entry, post.content)
+        for issue in issues:
+            if issue.field is not None:
+                field_name = issue.field
+            elif issue.rule.startswith("description"):
+                field_name = "description"
+            else:
+                field_name = None
+            finding = ValidationError(
+                file=f"{skill_root}/{issue.file}",
+                field=field_name,
+                message=issue.message,
+                severity=issue.severity,
+                rule=issue.rule,
+                line=issue.line,
+            )
+            (errors if issue.severity == "error" else warnings).append(finding)
 
         results.append(
             ValidationResult(
                 file=relative_path,
                 valid=len(errors) == 0,
                 errors=errors,
+                warnings=warnings,
             )
         )
 
@@ -425,6 +487,22 @@ def validate_agents(registry_path: Path) -> list[ValidationResult]:
                     )
                 )
 
+        # The model only sees the parsed value, so a description YAML cut at
+        # ' #' passes it; check the raw front matter too.
+        for issue in check_description_yaml_comment(
+            md_file.read_text(encoding="utf-8"), relative_path
+        ):
+            errors.append(
+                ValidationError(
+                    file=relative_path,
+                    field="description",
+                    message=issue.message,
+                    severity=issue.severity,
+                    rule=issue.rule,
+                    line=issue.line,
+                )
+            )
+
         # Ensure the filename stem matches the metadata name.
         meta_name = metadata.get("name")
         if meta_name is not None and md_file.stem != meta_name:
@@ -463,6 +541,7 @@ def validate_agents(registry_path: Path) -> list[ValidationResult]:
                                 f"Referenced skill '{skill_name}' not found "
                                 f"in registry skills directory"
                             ),
+                            rule="agent-skill-exists",
                         )
                     )
 

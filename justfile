@@ -10,6 +10,10 @@ test *ARGS:
 validate-registry *ARGS:
     cd server && uv run python -m awos_recruitment_mcp.validate {{ARGS}}
 
+# Check that the skills copied into .claude/skills/ match their registry source
+check-skill-parity *ARGS:
+    cd server && uv run python -m awos_recruitment_mcp.validate.parity {{ARGS}}
+
 # Build the CLI
 build-cli:
     cd cli && npm run build
