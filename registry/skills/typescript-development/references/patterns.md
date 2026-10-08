@@ -1,5 +1,18 @@
 # TypeScript Patterns Reference
 
+## Contents
+
+- [Immutability Patterns](#immutability-patterns) — readonly properties, arrays, frozen objects
+- [Error Handling Patterns](#error-handling-patterns) — typed error classes, `Result`, `unknown` catches
+- [Async Patterns](#async-patterns) — signatures, concurrency, typed async iterators
+- [Builder Pattern](#builder-pattern) — chainable typed query builder
+- [Type-Safe Event Emitter](#type-safe-event-emitter) — event map keyed by name
+- [Overloaded Functions](#overloaded-functions) — standalone and method overloads
+- [Module Patterns](#module-patterns) — namespace-like modules, lazy init, type-only exports
+- [Enum Alternatives](#enum-alternatives) — why const objects beat `enum`
+- [Assertion Functions](#assertion-functions) — `assertDefined`, `assertNever`
+- [Narrowing Patterns](#narrowing-patterns) — `in`, truthiness, `Array.isArray`
+
 ## Immutability Patterns
 
 ### Readonly properties
@@ -134,6 +147,7 @@ async function fetchData(id: string): Promise<Data> {
   if (!response.ok) {
     throw new AppError("Fetch failed", "FETCH_ERROR", response.status);
   }
+  // Trust boundary: json() is Promise<any>; the API contract is ours. Narrow with a guard instead if the payload is untrusted.
   return response.json() as Promise<Data>;
 }
 ```
@@ -233,33 +247,29 @@ class QueryBuilder<T> {
 ```typescript
 type EventMap = Record<string, unknown[]>;
 
-class TypedEmitter<Events extends EventMap> {
-  private listeners = new Map<keyof Events, Set<Function>>();
+type Handler<Args extends unknown[]> = (...args: Args) => void;
 
-  on<K extends keyof Events>(
-    event: K,
-    handler: (...args: Events[K]) => void,
-  ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)!.add(handler);
+// One Set per event, each typed to that event's argument tuple — no `Function`,
+// no non-null `!`: a missing Set is created on first use with `??=`.
+type ListenerSets<Events extends EventMap> = {
+  [K in keyof Events]?: Set<Handler<Events[K]>>;
+};
+
+class TypedEmitter<Events extends EventMap> {
+  private listeners: ListenerSets<Events> = {};
+
+  on<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
+    (this.listeners[event] ??= new Set()).add(handler);
   }
 
   emit<K extends keyof Events>(event: K, ...args: Events[K]): void {
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      for (const handler of handlers) {
-        handler(...args);
-      }
+    for (const handler of this.listeners[event] ?? []) {
+      handler(...args);
     }
   }
 
-  off<K extends keyof Events>(
-    event: K,
-    handler: (...args: Events[K]) => void,
-  ): void {
-    this.listeners.get(event)?.delete(handler);
+  off<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
+    this.listeners[event]?.delete(handler);
   }
 }
 
@@ -339,20 +349,11 @@ export { UserSchema } from "./models.js";
 
 ### Const objects over enums
 
-Prefer const objects with `as const` over TypeScript `enum`:
+SKILL.md carries the `as const` object pattern itself. What it does not spell out is the
+alternative you are replacing and why:
 
 ```typescript
-// Prefer this
-const Status = {
-  Active: "active",
-  Inactive: "inactive",
-  Pending: "pending",
-} as const;
-
-type Status = (typeof Status)[keyof typeof Status];
-// "active" | "inactive" | "pending"
-
-// Over this
+// Avoid — an enum emits a runtime object
 enum StatusEnum {
   Active = "active",
   Inactive = "inactive",
@@ -360,7 +361,22 @@ enum StatusEnum {
 }
 ```
 
-**Why:** Const objects produce no runtime code, support tree-shaking, and interoperate better with plain strings. Enums create runtime objects and have quirks with reverse mappings.
+**Why the const object wins:** both forms emit runtime code — the `as const` assertion is
+erased, but the object literal itself survives — so the difference is in *what* they emit.
+An enum compiles to a self-invoking function that fills a mutable binding, which a bundler
+cannot prove is unused; a const object compiles to a plain object literal it can tree-shake.
+Its values are ordinary strings, so they interoperate with plain string literals and JSON;
+and it avoids the reverse-mapping quirk of numeric enums:
+
+```typescript
+enum LevelEnum { Low, High } // numeric — emits Low → 0 *and* 0 → "Low"
+
+const key: string = LevelEnum[0]; // "Low" — a legal lookup that yields a key name
+```
+
+String enums have no reverse mapping, so the same lookup on `StatusEnum` above is a type
+error rather than a surprise. Enums also behave inconsistently across `const enum`,
+`declare enum`, and `isolatedModules`, which const objects never do.
 
 ### Union types for simple cases
 
