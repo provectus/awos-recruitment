@@ -1,5 +1,13 @@
 # Async Patterns in FastAPI
 
+## Contents
+- How FastAPI Handles Routes (sync `def`, async `async def`)
+- Threadpool Caveats
+- CPU-Intensive Tasks (process pool, task queue)
+- Getting the Event Loop (`get_running_loop` vs `get_event_loop`)
+- Using Sync Libraries in Async Routes (`run_in_threadpool`)
+- Decision Matrix
+
 ## How FastAPI Handles Routes
 
 FastAPI is async-first but supports both sync and async route handlers with different execution models.
@@ -57,7 +65,7 @@ executor = ProcessPoolExecutor(max_workers=4)
 
 @router.get("/compute")
 async def compute():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, heavy_computation, data)
     return {"result": result}
 
@@ -67,6 +75,22 @@ async def transcode(video_id: UUID4):
     task = celery_app.send_task("transcode_video", args=[str(video_id)])
     return {"task_id": task.id}
 ```
+
+## Getting the Event Loop
+
+In a coroutine, use `asyncio.get_running_loop()`. Do not use `asyncio.get_event_loop()`.
+
+When a loop runs, both functions return that loop. When no loop runs, the two functions
+are different:
+
+- `get_running_loop()` raises `RuntimeError`. The error shows the bug immediately.
+- `get_event_loop()` on Python 3.13 and earlier gets a loop from the event loop policy,
+  with only a `DeprecationWarning`. This hides the bug. Python 3.14 raises as well, but
+  `get_running_loop()` is still the right call: it is explicit and behaves the same on
+  every version.
+
+This difference is important if code from the coroutine is later called from a
+synchronous context.
 
 ## Using Sync Libraries in Async Routes
 

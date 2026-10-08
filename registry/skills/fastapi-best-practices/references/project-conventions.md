@@ -1,5 +1,14 @@
 # Project Conventions
 
+## Contents
+- Domain-Based Module Layout (full tree, module reference, global vs domain, cross-domain imports)
+- Database Naming Conventions (tables, columns, explicit index naming)
+- SQL-First Approach
+- Alembic Migrations (rules, file naming)
+- API Documentation (hiding docs in production, endpoint documentation)
+- Testing (async test client)
+- Linting
+
 ## Domain-Based Module Layout
 
 Organize by **domain** (auth, posts, payments), not by file type (routers/, models/, services/). Each domain is a self-contained package with a standard set of modules.
