@@ -574,22 +574,24 @@ Key differences:
 
 ### Docker images
 
+Replace `<version>` with the toolchain your `swift-tools-version` requires (for example `6.1`). Check the `swift` repository on Docker Hub for the current tag list before writing the file — not every OS variant is published for every release.
+
 ```dockerfile
-FROM swift:6.0 AS builder
+FROM swift:<version> AS builder
 WORKDIR /app
 COPY . .
 RUN swift build -c release
 
-FROM swift:6.0-slim
+FROM swift:<version>-slim
 COPY --from=builder /app/.build/release/my-cli /usr/local/bin/
 ENTRYPOINT ["my-cli"]
 ```
 
-Available base images:
-- `swift:6.0` — full development image (Ubuntu-based)
-- `swift:6.0-slim` — minimal runtime image
-- `swift:6.0-noble` — Ubuntu 24.04 based
-- `swift:6.0-amazonlinux2` — Amazon Linux 2 based
+Base image variants:
+- `swift:<version>` — full development image (Ubuntu-based)
+- `swift:<version>-slim` — minimal runtime image
+- `swift:<version>-noble` — Ubuntu 24.04 based
+- `swift:<version>-amazonlinux2` — Amazon Linux 2 based
 
 ### Build and test commands
 

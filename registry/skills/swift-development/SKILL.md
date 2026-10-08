@@ -1,26 +1,26 @@
 ---
 name: swift-development
-description: "This skill should be used when the user asks to \"write Swift code\", \"create a Swift type\", \"set up a Swift package\", \"review Swift code\", \"refactor Swift\", \"use async/await in Swift\", \"fix Swift style\", or when generating any Swift source code regardless of target platform. Provides modern Swift 6+ best practices covering type system, optionals, concurrency, error handling, protocols, generics, and idiomatic patterns. Does not cover any specific platform or framework."
+description: "This skill should be used when the user asks to \"write Swift code\", \"create a Swift type\", \"set up a Swift package\", \"review Swift code\", \"refactor Swift\", \"use async/await in Swift\", \"fix Swift style\", \"set up SwiftLint\", \"configure SwiftFormat\", or when generating any Swift source code regardless of target platform. Provides modern Swift 6+ best practices covering type system, optionals, concurrency, error handling, protocols, generics, idiomatic patterns, and SwiftLint/SwiftFormat setup. Covers the language, standard library, and Foundation only — no platform UI frameworks; pair with `apple-app-development` for Apple app work."
 version: 0.1.0
 ---
 
 # Swift Development (6+)
 
-Modern Swift best practices for writing safe, expressive, and idiomatic code. Targets Swift 6+ — language and standard library only, no platform frameworks.
+Modern Swift best practices for writing safe, expressive, and idiomatic code. Targets Swift 6+ — the language, standard library, and Foundation. Platform frameworks are out of scope, with one deliberate exception: `references/concurrency.md` ends with brief notes on migrating Combine pipelines to `AsyncSequence`, because that refactor lands in language-level code.
 
-Applicable to all Swift targets: Apple platforms, server-side (Vapor, Hummingbird), CLI tools, cross-platform (Linux, Windows).
+Applicable to all Swift targets: Apple platforms, server-side (Vapor, Hummingbird), CLI tools, cross-platform (Linux, Windows). For Apple platform and UI work (SwiftUI, app lifecycle, Xcode projects, widgets) use this skill together with `apple-app-development`, which owns the framework guidance.
 
 ## Reference Files
 
 - **`references/type-system.md`** — Generics, protocols with associated types, opaque types (`some`), existentials (`any`), metatypes, `@dynamicMemberLookup`, `@dynamicCallable`
-- **`references/concurrency.md`** — Actors, task groups, async sequences, Sendable, isolation, GCD migration, Combine interop
+- **`references/concurrency.md`** — Actors, task groups, async sequences, Sendable, isolation, continuations, GCD migration, Combine-to-`AsyncSequence` migration notes (Apple targets)
 - **`references/patterns.md`** — Property wrappers, result builders, key paths, Codable, extensions, copy-on-write, DSL design
 - **`references/project-structure.md`** — Swift Package Manager setup, multi-target packages, build configurations, plugins, testing setup
 - **`references/static-analysis.md`** — SwiftLint (configuration, rules, custom rules, auto-correct), SwiftFormat (configuration, formatting rules), combined setup, CI/CD integration, pre-commit hooks
 
 ## Code Style
 
-- **Short functions** — target under 20 lines. Extract well-named helpers when a block needs a comment.
+- **Short functions** — extract well-named helpers when a block needs a comment. The bundled SwiftLint config (`references/static-analysis.md`) sets the ceiling: `function_body_length` warns at 50 lines and errors at 100.
 - **Imports at the top** — group by module. No `@_exported` unless building a module facade.
 - **Access control** — default to `private` or `internal`. Use `public` only at module boundaries.
 
@@ -44,55 +44,20 @@ Follow the [Swift API Design Guidelines](https://www.swift.org/documentation/api
 
 ## Value Types vs Reference Types
 
-```swift
-struct User {                          // Value type — prefer by default
-    let id: UUID
-    var name: String
-}
-
-class UserStore {                      // Reference type — when identity matters
-    private var users: [User] = []
-}
-```
-
-Use `struct` by default. Use `class` when you need identity, inheritance, or reference semantics. Actors when you need thread-safe mutable state.
+Use `struct` by default. Use `class` when you need identity, inheritance, or reference semantics. Use `actor` when you need thread-safe mutable state.
 
 ## Optionals
 
 ```swift
-let name: String? = user?.name         // safe chaining
-let displayName = name ?? "Anonymous"  // nil coalescing
-
-// NEVER force-unwrap unless you have a provable invariant with a comment
-guard let user = fetchUser(id) else { return }  // early exit — preferred
+guard let user = fetchUser(id) else { return }              // early exit — preferred
+let displayName = user.nickname ?? user.name                // nil coalescing
+let uppercased = user.nickname.map { $0.uppercased() }      // String?
+let config = try optionalConfig ?? { throw AppError.notFound(resource: "Config") }()
 ```
 
-### Safe patterns
-
-```swift
-// Shorthand optional binding (Swift 5.7+) — use when binding name matches the variable
-if let name {
-    print(name)
-}
-
-guard let user else { return }
-
-// Explicit binding — only when intentionally binding to a different name
-if let email = user.email {
-    sendConfirmation(to: email)
-}
-
-// map / flatMap
-let uppercased = name.map { $0.uppercased() }           // String?
-let nested = fetchUser(id).flatMap { $0.address }        // Address?
-
-// Coalescing with throwing
-let user = try optionalUser ?? { throw AppError.notFound }()
-```
-
-Always use shorthand optional binding when the binding name matches the original variable name. Write `if let value { }` instead of `if let value = value { }`. This applies to all optional binding contexts: `if let`, `guard let`, `while let`, and multi-condition bindings (e.g., `guard let foo, let bar else { }`). Only use the explicit `if let renamed = original` form when intentionally binding to a different name.
-
-NEVER use `!` to silence the compiler. Acceptable only with a provable invariant and a comment explaining why.
+Rules:
+- Use shorthand binding whenever the bound name matches the variable — `if let value`, `guard let value`, `while let value`, `guard let foo, let bar` — and write `if let renamed = original` only when intentionally binding to a different name.
+- Never force-unwrap (`!`) to silence the compiler; it trades a compile-time diagnostic for a runtime crash. The one acceptable use is a provable invariant, stated in a comment beside it.
 
 ## Enums with Associated Values
 
@@ -194,48 +159,13 @@ Rules:
 - **Use `Task.isCancelled` or `try Task.checkCancellation()`** to respond to cancellation.
 - Mark `nonisolated` explicitly when actor methods don't need isolation.
 
-For actors, task groups, async sequences, Sendable patterns, GCD migration, and Combine interop see `references/concurrency.md`.
+For actors, task groups, async sequences, Sendable patterns, continuations, GCD migration, and Combine-to-`AsyncSequence` migration notes see `references/concurrency.md`.
 
-## Collections
+## Collections and Closures
 
-```swift
-// Prefer higher-order functions over manual loops
-let activeUsers = users.filter { $0.isActive }
-let names = users.map(\.name)
-let totalAge = users.reduce(0) { $0 + $1.age }
-
-// Lazy for large collections
-let firstMatch = users.lazy.filter { $0.isActive }.first
-
-// Dictionary grouping
-let byDepartment = Dictionary(grouping: employees, by: \.department)
-```
-
-## Closures
-
-```swift
-// Trailing closure syntax
-let sorted = users.sorted { $0.name < $1.name }
-
-// Multi-line closures — use named parameters
-let transformed = items.map { item in
-    Item(
-        id: item.id,
-        name: item.name.uppercased()
-    )
-}
-
-// @escaping — when closure outlives the function
-func fetch(completion: @escaping (Result<User, Error>) -> Void) { ... }
-
-// @Sendable — when closure crosses concurrency boundaries
-func execute(_ work: @Sendable () async -> Void) { ... }
-```
-
-Rules:
-- Use `$0`, `$1` only for short, single-expression closures.
-- Name parameters explicitly when the closure body is multi-line.
-- Prefer `async` functions over completion handler closures in new code.
+- Prefer higher-order functions (`filter`, `map(\.keyPath)`, `reduce`, `Dictionary(grouping:by:)`) over manual loops; use `.lazy` when chaining over large collections.
+- Use `$0`, `$1` only in short single-expression closures; name the parameters when the body is multi-line.
+- Prefer `async` functions over completion-handler closures in new code; mark closures `@Sendable` when they cross concurrency boundaries.
 
 ## Project Structure
 
@@ -267,7 +197,7 @@ For SPM setup, multi-target packages, build configurations, plugins, and testing
 - **Dependency injection** — inject protocols, not concrete types. Use init injection.
 - **Pure logic** — keep business logic free of framework and I/O dependencies.
 - **Fakes over mocks** — write simple in-memory protocol conformances.
-- **Test naming** — `test_methodName_whenCondition_expectedResult`.
+- **Test naming** — Swift Testing: a descriptive `@Test("...")` display name plus a short function name (`fetchUser`). XCTest: `test_methodName_whenCondition_expectedResult`, because XCTest discovers tests by the `test` prefix.
 
 ```swift
 protocol UserRepository {
@@ -318,7 +248,6 @@ Prefer Swift Testing (`@Test`, `#expect`) over XCTest for new code. Use XCTest w
 | Mistake | Fix |
 |---|---|
 | Force-unwrapping (`!`) without invariant | Use `guard let`, `if let`, `??`, or optional chaining |
-| `if let value = value { }` when names match | Use shorthand: `if let value { }` (Swift 5.7+) |
 | Catching `Error` broadly | Catch specific error types at appropriate boundaries |
 | `Task { }` without cancellation handling | Check `Task.isCancelled` or use `Task.checkCancellation()` |
 | Using GCD (`DispatchQueue`) in new code | Use Swift Concurrency (`async/await`, actors) |
