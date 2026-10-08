@@ -32,11 +32,18 @@ class UserCreate(BaseModel):
     website: AnyUrl | None = None
 ```
 
-An optional field must say so in its annotation. Pydantic does not validate defaults
-unless you ask it to, so `age: int = Field(ge=18, default=None)` is accepted at import
-time and then publishes a contradictory OpenAPI schema — `{"type": "integer", "default":
-null}`. Writing `age: int | None = Field(None, ge=18)` keeps the `ge` constraint and
-produces the correct `anyOf` schema, so generated clients see a nullable integer.
+The annotation of an optional field must show that the field is optional.
+
+Pydantic does not validate defaults unless you tell it to. Thus, Pydantic accepts
+`age: int = Field(ge=18, default=None)` at import time. But the OpenAPI schema for this
+field is contradictory:
+
+```json
+{"type": "integer", "default": null}
+```
+
+Write `age: int | None = Field(None, ge=18)` instead. This keeps the `ge` constraint and
+makes the correct `anyOf` schema. Generated clients then see a nullable integer.
 
 ## Custom Base Model
 

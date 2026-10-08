@@ -40,16 +40,24 @@ Once installed, the skill activates automatically when Claude Code detects FastA
 
 ## Evaluation
 
-Test prompts for checking that the skill triggers when it should and stays out of the way
-when a sibling skill is the better fit. The registry validator only permits `SKILL.md`,
-`README.md`, `references/`, and `scripts/` inside a skill directory, so these live here
-rather than in an `evals/` folder — which also keeps them out of the bundled skill
-context.
+This section has test prompts. Use them to check two things:
 
-The negative cases matter as much as the positive ones: this skill sits next to
-`modern-python-development`, `pytest-best-practices`, and `postgres-best-practices`, and
-each one below is a deliberate near-miss that shares vocabulary with this skill but
-belongs to a neighbour.
+- The skill triggers when it is the correct skill.
+- The skill does not trigger when a sibling skill is a better fit.
+
+The registry validator permits only `SKILL.md`, `README.md`, `references/`, and
+`scripts/` in a skill directory. Thus, the test prompts are in this file, not in an
+`evals/` folder. This also keeps the test prompts out of the bundled skill context.
+
+The negative cases are as important as the positive cases. This skill is next to three
+sibling skills:
+
+- `modern-python-development`
+- `pytest-best-practices`
+- `postgres-best-practices`
+
+Each negative case below is intentionally close to this skill. It uses words that this
+skill also uses, but it belongs to one of the sibling skills.
 
 ### Should trigger
 

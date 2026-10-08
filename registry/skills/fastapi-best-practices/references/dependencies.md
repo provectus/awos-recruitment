@@ -11,11 +11,13 @@
 
 ## Declare Dependencies with `Annotated`
 
-FastAPI has recommended `Annotated[T, Depends(...)]` over the `param: T = Depends(...)`
-default-value form since 0.95. The older form works, but it puts a `Depends` object in
-the function's default arguments, so the function can no longer be called directly from
-tests or other code without passing that sentinel in. `Annotated` leaves defaults alone
-and keeps the parameter a normal typed argument.
+Since FastAPI 0.95, FastAPI recommends `Annotated[T, Depends(...)]`. Do not use the older
+form `param: T = Depends(...)`.
+
+The older form works, but it puts a `Depends` object in the default arguments of the
+function. Thus, when tests or other code call the function directly, they must give a
+value for that argument. `Annotated` does not change the default arguments. The parameter
+stays a normal typed argument.
 
 Store the annotation in a module-level alias and every route reuses one name:
 

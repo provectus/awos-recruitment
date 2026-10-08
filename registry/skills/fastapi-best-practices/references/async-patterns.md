@@ -4,6 +4,7 @@
 - How FastAPI Handles Routes (sync `def`, async `async def`)
 - Threadpool Caveats
 - CPU-Intensive Tasks (process pool, task queue)
+- Getting the Event Loop (`get_running_loop` vs `get_event_loop`)
 - Using Sync Libraries in Async Routes (`run_in_threadpool`)
 - Decision Matrix
 
@@ -75,11 +76,21 @@ async def transcode(video_id: UUID4):
     return {"task_id": task.id}
 ```
 
-Inside a coroutine, reach for `asyncio.get_running_loop()` rather than
-`asyncio.get_event_loop()`. Both return the running loop when one is active, but
-`get_event_loop()` falls back to the event loop policy when there isn't one — so it
-hides the mistake if the code is later called from a synchronous context, where
-`get_running_loop()` would raise `RuntimeError` and point straight at the bug.
+## Getting the Event Loop
+
+In a coroutine, use `asyncio.get_running_loop()`. Do not use `asyncio.get_event_loop()`.
+
+When a loop runs, both functions return that loop. When no loop runs, the two functions
+are different:
+
+- `get_running_loop()` raises `RuntimeError`. The error shows the bug immediately.
+- `get_event_loop()` on Python 3.13 and earlier gets a loop from the event loop policy,
+  with only a `DeprecationWarning`. This hides the bug. Python 3.14 raises as well, but
+  `get_running_loop()` is still the right call: it is explicit and behaves the same on
+  every version.
+
+This difference is important if code from the coroutine is later called from a
+synchronous context.
 
 ## Using Sync Libraries in Async Routes
 
