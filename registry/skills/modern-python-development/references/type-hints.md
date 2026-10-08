@@ -201,14 +201,21 @@ def handle(val: int | str) -> None:
         print(val.upper())
 ```
 
-Because the `else` branch is narrowed too, a `TypeIs` predicate must return `True`
-exactly when the value is of the narrowed type. A predicate like
-`isinstance(val, int) and val > 0` would send `-1` down the `else` branch typed as
-`str` and crash at runtime; a value check like that belongs in a `TypeGuard` or a
-plain `bool` function, not a `TypeIs`.
+`TypeIs` narrows the type in both branches. Thus, a `TypeIs` predicate must return
+`True` for every value of the narrowed type and `False` for every other value.
 
-Prefer `TypeIs` when the project targets 3.13+ — it provides stronger guarantees.
-Otherwise use `TypeGuard`.
+Do not put a value check in a `TypeIs` predicate:
+
+```python
+isinstance(val, int) and val > 0  # wrong for TypeIs
+```
+
+For `-1`, this predicate returns `False`. The type checker then gives `-1` the type
+`str` in the `else` branch. At runtime, the code would crash. Put a value check in a
+`TypeGuard` or in a plain `bool` function.
+
+- Python 3.13 or later: use `TypeIs`. It gives stronger guarantees.
+- Earlier versions: use `TypeGuard`, or `TypeIs` from `typing_extensions`.
 
 ## Overload
 
@@ -247,12 +254,18 @@ def logged[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 ```
 
-Declare the ParamSpec inline in the parameter list (`[**P, R]`), which is the 3.12+
-idiom. There is no `type` alias form for a ParamSpec: the `type` statement builds a
-`TypeAliasType`, so `type P = ParamSpec("P")` leaves `P.args` / `P.kwargs` undefined
-and type checkers reject the resulting `Callable[P, R]`. When a ParamSpec must be
-declared separately (to share it across functions), use `P = ParamSpec("P")` — a plain
-assignment, no `type` keyword.
+Declare the ParamSpec inline in the parameter list (`[**P, R]`). This is the 3.12+
+idiom.
+
+Do not declare a ParamSpec with the `type` statement:
+
+```python
+type P = ParamSpec("P")  # wrong
+```
+
+The `type` statement builds a `TypeAliasType`, so `P.args` and `P.kwargs` are
+undefined and type checkers reject `Callable[P, R]`. When a ParamSpec must be shared
+across functions, declare it with a plain assignment: `P = ParamSpec("P")`.
 
 ## Callable Types
 

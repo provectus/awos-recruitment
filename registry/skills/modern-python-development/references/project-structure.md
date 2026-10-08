@@ -49,14 +49,27 @@ The `src/` layout keeps the package out of the project root, so `import mypackag
 
 ## pyproject.toml
 
-### Minimal configuration
+### Default toolchain
 
-Scaffold with this toolchain — `hatchling` to build, `ruff` to lint and format, `mypy`
-to type-check, `pytest` to test — so a generated `pyproject.toml` runs as written. If
-the project already configures a different build backend or tool set, keep what is
-there; the point is to have a working default, not to standardise every repository.
-Set `requires-python`, `target-version`, and `python_version` to the project's actual
-floor; `3.12` below is the minimum this skill assumes.
+For a new project, use these tools so that the generated `pyproject.toml` works
+without changes:
+
+| Task | Tool |
+|---|---|
+| Build | `hatchling` |
+| Lint and format | `ruff` |
+| Type-check | `mypy` |
+| Test | `pytest` |
+| Enforce module layering | `import-linter` |
+
+If the project already uses a different build backend or different tools, keep them.
+This toolchain is a working default. It is not a standard for all repositories.
+
+Set `requires-python`, `target-version`, and `python_version` to the lowest Python
+version that the project supports. The minimum version for this skill is `3.12`, and
+the example below uses `3.12`.
+
+### Minimal configuration
 
 ```toml
 [project]
@@ -75,6 +88,7 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
+    "import-linter",
 ]
 
 [build-system]
@@ -104,7 +118,23 @@ strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "package_name"
+
+[[tool.importlinter.contracts]]
+name = "Domain packages sit above shared and do not import each other"
+type = "layers"
+layers = ["users | orders", "shared"]
+containers = ["package_name"]
 ```
+
+Encode the layout rules from [Module Organization](#module-organization) as
+`import-linter` contracts and run `lint-imports` in CI next to `ruff`, `mypy`, and
+`pytest`. A `layers` contract lists modules from highest to lowest; a lower layer must
+not import a higher one, and modules joined with `|` on one line must not import each
+other. Add a contract whenever a new structural rule is introduced, so the rule is
+checked rather than remembered.
 
 Swap these tables for the project's existing tools when `pyproject.toml` already
 configures them — for example `[tool.pyright]` in place of `[tool.mypy]`. Match the
