@@ -1,5 +1,14 @@
 # Fixtures Reference
 
+## Contents
+- Basic Fixture
+- Built-in Fixtures (`tmp_path`, `tmp_path_factory`, `monkeypatch`, `capsys`, `caplog`)
+- Fixture Scopes (function, module, session, class)
+- Teardown Pattern (`yield`)
+- Fixture Factories
+- `conftest.py` and `autouse`
+- Fixture Dependencies
+
 <basic_fixture>
 
 ```python
@@ -16,6 +25,71 @@ def test_user_has_email(sample_user):
 ```
 
 </basic_fixture>
+
+<builtin_fixtures>
+
+Check these before writing a custom fixture — pytest already gives each test a
+fresh copy and reverts every change at teardown, so they stay correct under
+`pytest -n auto` where a shared path or a mutated `os.environ` would not.
+
+**tmp_path** - Unique temporary directory per test, as a `pathlib.Path`:
+```python
+def test_writes_log(tmp_path):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "app.log").write_text("some log content")
+    assert (log_dir / "app.log").read_text() == "some log content"
+```
+
+**tmp_path_factory** - Session-scoped sibling for fixtures that outlive one test:
+```python
+@pytest.fixture(scope="session")
+def shared_dataset(tmp_path_factory):
+    path = tmp_path_factory.mktemp("data") / "dataset.csv"
+    path.write_text("id,name\n1,Alice\n")
+    return path
+```
+
+**monkeypatch** - Patch env vars, attributes, dict items, `sys.path`, or the cwd;
+every change is undone after the test:
+```python
+def test_reads_api_key(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test-key")
+    assert get_api_key() == "test-key"
+
+def test_missing_api_key(monkeypatch):
+    monkeypatch.delenv("API_KEY", raising=False)
+    with pytest.raises(KeyError):
+        get_api_key()
+
+def test_patched_attribute(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "timeout", 1)
+    monkeypatch.chdir(tmp_path)  # also: setitem, delitem, syspath_prepend
+```
+
+**capsys** - Assert on captured stdout/stderr. `readouterr()` returns a
+named tuple (`.out`, `.err`) and resets the buffer:
+```python
+def test_prints_summary(capsys):
+    print_summary(count=3)
+    captured = capsys.readouterr()
+    assert "3 items" in captured.out
+    assert captured.err == ""
+```
+
+**caplog** - Assert on log records. Use `caplog.records` for structured checks
+and `caplog.set_level()` to lower the threshold for the test:
+```python
+import logging
+
+def test_logs_warning(caplog):
+    caplog.set_level(logging.WARNING)
+    process(payload={})
+    assert "empty payload" in caplog.text
+    assert [r.levelname for r in caplog.records] == ["WARNING"]
+```
+
+</builtin_fixtures>
 
 <fixture_scopes>
 
@@ -55,16 +129,29 @@ def class_resource():
 
 <teardown_pattern>
 
-Use `yield` for setup/teardown:
+Use `yield` for setup/teardown. Build paths from `tmp_path` rather than a literal
+`/tmp/...` — pytest gives each test its own directory and cleans it up, so the
+fixture stays isolated when tests run in parallel:
 
 ```python
 @pytest.fixture
-def temp_file():
-    """Create and cleanup a temporary file."""
-    path = Path("/tmp/test_file.txt")
-    path.write_text("test content")
+def config_file(tmp_path):
+    """Create a config file for the test."""
+    path = tmp_path / "config.toml"
+    path.write_text('name = "test"\n')
     yield path  # Test runs here
-    path.unlink(missing_ok=True)  # Cleanup after test
+    # tmp_path is removed by pytest; only clean up what you created elsewhere
+```
+
+Reserve explicit teardown for resources pytest does not own:
+
+```python
+@pytest.fixture
+def seeded_account(db):
+    """Insert a row and remove it afterwards."""
+    account = db.accounts.insert(name="test")
+    yield account
+    db.accounts.delete(account.id)  # Runs even if the test fails
 ```
 
 </teardown_pattern>
