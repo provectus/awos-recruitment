@@ -2,6 +2,11 @@
 
 Best practices for localizing user-facing text in Apple platform apps.
 
+## Contents
+- Core Rules
+- String Catalogs (.xcstrings) (Code Generation Accessors, Named Parameter Format, Parameter Naming Guidelines)
+- Localization APIs (String(localized:) API (iOS 15+), Pluralization and Device Variations, LocalizedStringResource (iOS 16+), Translator Comments, Migration from .strings / .stringsdict, Testing Localization)
+
 ## Core Rules
 
 When writing or modifying user-facing text:

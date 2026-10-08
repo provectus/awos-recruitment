@@ -7,7 +7,7 @@
 - Push notifications (APNs, `UNUserNotificationCenter`, silent push)
 - Deep links and Universal Links
 - Handoff and `NSUserActivity`
-- App Intents integration (brief — see `widgets-app-intents.md`)
+- App Intents integration (brief — see `references/widgets-app-intents.md`)
 - State restoration (`@SceneStorage`)
 - Launch optimization
 - UIKit App Delegate interop (`@UIApplicationDelegateAdaptor`)
@@ -587,7 +587,7 @@ Register activity types in `Info.plist` under `NSUserActivityTypes`:
 
 ## App Intents Integration
 
-Expose app functionality to Siri and Shortcuts via App Intents. This is a brief overview — see `widgets-app-intents.md` for full coverage.
+Expose app functionality to Siri and Shortcuts via App Intents. This is a brief overview — see `references/widgets-app-intents.md` for full coverage.
 
 ```swift
 import AppIntents
