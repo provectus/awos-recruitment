@@ -1,5 +1,17 @@
 # Python Project Structure Reference
 
+## Contents
+- Directory Layout (src layout)
+- Why src Layout
+- pyproject.toml (minimal config, entry points, tool configuration)
+- Module Organization (by domain, when flat is acceptable)
+- `__init__.py` Patterns
+- `__main__.py` Entry Point
+- py.typed Marker
+- Test Organization
+- Constants and Configuration
+- Import Conventions
+
 ## Directory Layout (src layout)
 
 ```
@@ -33,25 +45,29 @@ project-name/
 
 ## Why src Layout
 
-The `src/` layout prevents a class of bugs where the package in the working directory shadows the installed package. Without it, running `python` from the project root imports the local directory instead of the installed package, leading to subtle test failures and import issues.
-
-```
-# Without src layout — dangerous
-project/
-├── mypackage/     # This gets imported instead of the installed one
-│   └── ...
-└── tests/
-    └── test_foo.py  # `import mypackage` imports the local dir, not installed
-
-# With src layout — safe
-project/
-├── src/
-│   └── mypackage/  # Not directly importable from project root
-└── tests/
-    └── test_foo.py  # `import mypackage` always imports the installed one
-```
+The `src/` layout keeps the package out of the project root, so `import mypackage` always resolves to the installed package rather than the local directory.
 
 ## pyproject.toml
+
+### Default toolchain
+
+For a new project, use these tools so that the generated `pyproject.toml` works
+without changes:
+
+| Task | Tool |
+|---|---|
+| Build | `hatchling` |
+| Lint and format | `ruff` |
+| Type-check | `mypy` |
+| Test | `pytest` |
+| Enforce module layering | `import-linter` |
+
+If the project already uses a different build backend or different tools, keep them.
+This toolchain is a working default. It is not a standard for all repositories.
+
+Set `requires-python`, `target-version`, and `python_version` to the lowest Python
+version that the project supports. The minimum version for this skill is `3.12`, and
+the example below uses `3.12`.
 
 ### Minimal configuration
 
@@ -69,12 +85,15 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    # linter, type checker, test runner of choice
+    "ruff",
+    "mypy",
+    "pytest",
+    "import-linter",
 ]
 
 [build-system]
-requires = ["<build-backend>"]
-build-backend = "<build-backend>.build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 ```
 
 ### With entry points (CLI commands)
@@ -89,17 +108,37 @@ mycommand = "package_name.__main__:main"
 Keep all tool configuration in `pyproject.toml` — avoid separate config files:
 
 ```toml
-[tool.<linter>]
+[tool.ruff]
 target-version = "py312"
 line-length = 88
 
-[tool.<type-checker>]
+[tool.mypy]
 python_version = "3.12"
 strict = true
 
-[tool.<test-runner>.ini_options]
+[tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "package_name"
+
+[[tool.importlinter.contracts]]
+name = "Domain packages sit above shared and do not import each other"
+type = "layers"
+layers = ["users | orders", "shared"]
+containers = ["package_name"]
 ```
+
+Encode the layout rules from [Module Organization](#module-organization) as
+`import-linter` contracts and run `lint-imports` in CI next to `ruff`, `mypy`, and
+`pytest`. A `layers` contract lists modules from highest to lowest; a lower layer must
+not import a higher one, and modules joined with `|` on one line must not import each
+other. Add a contract whenever a new structural rule is introduced, so the rule is
+checked rather than remembered.
+
+Swap these tables for the project's existing tools when `pyproject.toml` already
+configures them — for example `[tool.pyright]` in place of `[tool.mypy]`. Match the
+repository rather than adding a second type checker alongside the one it uses.
 
 ## Module Organization
 
@@ -180,7 +219,7 @@ __all__ = [
 - Always define `__all__` to declare the public surface.
 - Do not put implementation code in `__init__.py`.
 - Sub-packages should have their own `__init__.py` with their own `__all__`.
-- Avoid circular imports by importing symbols, not modules (use `from .models import User`, not `from . import models`).
+- If two modules need each other, break the cycle: move the shared piece to a third module, import the module (`from . import models`, then `models.User`) instead of the symbol, or import inside the function that needs it. Otherwise prefer importing symbols directly.
 
 ### Empty `__init__.py`
 
@@ -261,8 +300,9 @@ SUPPORTED_FORMATS: frozenset[str] = frozenset({"json", "csv", "xml"})
 # src/package_name/config.py
 """Application configuration."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from os import environ
+from typing import Self
 
 @dataclass(frozen=True, slots=True)
 class Config:
@@ -271,7 +311,7 @@ class Config:
     debug: bool = False
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Self:
         return cls(
             host=environ.get("APP_HOST", "localhost"),
             port=int(environ.get("APP_PORT", "8080")),
