@@ -4,7 +4,8 @@ description: >-
   Postgres performance optimization and best practices. Use when writing or reviewing
   SQL queries, designing schemas, configuring connection pooling, fixing N+1 queries,
   creating indexes, implementing row-level security, diagnosing slow queries with
-  EXPLAIN ANALYZE, or optimizing database performance.
+  EXPLAIN ANALYZE, or optimizing database performance. Postgres only — for DynamoDB use
+  aws-dynamodb-best-practices; does not cover ORM- or migration-tool-specific APIs.
 ---
 
 # Postgres Best Practices
@@ -83,4 +84,4 @@ Comprehensive performance optimization guide for Postgres. 31 rules across 8 cat
 
 ## How to Use
 
-Each rule file in `references/` contains: explanation, incorrect/correct SQL examples, EXPLAIN output, and context. Read individual files as needed.
+Each rule file in `references/` contains: explanation, incorrect/correct SQL examples, EXPLAIN output, and context. Read individual files as needed; to review a whole category, read every file sharing its prefix (for example `references/query-*.md`) in one batch rather than one at a time.
