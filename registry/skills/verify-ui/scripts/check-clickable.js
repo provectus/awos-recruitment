@@ -2,8 +2,17 @@
 // Checks whether elements are clickable by combining viewport bounds,
 // visibility styles, and elementFromPoint hit-testing.
 //
-// Usage with Playwright MCP browser_evaluate:
-//   browser_evaluate({ function: "() => checkClickable({ selectors: ['button'], scope: '[role=\"dialog\"]' })" })
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines checkClickable in the page:
+//      code: async (page) => page.evaluate(`<the full text of this file>`)
+//   2. Call:
+//      code: async (page) => page.evaluate(
+//        (opts) => checkClickable(opts),
+//        { selectors: ['button'], scope: '[role="dialog"]' })
+//
+// Options:
+//   selectors  array of CSS selectors to test, one result per selector (required)
+//   scope      CSS selector to search within (defaults to the document)
 
 function checkClickable({ selectors, scope } = {}) {
   if (!selectors || selectors.length === 0) {
