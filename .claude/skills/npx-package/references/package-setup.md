@@ -1,12 +1,25 @@
 # npx Package Setup Reference
 
+## Contents
+
+- [Complete package.json](#complete-packagejson) — full manifest for a CLI that also exports a library
+- [Key Fields Explained](#key-fields-explained) — `bin`, `files`, `exports`, `engines`
+- [Scoped Packages](#scoped-packages) — `@scope/name` and `--access public`
+- [Bundling with tsup](#bundling-with-tsup) — single-file builds, shebang via `banner`
+- [Dual CJS/ESM Support](#dual-cjsesm-support) — conditional `exports` for `require` and `import`
+- [CI/CD Publishing](#cicd-publishing) — GitHub Actions workflow, npm provenance
+- [Version Management](#version-management) — `npm version`, pre-release tags
+- [.npmignore vs files](#npmignore-vs-files) — why the whitelist wins
+- [Verifying the Package](#verifying-the-package) — `npm pack --dry-run`
+- [Post-Publish Testing](#post-publish-testing) — smoke-testing the published package with npx
+
 ## Complete package.json
 
 ```json
 {
   "name": "@scope/my-cli",
   "version": "1.0.0",
-  "description": "CLI tool for capability discovery and installation",
+  "description": "CLI tool for plugin discovery and installation",
   "type": "module",
   "bin": {
     "my-cli": "./dist/index.js"
@@ -15,8 +28,8 @@
   "types": "./dist/lib.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/lib.js",
-      "types": "./dist/lib.d.ts"
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
     }
   },
   "files": [
@@ -30,21 +43,23 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
-  "keywords": ["cli", "mcp", "capabilities"],
+  "keywords": ["cli", "plugins"],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/org/my-cli"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "vitest": "^2.0.0"
+    "typescript": "^7",
+    "@types/node": "^24",
+    "vitest": "^5"
   }
 }
 ```
+
+The devDependency ranges are examples — install with `npm install -D typescript @types/node vitest` to get the latest majors rather than copying these pins. Keep the `@types/node` major equal to the `engines.node` floor.
 
 ## Key Fields Explained
 
@@ -85,18 +100,18 @@ Verify with `npm pack --dry-run` — inspect the file list before publishing.
 
 ### `exports`
 
-Defines the public API for consumers who `import` the package programmatically (not via CLI):
+Defines the public API for consumers who `import` the package programmatically (not via CLI). Conditions are matched in order, so `types` must come first or TypeScript may never reach it:
 
 ```json
 {
   "exports": {
     ".": {
-      "import": "./dist/lib.js",
-      "types": "./dist/lib.d.ts"
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
     },
     "./utils": {
-      "import": "./dist/utils.js",
-      "types": "./dist/utils.d.ts"
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js"
     }
   }
 }
@@ -109,12 +124,12 @@ Specifies the minimum Node.js version. npm will warn (and `--engine-strict` will
 ```json
 {
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   }
 }
 ```
 
-Use `>=18` for `fetch` support, `>=20` for latest stable features.
+Set the floor to the current Node LTS major (check the Node.js release schedule); every supported LTS line ships `fetch`, ESM, and `node:test`. Lower it only if you must support users on an older maintenance LTS line, and match `@types/node` and the tsup `target` to whatever floor you choose.
 
 ## Scoped Packages
 
@@ -122,7 +137,7 @@ Scoped packages use the `@scope/name` format:
 
 ```json
 {
-  "name": "@awos/recruitment-cli"
+  "name": "@scope/my-cli"
 }
 ```
 
@@ -135,7 +150,7 @@ npm publish --access public
 Users run it with:
 
 ```bash
-npx @awos/recruitment-cli search "FastAPI agent"
+npx @scope/my-cli search "http client"
 ```
 
 ## Bundling with tsup
@@ -163,7 +178,7 @@ export default defineConfig({
   format: ["esm"],
   dts: true,
   clean: true,
-  target: "node18",
+  target: "node24", // match engines.node
   banner: {
     js: "#!/usr/bin/env node",
   },
@@ -187,9 +202,9 @@ If the package must support both `require()` and `import`:
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/lib.d.ts",
       "import": "./dist/lib.js",
-      "require": "./dist/lib.cjs",
-      "types": "./dist/lib.d.ts"
+      "require": "./dist/lib.cjs"
     }
   }
 }
@@ -225,10 +240,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pin each action to its latest major
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "lts/*" # current Node LTS; or pin to the engines.node major
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm run build
@@ -300,7 +316,6 @@ tar -tf my-cli-1.0.0.tgz
 After publishing, verify the package works via npx:
 
 ```bash
-# Clear npx cache and test
 npx --yes my-cli@latest --version
 npx --yes my-cli@latest search "test query"
 ```

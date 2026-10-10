@@ -1,12 +1,12 @@
 ---
-name: npx Package Development
-description: This skill should be used when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx. Covers package structure, TypeScript configuration, argument parsing, build pipeline, and npm publishing.
+name: npx-package
+description: Provides patterns for building TypeScript CLI tools distributed via npx - package structure, the bin entry point and shebang, ESM-ready tsconfig, argument parsing, output and exit codes, local testing, and npm publishing. Use when the user asks to "create an npx package", "build a CLI tool with TypeScript", "set up a Node.js CLI", "publish an npm package", "configure package.json bin field", "add CLI argument parsing", or "create an executable npm package", or when writing TypeScript code for a command-line tool distributed via npx. Does not cover general TypeScript style, type design, or non-CLI project layout - see the typescript skill for those.
 version: 0.1.0
 ---
 
 # npx Package Development (TypeScript)
 
-This skill covers building CLI tools in TypeScript that are executable via `npx`. An npx package is a standard npm package with a `bin` entry point — `npx` downloads and runs it without global installation.
+Patterns for TypeScript CLI tools that run via `npx`: a standard npm package with a `bin` entry point.
 
 ## Package Structure
 
@@ -43,14 +43,16 @@ my-cli/
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^7",
+    "@types/node": "^24"
   }
 }
 ```
+
+Set `engines.node` to the current Node LTS major and keep the `@types/node` major equal to it. The devDependency ranges above are examples — install with `npm install -D typescript @types/node` to get the latest majors rather than copying these pins.
 
 Key fields:
 
@@ -76,9 +78,7 @@ import { run } from "./cli.js";
 run(process.argv.slice(2));
 ```
 
-The shebang (`#!/usr/bin/env node`) tells the OS to execute the file with Node.js. Without it, `npx` execution fails on Unix systems.
-
-**Important:** The shebang must be the very first line — no blank lines or comments above it.
+**Important:** The shebang must be the very first line — no blank lines or comments above it — or `npx` execution fails on Unix.
 
 ## TypeScript Configuration
 
@@ -166,7 +166,7 @@ const name = getFlag(args, "--name");
 
 ### With a parsing library (for complex CLIs)
 
-For CLIs with many commands, flags, and subcommands, use a library like `commander` or `yargs`. See `references/patterns.md` for detailed examples.
+For CLIs with many commands, flags, and subcommands, use `commander` — see [references/patterns.md](references/patterns.md#argument-parsing-with-commander).
 
 ## Output and Exit Codes
 
@@ -192,12 +192,11 @@ process.exit(1);  // general error
 process.exit(2);  // misuse (bad arguments)
 ```
 
-Always call `process.exit()` with an appropriate code on failure. A non-zero exit code signals failure to the calling process.
+Always call `process.exit()` with the appropriate code on failure.
 
 ### Stderr vs stdout
 
-- `console.log()` → stdout — for program output (data, results).
-- `console.error()` → stderr — for diagnostics (errors, warnings, progress).
+Program output (data, results) goes to stdout via `console.log()`; diagnostics (errors, warnings, progress) go to stderr via `console.error()`.
 
 ## Build and Test Locally
 
@@ -262,5 +261,5 @@ Run `npm version` before `npm publish` — it updates package.json and creates a
 ### Reference Files
 
 For detailed patterns and advanced configuration, consult:
-- **`references/patterns.md`** — Commander/yargs argument parsing, interactive prompts, spinner/progress bars, HTTP requests from CLI, error handling patterns, monorepo setup
-- **`references/package-setup.md`** — Advanced package.json fields, scoped packages, bundling with esbuild/tsup, dual CJS/ESM support, CI/CD publishing, npm provenance
+- [references/patterns.md](references/patterns.md) — Commander argument parsing, interactive prompts, spinner/progress indicator, HTTP requests from CLI, error handling patterns, file system and subprocess helpers, environment variables, testing CLI commands
+- [references/package-setup.md](references/package-setup.md) — Advanced package.json fields, scoped packages, bundling with tsup, dual CJS/ESM support, CI/CD publishing, npm provenance, version management, verifying and post-publish testing

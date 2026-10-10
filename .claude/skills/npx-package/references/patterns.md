@@ -1,5 +1,17 @@
 # npx Package Patterns
 
+## Contents
+
+- [Argument Parsing with Commander](#argument-parsing-with-commander) — `commander` setup, subcommands, options table
+- [Interactive Prompts](#interactive-prompts) — confirm and select menus via `node:readline/promises`
+- [Spinner / Progress Indicator](#spinner--progress-indicator) — zero-dependency spinner on stderr
+- [HTTP Requests from CLI](#http-requests-from-cli) — built-in `fetch`, timeouts with `AbortController`
+- [Error Handling Patterns](#error-handling-patterns) — top-level boundary, custom error classes, exit codes
+- [File System Operations](#file-system-operations) — JSON config read/write, resolving paths against cwd
+- [Subprocess Execution](#subprocess-execution) — `execFile` over `exec` to avoid shell injection
+- [Environment Variables](#environment-variables) — defaults and required-variable checks
+- [Testing CLI Commands](#testing-cli-commands) — integration tests via `execFile`, unit tests on handlers
+
 ## Argument Parsing with Commander
 
 For CLIs with multiple commands and flags, use `commander`:
@@ -16,13 +28,13 @@ const program = new Command();
 
 program
   .name("my-cli")
-  .description("CLI tool for capability discovery")
+  .description("CLI tool for plugin discovery and installation")
   .version("1.0.0");
 
 program
   .command("install")
-  .description("Install a capability")
-  .argument("<name>", "capability name to install")
+  .description("Install a plugin")
+  .argument("<name>", "plugin name to install")
   .option("-d, --dir <path>", "target directory", ".")
   .option("--dry-run", "preview without installing")
   .action((name: string, opts: { dir: string; dryRun: boolean }) => {
@@ -36,7 +48,7 @@ program
 
 program
   .command("search")
-  .description("Search for capabilities")
+  .description("Search for plugins")
   .argument("<query>", "search query")
   .option("-n, --limit <number>", "max results", "10")
   .action((query: string, opts: { limit: string }) => {
@@ -75,7 +87,7 @@ async function confirm(message: string): Promise<boolean> {
 }
 
 // Usage
-if (await confirm("Install 3 capabilities?")) {
+if (await confirm("Install 3 plugins?")) {
   performInstall();
 }
 ```
@@ -136,7 +148,7 @@ spinner.stop("Installed successfully");
 
 ## HTTP Requests from CLI
 
-### Using built-in fetch (Node.js 18+)
+### Using built-in fetch (available in every supported Node LTS)
 
 ```typescript
 async function fetchJson<T>(url: string): Promise<T> {
@@ -203,26 +215,28 @@ try {
 ### Custom error classes
 
 ```typescript
+// src/errors.ts
 export class CliError extends Error {
   constructor(
     message: string,
     public readonly exitCode: number = 1,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "CliError";
   }
 }
 
 export class NetworkError extends CliError {
-  constructor(message: string) {
-    super(`Network error: ${message}`, 1);
+  constructor(message: string, options?: ErrorOptions) {
+    super(`Network error: ${message}`, 1, options);
     this.name = "NetworkError";
   }
 }
 
 export class ValidationError extends CliError {
-  constructor(message: string) {
-    super(message, 2);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, 2, options);
     this.name = "ValidationError";
   }
 }
@@ -231,6 +245,12 @@ export class ValidationError extends CliError {
 ### Handling in the error boundary
 
 ```typescript
+// src/index.ts
+import { run } from "./cli.js";
+import { CliError } from "./errors.js";
+
+const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
+
 try {
   await run(process.argv.slice(2));
 } catch (error) {
@@ -282,6 +302,7 @@ Always use `resolve()` with `process.cwd()` — never assume the working directo
 ```typescript
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { CliError } from "./errors.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -295,20 +316,20 @@ async function runCommand(
       timeout: 30_000,
     });
   } catch (error) {
-    throw new CliError(`Command failed: ${command} ${args.join(" ")}`);
+    throw new CliError(`Command failed: ${command} ${args.join(" ")}`, 1, { cause: error });
   }
 }
 
 // Usage
-await runCommand("git", ["clone", repoUrl, targetDir]);
+await runCommand("git", ["clone", "https://github.com/org/my-plugin.git", "./my-plugin"]);
 ```
 
-Use `execFile` (not `exec`) to avoid shell injection.
+Use `execFile` (not `exec`) to avoid shell injection. Pass the original error as `cause` so `DEBUG` output keeps the underlying failure.
 
 ## Environment Variables
 
 ```typescript
-const serverUrl = process.env.AWOS_SERVER_URL ?? "http://localhost:8000";
+const serverUrl = process.env.MY_CLI_SERVER_URL ?? "http://localhost:8000";
 const debug = process.env.DEBUG === "true";
 
 if (!process.env.REQUIRED_VAR) {
@@ -319,11 +340,12 @@ if (!process.env.REQUIRED_VAR) {
 
 ## Testing CLI Commands
 
-### Integration test with execa
+### Integration test via `execFile`
 
 ```typescript
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { expect, test } from "vitest";
 
 const exec = promisify(execFile);
 
@@ -342,12 +364,23 @@ test("unknown command exits with code 1", async () => {
 ### Unit test command handlers
 
 ```typescript
-// Export handlers separately for unit testing
-export function handleInstall(name: string, opts: InstallOptions): Promise<void> {
+// src/commands/install.ts — export handlers separately for unit testing
+import { ValidationError } from "../errors.js";
+
+export interface InstallOptions {
+  dir?: string;
+}
+
+export async function handleInstall(name: string, opts: InstallOptions): Promise<void> {
+  if (!name) throw new ValidationError("plugin name is required");
   // ...
 }
 
-// Test
+// test/install.test.ts
+import { expect, test } from "vitest";
+import { handleInstall } from "../src/commands/install.js";
+import { ValidationError } from "../src/errors.js";
+
 test("handleInstall validates name", async () => {
   await expect(handleInstall("", {})).rejects.toThrow(ValidationError);
 });
