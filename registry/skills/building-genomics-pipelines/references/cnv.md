@@ -450,20 +450,27 @@ bcftools filter -i '
 
 ## nf-core Pipelines
 
+There is no standalone nf-core CNV pipeline — CNV and SV calling live inside the
+pipelines below, so pick by study type rather than looking for a dedicated one.
+
 ```bash
-# nf-core/sarek includes SV calling
+# nf-core/sarek — germline or somatic SV/CNV calling alongside SNV calling
 nextflow run nf-core/sarek \
     -profile docker \
     --input samplesheet.csv \
     --genome GRCh38 \
     --tools manta,tiddit,cnvkit
 
-# Standalone CNV pipeline
-nextflow run nf-core/copynumber \
+# nf-core/raredisease — germline WGS/WES for rare disease: TIDDIT + Manta for SVs,
+# GATK GermlineCNVCaller for CNVs, with ranking/scoring of the calls
+nextflow run nf-core/raredisease \
     -profile docker \
     --input samplesheet.csv \
     --genome GRCh38
 ```
+
+For somatic copy number specifically, sarek also exposes `ascat` and
+`controlfreec`; `nf-core/circdna` covers extrachromosomal circular DNA.
 
 ## Interpretation Guidelines
 
