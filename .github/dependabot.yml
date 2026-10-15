@@ -49,6 +49,11 @@ updates:
         dependency-type: production
       cli-dev:
         dependency-type: development
+    ignore:
+      # Keep @types/node on the engines minimum in cli/package.json (Node 22):
+      # newer majors type-check APIs Node 22 lacks. Raise both together.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "chore(deps)"
 
