@@ -24,7 +24,8 @@ class Config:
         port: TCP port for the HTTP transport.
         version: Semantic version exposed via MCP server metadata.
         registry_path: Path to the capability registry directory.
-        search_threshold: Maximum number of search results to return.
+        search_threshold: Minimum similarity score (0-100) for a search
+            result. Results below it are dropped.
         posthog_api_key: PostHog project API key. ``None`` disables telemetry.
         posthog_host: PostHog ingestion endpoint.
     """
@@ -46,7 +47,7 @@ class Config:
             AWOS_PORT             -- TCP port, e.g. "9000"
             AWOS_VERSION          -- version string, e.g. "0.2.0"
             AWOS_REGISTRY_PATH    -- capability registry directory, e.g. "./registry"
-            AWOS_SEARCH_THRESHOLD -- max search results, e.g. "10"
+            AWOS_SEARCH_THRESHOLD -- minimum similarity score 0-100, e.g. "20"
             AWOS_POSTHOG_API_KEY  -- PostHog project API key (unset = telemetry disabled)
             AWOS_POSTHOG_HOST     -- PostHog ingestion host, e.g. "https://eu.i.posthog.com"
         """
