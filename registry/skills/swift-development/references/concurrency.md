@@ -1,6 +1,18 @@
 # Swift Concurrency Reference
 
-Comprehensive reference for Swift 6+ concurrency features. All patterns here are platform-agnostic — applicable to server-side Swift, CLI tools, and Apple platforms alike.
+Comprehensive reference for Swift 6+ concurrency features. Every section through GCD migration is platform-agnostic — applicable to server-side Swift, CLI tools, and Apple platforms alike. The final section covers migrating from Combine, which exists only on Apple platforms.
+
+## Contents
+- Actors (definition and isolation, reentrancy, `nonisolated`, actor protocols)
+- Global actors (custom global actors, `@MainActor`, inference rules, opting out)
+- Task groups (`withTaskGroup`, collecting results, limiting concurrency, discarding groups)
+- Async sequences (`AsyncSequence`, `AsyncStream`, `for await`, combining and merging)
+- Sendable (`@Sendable` closures, implicit conformance, `@unchecked Sendable`, strict checking)
+- Task management (creation and cancellation, `Task.detached`, `TaskLocal`, priorities, cooperative cancellation)
+- Isolation (isolation domains, transferring values, `sending`, `nonisolated(unsafe)`)
+- Continuations (checked and unsafe variants, wrapping callbacks, resume-exactly-once)
+- Migrating from GCD (`DispatchQueue`, `DispatchGroup`, `DispatchSemaphore`, summary table)
+- Migrating from Combine — Apple platforms only (publisher to `AsyncSequence`, `sink` to `for await`, when Combine still fits)
 
 ## Actors
 
@@ -250,6 +262,10 @@ final class ViewModel {
     var title: String = ""
     let id: String
 
+    init(id: String) {
+        self.id = id
+    }
+
     nonisolated func computeHash() -> Int {
         // Can only access nonisolated/let properties
         id.hashValue
@@ -260,8 +276,9 @@ final class ViewModel {
     }
 }
 
-// computeHash() and formatID() can be called without await
-let vm = await ViewModel()
+// The initializer is @MainActor-isolated, so creating the instance from a
+// nonisolated context needs await; the nonisolated methods do not.
+let vm = await ViewModel(id: "settings")
 let hash = vm.computeHash()  // synchronous, no await
 ```
 
@@ -859,29 +876,50 @@ struct ProcessedResult: Sendable {
 
 ### `sending` Parameter Modifier (Swift 6)
 
-The `sending` keyword indicates that a value is being transferred into a different isolation domain. The caller gives up access to the value.
+A non-`Sendable` value can cross into an actor *without* `sending`: Swift 6 region-based isolation ([SE-0414](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0414-region-based-isolation.md)) proves the caller no longer touches it and lets the call through. What `sending` changes is what the *callee* may do with the parameter ([SE-0430](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0430-transferring-parameters-and-results.md)). Without it, the parameter may still be shared with the caller, so the callee cannot forward it into another isolation domain. With it, the caller promises that nothing else references the value, so the callee may send it onward.
+
+```swift
+final class WorkItem {               // not Sendable
+    var data: [UInt8]
+    init(data: [UInt8]) { self.data = data }
+}
+func process(_ item: WorkItem) {}
+
+// Without `sending` the parameter may still be shared with the caller,
+// so forwarding it into a Task is rejected:
+func schedule(_ item: WorkItem) {
+    Task { process(item) }   // error: passing closure as a 'sending' parameter risks causing data races
+}
+
+// `sending` is the caller's promise that nothing else references `item`,
+// so the callee may send it onward:
+func schedule(_ item: sending WorkItem) {
+    Task { process(item) }   // OK
+}
+```
+
+The compiler enforces the promise on the caller's side: any use of the value after passing it as `sending` is an error.
 
 ```swift
 actor Worker {
-    func accept(_ item: sending WorkItem) {
-        // Worker now owns `item` exclusively
-        // Caller cannot use `item` after passing it
-    }
-}
+    private var queue: [WorkItem] = []
 
-struct WorkItem: ~Copyable {
-    var data: [UInt8]
+    func accept(_ item: sending WorkItem) {
+        queue.append(item)
+    }
 }
 
 func submit() async {
     let item = WorkItem(data: [1, 2, 3])
     let worker = Worker()
     await worker.accept(item)
-    // item is consumed — cannot be used here
+    // item.data.append(4)
+    // error: sending 'item' risks causing data races
+    // note: 'item' used after being passed as a 'sending' parameter
 }
 ```
 
-The `sending` modifier enables transferring non-Sendable types safely by proving the caller no longer retains a reference.
+Contrast with `~Copyable`: a non-copyable value is *consumed* when passed, which is an ownership rule, not a concurrency one. `sending` is specifically about isolation — it works with ordinary copyable classes, as above.
 
 ### nonisolated(unsafe)
 
@@ -1014,18 +1052,29 @@ func badExample() async throws -> Data {
 }
 
 // CORRECT — guard against multiple resumes
+import Synchronization  // Mutex: Swift 6 standard library (macOS 15 / iOS 18+, Linux)
+
 func safeExample() async throws -> Data {
     try await withCheckedThrowingContinuation { continuation in
-        let resumed = AtomicFlag()
+        // Mutex is Sendable, so both callbacks can share it. Whichever
+        // callback flips the flag first is the only one allowed to resume.
+        let resumed = Mutex(false)
+        @Sendable func claimResume() -> Bool {
+            resumed.withLock { alreadyResumed in
+                if alreadyResumed { return false }
+                alreadyResumed = true
+                return true
+            }
+        }
 
         fetchWithTimeout(
             onSuccess: { data in
-                if resumed.setIfFirst() {
+                if claimResume() {
                     continuation.resume(returning: data)
                 }
             },
             onTimeout: {
-                if resumed.setIfFirst() {
+                if claimResume() {
                     continuation.resume(throwing: TimeoutError())
                 }
             }
@@ -1033,6 +1082,8 @@ func safeExample() async throws -> Data {
     }
 }
 ```
+
+On platforms without `Synchronization`, the same guard can be built from `NSLock` (see `AtomicCounter` in the Sendable section).
 
 
 ## Migrating from GCD
@@ -1182,7 +1233,9 @@ func processWithLimit(_ items: [Item], limit: Int) async throws {
 | `DispatchSource.makeTimerSource` | `Task.sleep(for:)` + loop, or `AsyncStream` |
 
 
-## Migrating from Combine (Brief, Platform-Agnostic)
+## Migrating from Combine (Apple Platforms Only)
+
+Combine ships only with Apple SDKs, so this section applies to Apple targets. It is included here because the destination — `AsyncSequence` — is part of the language, and moving a pipeline off Combine is a language-level refactor. SwiftUI-specific Combine usage (`@Published`, `ObservableObject`) is covered by the `apple-app-development` skill.
 
 ### Publisher to AsyncSequence
 

@@ -72,7 +72,7 @@ do {
 }
 ```
 
-**Caveat — async inference gaps:** Typed throws has known compiler limitations in async contexts (as of Swift 6.1). Error type inference breaks with `async let` ([swift#76169](https://github.com/swiftlang/swift/issues/76169)), nested `do`-`catch` ([swift#75260](https://github.com/swiftlang/swift/issues/75260)), and generic error type parameters. Exhaustive pattern-matching in `catch` clauses is also not supported ([swift#74555](https://github.com/swiftlang/swift/issues/74555)) — you must use `catch { switch error { ... } }` instead.
+**Caveat — async inference gaps:** Typed throws has known compiler limitations in async contexts through Swift 6.1 (check the linked issues for the current status). Error type inference breaks with `async let` ([swift#76169](https://github.com/swiftlang/swift/issues/76169)), nested `do`-`catch` ([swift#75260](https://github.com/swiftlang/swift/issues/75260)), and generic error type parameters. Exhaustive pattern-matching in `catch` clauses is also not supported ([swift#74555](https://github.com/swiftlang/swift/issues/74555)) — you must use `catch { switch error { ... } }` instead.
 
 ### Result-based error handling for async
 
@@ -1068,26 +1068,29 @@ Actors are reentrant — when an actor method hits an `await`, other callers can
 ```swift
 actor BankAccount {
     var balance: Decimal
+    let ledger: Ledger
 
-    // Bug: balance can change between read and write
-    func withdraw(_ amount: Decimal) async throws {
+    // Bug: the check and the mutation are separated by an `await`. While this call
+    // is suspended, another `withdraw` can run on the actor and pass the same check.
+    func withdrawUnsafe(_ amount: Decimal) async throws {
         guard balance >= amount else { throw BankError.insufficientFunds }
-        let newBalance = await processWithBank(amount) // Reentrancy: another withdraw can execute here
-        balance = newBalance // May overdraw — another withdraw changed balance
+        await ledger.record(.withdrawal(amount)) // Suspension point — other callers run here
+        balance -= amount // May overdraw: balance was checked before the suspension
     }
 
-    // Fix: check state AFTER await, or restructure to avoid suspension between check and mutation
+    // Fix: check and mutate synchronously (no `await` in between), then suspend.
     func withdraw(_ amount: Decimal) async throws {
-        let result = await processWithBank(amount)
-        guard balance >= amount else { throw BankError.insufficientFunds } // Re-check after await
-        balance -= amount
+        guard balance >= amount else { throw BankError.insufficientFunds }
+        balance -= amount // State is consistent before the first suspension point
+        await ledger.record(.withdrawal(amount))
     }
 }
 ```
 
 Rules:
 - Assume actor state may change across any `await` point.
-- Re-validate conditions after `await` resumes.
+- Keep the check and the dependent mutation in the same synchronous section — no `await` between them.
+- Where a synchronous check-and-mutate is impossible, re-validate conditions after `await` resumes.
 - Minimize the number of `await` calls within actor methods when state consistency matters.
 
 ### 3. Deadlock: blocking the main thread on async work

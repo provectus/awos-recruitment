@@ -1,5 +1,13 @@
 # Modern Python 3.12+ Syntax Reference
 
+## Contents
+- Structural Pattern Matching (values, sequences, mappings, classes, guards, when to use)
+- The `type` Statement (basic and generic aliases, ParamSpec, TypeVarTuple)
+- Exception Groups (raising, `except*`, `asyncio.TaskGroup`)
+- The `@override` Decorator
+- F-String Enhancements (nested quotes, multi-line expressions, `=` debug format)
+- Walrus Operator (`:=`)
+
 ## Structural Pattern Matching
 
 ### Basic value matching
@@ -119,11 +127,7 @@ type Decorator[**P, R] = Callable[[Callable[P, R]], Callable[P, R]]
 type Shape[*Ts] = tuple[*Ts]
 ```
 
-### Advantages over legacy TypeAlias
-
-- Lazily evaluated — forward references work without quotes
-- Supports inline generic parameters (no separate `TypeVar` declaration)
-- Clear, dedicated syntax distinguishable from variable assignment
+Prefer `type` over `TypeAlias`: it is lazily evaluated (forward references need no quotes) and takes inline generic parameters.
 
 ## Exception Groups (3.11+)
 

@@ -2,6 +2,13 @@
 
 Comprehensive guide to data persistence on Apple platforms. Covers Core Data (mature, full-featured) and SwiftData (iOS 17+, Swift-native). Use this reference for stack setup, CRUD, concurrency, migrations, performance, CloudKit sync, and testing.
 
+## Contents
+- When to Use Which
+- Core Data (Stack Setup, NSManagedObject Codegen Modes, Context Concurrency, Fetch Requests & Predicates, Relationships, Migrations, …)
+- SwiftData (iOS 17+) (@Model, ModelContainer, ModelContext, @Query, Relationships and Delete Rules, Schema Migrations, ModelActor for Background Operations, SwiftData + CloudKit, …)
+- Shared Patterns (App Groups (Sharing Data with Extensions/Widgets), Data Validation, Testing with In-Memory Stores, Repository Pattern)
+- Common Pitfalls
+
 ## When to Use Which
 
 | Criterion | SwiftData | Core Data |
@@ -28,7 +35,6 @@ Comprehensive guide to data persistence on Apple platforms. Covers Core Data (ma
 ## Core Data
 
 ### Stack Setup
----
 
 ```swift
 import CoreData
@@ -61,7 +67,6 @@ Rules:
 - Set a merge policy (typically `NSMergeByPropertyObjectTrumpMergePolicy`) to handle conflicts.
 
 ### NSManagedObject Codegen Modes
----
 
 | Mode | When to use |
 |---|---|
@@ -91,7 +96,6 @@ public class Task: NSManagedObject {
 ```
 
 ### Context Concurrency
----
 
 Core Data offers three context patterns. Critical rule: **never access a managed object or context on the wrong queue**.
 
@@ -148,7 +152,6 @@ Swift 6 flags `NSManagedObject` as non-`Sendable`. In Xcode 26 (Swift 6.2), `NSM
 - Wrap Core Data access behind an actor that owns a private-queue context.
 
 ### Fetch Requests & Predicates
----
 
 ```swift
 let request = NSFetchRequest<Task>(entityName: "Task")
@@ -184,7 +187,6 @@ func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>,
 ```
 
 ### Relationships
----
 
 | Type | Definition | Notes |
 |---|---|---|
@@ -205,7 +207,6 @@ func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>,
 Best practice: **Cascade** from parent to children, **Nullify** from child to parent.
 
 ### Migrations
----
 
 #### Lightweight (Preferred)
 
@@ -288,7 +289,6 @@ try manager.migrateStore(from: sourceURL, type: .sqlite,
 **Best practice:** Test each migration step with real data. Use staged migrations when possible — they are simpler and less error-prone than manual.
 
 ### Batch Operations
----
 
 Batch operations execute directly at the SQLite level, bypassing the managed object context. Dramatically faster for bulk work but require manual in-memory synchronization.
 
@@ -373,7 +373,6 @@ NotificationCenter.default.addObserver(
 This pattern is essential for multi-process scenarios (app + widget sharing a store) and large data imports where `automaticallyMergesChangesFromParent` can cause excessive memory growth.
 
 ### Performance Tuning
----
 
 | Parameter | Purpose | Recommendation |
 |---|---|---|
@@ -387,7 +386,6 @@ This pattern is essential for multi-process scenarios (app + widget sharing a st
 Core Data lazily loads objects as "faults" — placeholders that trigger a database read only when a property is accessed. This keeps memory low but can cause N+1 query problems in large collections. Use `relationshipKeyPathsForPrefetching` and `fetchBatchSize` to mitigate.
 
 ### Core Data + CloudKit
----
 
 ```swift
 let container = NSPersistentCloudKitContainer(name: "MyModel")
@@ -419,7 +417,6 @@ Requirements:
 - Deploy the schema to production via the CloudKit Dashboard before shipping.
 
 ### Core Data + SwiftUI
----
 
 ```swift
 // App entry point
@@ -477,7 +474,6 @@ struct FilteredTaskList: View {
 ## SwiftData (iOS 17+)
 
 ### @Model, ModelContainer, ModelContext
----
 
 ```swift
 import SwiftData
@@ -539,7 +535,6 @@ struct ContentView: View {
 ```
 
 ### @Query
----
 
 `@Query` is SwiftData's equivalent of `@FetchRequest`:
 
@@ -597,7 +592,6 @@ struct FilteredTrips: View {
 **Limitation:** `#Predicate` does not support `NSCompoundPredicate`-style composition. Complex multi-step predicates require building the logic inline within the closure.
 
 ### Relationships and Delete Rules
----
 
 ```swift
 @Model
@@ -624,7 +618,6 @@ Supported delete rules: `.cascade`, `.nullify`, `.deny`, `.noAction` — same se
 For CloudKit sync, **all relationships must be optional** and `@Attribute(.unique)` is not allowed.
 
 ### Schema Migrations
----
 
 ```swift
 // 1. Define schema versions
@@ -701,7 +694,6 @@ static let migrateV1toV2 = MigrationStage.custom(
 ```
 
 ### ModelActor for Background Operations
----
 
 `@ModelActor` creates a dedicated actor with its own `ModelContext`:
 
@@ -761,7 +753,6 @@ actor BackgroundProcessor {
 ```
 
 ### SwiftData + CloudKit
----
 
 ```swift
 @main
@@ -793,7 +784,6 @@ Constraints (same as Core Data + CloudKit):
 - Only the private CloudKit database is supported.
 
 ### iOS 18+ Features
----
 
 #### #Unique — Composite Unique Constraints
 
@@ -976,7 +966,6 @@ struct JSONStoreConfiguration: DataStoreConfiguration {
 ## Shared Patterns
 
 ### App Groups (Sharing Data with Extensions/Widgets)
----
 
 ```swift
 let appGroupID = "group.com.example.app"
@@ -995,7 +984,6 @@ let description = NSPersistentStoreDescription(url: storeURL)
 Enable **Persistent History Tracking** when sharing stores between processes — it ensures each process can detect and merge changes made by others.
 
 ### Data Validation
----
 
 **Core Data** — override `validateForInsert()` and `validateForUpdate()`:
 
@@ -1026,7 +1014,6 @@ final class Task {
 ```
 
 ### Testing with In-Memory Stores
----
 
 ```swift
 // SwiftData
@@ -1060,7 +1047,6 @@ func makeTestContainer() -> NSPersistentContainer {
 Prefer `/dev/null` over `NSInMemoryStoreType` for Core Data tests — cascade delete rules and other SQLite-specific behaviors work identically to production.
 
 ### Repository Pattern
----
 
 Abstract persistence behind a protocol to decouple business logic from Core Data/SwiftData:
 

@@ -30,12 +30,14 @@ mint install realm/SwiftLint
 
 #### SPM Build Plugin (recommended for reproducibility)
 
+Version placeholders in this file (`<latest release>`) are deliberate. `from:` takes a concrete minimum version, so replace `<latest release>` with the tool's latest stable release tag (check the repository's releases page) before writing the manifest, then pin that value so every developer and CI run uses the same tool version. Never leave the placeholder in generated code; if the version can't be determined, ask the user.
+
 ```swift
 // Package.swift
 let package = Package(
     name: "MyApp",
     dependencies: [
-        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.57.0"),
+        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "<latest release>"),
     ],
     targets: [
         .target(
@@ -378,7 +380,7 @@ mint install nicklockwood/SwiftFormat
 let package = Package(
     name: "MyApp",
     dependencies: [
-        .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.55.0"),
+        .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "<latest release>"),
     ],
     targets: [
         .target(

@@ -351,7 +351,8 @@ suspend fun processDiscount(orderId: String) {
 |---|---|---|
 | Programmer error (bug) | `require()` / `check()` / `error()` | `require(age >= 0)` |
 | Expected business outcome | Sealed class hierarchy | `LoginResult.InvalidCredentials` |
-| Recoverable I/O failure | `Result` / `runCatching` | `runCatching { httpClient.get(url) }` |
+| Recoverable failure, non-suspending code | `try/catch` on a specific type; `Result` / `runCatching` only when chaining, with `recover` rethrowing what it doesn't handle | `catch (e: NoSuchFileException) { DEFAULT }` |
+| Recoverable failure, `suspend` code | `try/catch`, rethrow `CancellationException` first | see `coroutines.md` |
 | Unrecoverable failure | Exception (let it propagate) | `throw DatabaseConnectionException(...)` |
 
 **Sealed classes** — when the caller must handle every case:
@@ -364,12 +365,14 @@ sealed interface LoginResult {
 }
 ```
 
-**`Result`** — for I/O with functional-style chaining:
+**`Result`** — for non-suspending I/O with functional-style chaining:
 
 ```kotlin
-val user = runCatching { api.fetchUser(id) }
-    .recover { cache.getCachedUser(id) ?: throw it }
+val settings = runCatching { Files.readString(settingsPath) }
+    .recover { if (it is NoSuchFileException) DEFAULT_SETTINGS else throw it }
     .getOrThrow()
 ```
+
+`runCatching` catches `Throwable`, so it also catches `Error`s such as `OutOfMemoryError` and, inside `suspend` functions, `CancellationException` — there it silently breaks cancellation. Always `recover` only the specific types you handle and rethrow the rest, as above. In `suspend` code use `try/catch` that rethrows `CancellationException` first (worked example in `coroutines.md`).
 
 **Exceptions** — for truly unexpected failures that should propagate.

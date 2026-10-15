@@ -16,7 +16,9 @@ This document provides detailed guidance on creating reusable, maintainable Terr
 5. [Output Best Practices](#output-best-practices)
 6. [Common Patterns](#common-patterns)
 7. [Anti-patterns to Avoid](#anti-patterns-to-avoid)
-8. [Testing Philosophy & Patterns](#testing-philosophy--patterns)
+8. [Module Naming Conventions](#module-naming-conventions)
+9. [Testing Your Modules](#testing-your-modules)
+10. [Testing Philosophy & Patterns](#testing-philosophy--patterns)
 
 ---
 
@@ -106,7 +108,7 @@ module "ecs" {
 
 **Examples:**
 ```
-environments/
+infra/111111111111/         # one directory per AWS account
 ├── prod/                   # Composition (one root + state per env)
 │   ├── network.tf         # Registry module calls, one file per layer
 │   ├── dns.tf
@@ -114,15 +116,15 @@ environments/
 │   ├── app.tf
 │   ├── backend.tf         # Remote state configuration
 │   └── locals.tf          # Production-specific values (no tfvars)
-├── staging/                # same layout
-└── dev/                    # same layout
+├── dev/                    # same layout
+└── shared/                 # resources used by several environments
 ```
 
 ### Decision Tree: Which Module Type?
 
 ```
 Question 1: Is this environment-specific configuration?
-├─ YES → Composition (environments/prod/, environments/staging/)
+├─ YES → Composition (<account-id>/prod/, <account-id>/dev/)
 └─ NO  → Continue
 
 Question 2: Does it combine multiple infrastructure concerns?
@@ -174,19 +176,20 @@ backend.tf        # ONLY at composition level (remote state config)
 **Example:**
 
 ```hcl
-# ❌ BAD - One massive composition with everything
-environments/prod/
-  main.tf  # 2000 lines, manages VPC, EC2, RDS, S3, IAM, everything
+# ❌ BAD - One root (state) for every environment
+infra/
+  main.tf  # 2000 lines: dev and prod VPCs, RDS, ECS, IAM, everything
   # Takes 10+ minutes to plan
-  # One mistake affects entire infrastructure
+  # A mistake in dev can touch prod
 
-# ✅ GOOD - Separated by concern
-environments/prod/
-  networking/     # VPC, subnets, route tables
-  compute/        # EC2, ASG, ALB
-  data/           # RDS, ElastiCache
-  storage/        # S3, EFS
-  iam/            # IAM roles, policies
+# ✅ GOOD - One root (state) per environment, one file per layer
+infra/111111111111/prod/
+  network.tf    # VPC, subnets, endpoints
+  dns.tf        # ACM certificate + validation records
+  data.tf       # RDS, DynamoDB, secrets
+  app.tf        # ALB, ECS/Lambda, IAM task roles, log groups
+  # Layers pass values through module outputs inside the root.
+  # Split a layer into its own root only for a stated reason.
 ```
 
 ### 2. Always Use Remote State
@@ -221,7 +224,7 @@ terraform {
 
 ### 3. Connect Stacks with Data-Source Lookups
 
-**Pattern (Provectus default):** a consumer stack reads what a producer stack created through provider data sources, by a name or tag the producer sets. See [AWS Stack Layout: Cross-Stack Wiring](aws-stack-layout.md#cross-stack-wiring-by-lookup).
+**Pattern (Provectus default):** a consumer stack reads what a producer stack created through provider data sources, by a name or tag the producer sets. See [AWS Stack Layout: Cross-Stack Wiring](aws-stack-layout.md#cross-root-wiring-by-lookup).
 
 **Why:**
 - Consumers don't depend on another root's backend or need read access to its state
@@ -231,9 +234,10 @@ terraform {
 **Example:**
 
 ```hcl
-# environments/prod/network — the vpc module tags the VPC Name = "myapp-prod"
+# producer root (111111111111/shared/, or a network root split out for a
+# stated reason) — its vpc module tags the VPC Name = "myapp-prod"
 
-# environments/prod/app/data.tf
+# consumer root: 111111111111/prod/data-sources.tf
 data "aws_vpc" "this" {
   filter {
     name   = "tag:Name"
@@ -280,7 +284,7 @@ resource "aws_instance" "web" {
 # ✅ GOOD - Parameterized resource module
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]  # Canonical
+  owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
@@ -293,7 +297,7 @@ resource "aws_instance" "web" {
   instance_type = var.instance_type
   subnet_id     = var.subnet_id
 
-  tags = var.tags
+  tags = merge(local.required_tags, var.tags)
 }
 ```
 
@@ -302,40 +306,42 @@ resource "aws_instance" "web" {
 **Pattern:** Compositions provide concrete values, modules provide abstractions
 
 ```hcl
-# ✅ GOOD - Composition with environment-specific values
-# environments/prod/main.tf
+# ✅ GOOD - Composition with environment-specific values,
+# one root per environment with one file per layer
 
+# 111111111111/prod/network.tf
 module "vpc" {
   source = "../../modules/vpc"
 
-  cidr_block           = "10.0.0.0/16"
-  availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  enable_nat_gateway   = true
-  single_nat_gateway   = false  # HA for production
+  cidr_block         = "10.0.0.0/16"
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  enable_nat_gateway = true
+  single_nat_gateway = true # one NAT per VPC, prod included (see Security Baseline)
 
-  tags = {
-    Environment = "production"
-    ManagedBy   = "Terraform"
-    CostCenter  = "engineering"
-  }
+  tags = merge(local.required_tags, {
+    CostCenter = "engineering"
+  })
 }
 
+# 111111111111/prod/data.tf
 module "rds" {
   source = "../../modules/rds"
 
-  instance_class       = "db.r5.xlarge"  # Production sizing
-  allocated_storage    = 500             # Production sizing
-  multi_az             = true            # HA for production
-  backup_retention     = 30              # Long retention for prod
+  instance_class    = "db.r5.xlarge" # Production sizing
+  allocated_storage = 500            # Production sizing
+  multi_az          = true           # HA for production
+  backup_retention  = 30             # Long retention for prod
 
-  vpc_id               = module.vpc.vpc_id
-  subnet_ids           = module.vpc.private_subnet_ids
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnet_ids
 
-  tags = {
-    Environment = "production"
-  }
+  tags = local.required_tags
 }
 ```
+
+`local.required_tags` carries the four tags every taggable resource needs
+(`Environment`, `Project`, `Owner`, `ManagedBy`); see the main skill file for
+the definition. Merge extra tags on top of it rather than replacing it.
 
 ---
 
@@ -387,9 +393,18 @@ For public modules, always include a LICENSE file:
 
 ### Terraform vs OpenTofu Preference
 
-**Before generating any module or configuration:**
+**Before generating any module or configuration, work out which binary the
+repo uses:**
 
-1. **Ask the user:** "Will this be for Terraform or OpenTofu? (Both are supported equally)"
+1. **Detect it from the repo.** In order: the binary actually invoked in CI
+   config (`.github/workflows/`, `.gitlab-ci.yml`, `atlantis.yaml`);
+   `tofu`/`terraform` in the README or Makefile; `*.tofu` files, which only
+   OpenTofu reads; the registry host inside `.terraform.lock.hcl` —
+   `registry.opentofu.org/...` means OpenTofu, `registry.terraform.io/...`
+   means Terraform. That a `.terraform.lock.hcl` or `.terraform/` **exists**
+   proves nothing: both tools write those same paths. Default to Terraform when
+   nothing indicates otherwise, and ask only when the repo references both
+   binaries.
 
 2. **Use the preference throughout:**
    - Command examples: `terraform` vs `tofu`
@@ -404,9 +419,13 @@ For public modules, always include a LICENSE file:
 
    | Name | Version |
    |------|---------|
-   | [terraform/tofu] | >= 1.7.0 |
-   | aws | >= 6.0 |
+   | [terraform/tofu] | = X.Y.Z |
+   | aws | = 6.41.0 |
    ```
+
+   Record the exact versions the module is pinned to in `versions.tf` — the
+   README is where consumers look first, so a range here would advertise
+   flexibility the module does not actually have.
 
 4. **Example command variations:**
    ```bash
@@ -421,12 +440,7 @@ For public modules, always include a LICENSE file:
    tofu plan
    ```
 
-**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical.
-
-**Default behavior:**
-- If user doesn't specify: Ask explicitly
-- If project already exists: Detect from existing files (`.terraform/` or `.tofu/`)
-- If still unclear: Default to showing both options in documentation
+**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical, so a wrong guess costs a find-and-replace, not a rewrite.
 
 ---
 
@@ -533,9 +547,10 @@ resource "aws_instance" "server" {
   for_each = toset(["web", "api", "worker"])
 
   instance_type = "t3.micro"
-  tags = {
+
+  tags = merge(local.required_tags, {
     Name = each.key
-  }
+  })
 }
 ```
 
@@ -560,12 +575,13 @@ resource "aws_instance" "server" {
 
 ```
 # Root module (environment-specific)
-prod/
-  main.tf          # Calls modules with prod-specific values
-  variables.tf     # Environment-specific variables
+111111111111/prod/
+  network.tf       # Calls modules with prod-specific values, one file per layer
+  app.tf
+  locals.tf        # Environment-specific values (no tfvars)
 
 # Reusable module
-modules/webapp/
+modules/app/
   main.tf          # Generic, parameterized resources
   variables.tf     # Configurable inputs
 ```
@@ -576,19 +592,18 @@ modules/webapp/
 
 ```hcl
 locals {
-  common_tags = merge(
-    var.tags,
-    {
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
-  )
+  required_tags = {
+    Environment = var.environment
+    Project     = var.project
+    Owner       = var.owner
+    ManagedBy   = "terraform"
+  }
 
   instance_name = "${var.project}-${var.environment}-instance"
 }
 
 resource "aws_instance" "app" {
-  tags = local.common_tags
+  tags = merge(local.required_tags, var.tags)
   # ...
 }
 ```
@@ -676,16 +691,14 @@ resource "aws_instance" "app" {
 
 **Problem:** Can't have separate state files, blast radius is huge.
 
-**Fix:** Use separate root modules:
+**Fix:** Use separate root modules — one per environment, one file per layer:
 
 ```
-environments/
+infra/111111111111/
   dev/
-    main.tf
-  staging/
-    main.tf
+    network.tf  dns.tf  data.tf  app.tf  locals.tf
   prod/
-    main.tf
+    network.tf  dns.tf  data.tf  app.tf  locals.tf
 ```
 
 ### ❌ DON'T: Use `terraform_remote_state` Everywhere
@@ -742,12 +755,14 @@ acme-terraform-aws-rds
 
 ## Testing Your Modules
 
-For testing guidance, see [testing-frameworks.md](testing-frameworks.md).
+Testing guidance lives in the Testing Frameworks reference listed in SKILL.md.
 
 Quick checklist:
 
-- [ ] Ask: Terraform or OpenTofu?
-- [ ] Ask: Public or private module?
+- [ ] Terraform or OpenTofu, detected from the repo (default: Terraform)
+- [ ] Public or private module — private unless it is headed for the Terraform
+      Registry or a public repo, which is what decides the LICENSE file and the
+      `terraform-<PROVIDER>-<NAME>` naming
 - [ ] Include `examples/` directory
 - [ ] Write tests (native or Terratest)
 - [ ] Document inputs and outputs in README.md
@@ -767,7 +782,7 @@ When creating new modules, always include pre-commit hooks for automated validat
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0  # Use latest version from releases
+    rev: v1.109.1
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
@@ -814,13 +829,7 @@ Additional resources:
 - [Compliance.tf](https://compliance.tf)
 ```
 
-**When to include attribution:**
-- ✅ All new modules created with terraform-skill guidance
-- ✅ Public modules (GitHub, Terraform Registry)
-- ✅ Private modules shared within organizations
-- ⚠️ Optional for one-off environment configurations
-
-**Rationale:** This is a derivative work as defined in the Apache 2.0 License Section 1. Attribution supports the open-source ecosystem and helps others discover these best practices.
+Include it in every generated module README, public or private; it is the attribution the upstream Apache-2.0 license requires. Optional only for one-off environment configurations.
 
 **README Structure with Attribution:**
 ```markdown
@@ -856,7 +865,9 @@ Additional resources:
 # Local .terraform directories
 **/.terraform/*
 
-.terraform.lock.hcl
+# .terraform.lock.hcl is deliberately NOT ignored - commit it.
+# It records the provider checksums that make exact version pinning
+# reproducible across machines and CI.
 
 # .tfstate files - NEVER commit state files
 *.tfstate
@@ -941,8 +952,10 @@ terraform plan
 
 **4. Integration testing:**
 ```bash
-# Apply and verify
-terraform apply -auto-approve
+# -auto-approve is for a throwaway test account in an automated test run,
+# where the resources are destroyed minutes later. Real environments follow
+# the Apply Workflow in SKILL.md: plan -out, review, explicit approval.
+terraform apply -auto-approve # ephemeral test account only
 
 # Verify resources exist (use AWS CLI, etc.)
 aws ec2 describe-vpcs --vpc-ids $(terraform output -raw vpc_id)
@@ -952,7 +965,7 @@ terraform plan
 # Expected: "No changes. Your infrastructure matches the configuration."
 
 # Clean up
-terraform destroy -auto-approve
+terraform destroy -auto-approve # ephemeral test account only
 ```
 
 ### Input Validation Testing
@@ -996,7 +1009,7 @@ echo $SUBNET_IDS | jq 'length'  # Should match expected subnet count
 
 ```bash
 # Apply configuration
-terraform apply -auto-approve
+terraform apply -auto-approve # ephemeral test account only
 
 # Immediately run plan - should show no changes
 terraform plan -detailed-exitcode
@@ -1019,7 +1032,7 @@ Verify all resources are properly cleaned up:
 BEFORE_COUNT=$(terraform state list | wc -l)
 
 # Destroy
-terraform destroy -auto-approve
+terraform destroy -auto-approve # ephemeral test account only
 
 # After destroy - verify state is empty
 AFTER_COUNT=$(terraform state list | wc -l)
@@ -1080,11 +1093,10 @@ AFTER_COUNT=$(terraform state list | wc -l)
 
 2. **Tag test resources for tracking**
    ```hcl
-   tags = {
+   tags = merge(local.required_tags, {
      Environment = "test"
      TTL         = "2h"
-     ManagedBy   = "terraform-test"
-   }
+   })
    ```
 
 3. **Run integration tests only on main branch**
@@ -1102,7 +1114,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
    - Run destroy in CI/CD after tests complete
    - Use terraform-compliance to enforce TTL tags
 
-**For testing framework details, see:** [Testing Frameworks Guide](testing-frameworks.md)
+For testing framework details, see the Testing Frameworks reference listed in SKILL.md.
 
 ---
 

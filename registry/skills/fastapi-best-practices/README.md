@@ -37,3 +37,60 @@ This skill teaches:
 ## Usage
 
 Once installed, the skill activates automatically when Claude Code detects FastAPI-related tasks — writing route handlers, reviewing async patterns, setting up dependencies, or configuring Pydantic schemas.
+
+## Evaluation
+
+This section has test prompts. Use them to check two things:
+
+- The skill triggers when it is the correct skill.
+- The skill does not trigger when a sibling skill is a better fit.
+
+The registry validator permits only `SKILL.md`, `README.md`, `references/`, and
+`scripts/` in a skill directory. Thus, the test prompts are in this file, not in an
+`evals/` folder. This also keeps the test prompts out of the bundled skill context.
+
+The negative cases are as important as the positive cases. This skill is next to three
+sibling skills:
+
+- `modern-python-development`
+- `pytest-best-practices`
+- `postgres-best-practices`
+
+Each negative case below is intentionally close to this skill. It uses words that this
+skill also uses, but it belongs to one of the sibling skills.
+
+### Should trigger
+
+| # | Prompt | Expected |
+|---|---|---|
+| 1 | "our `/orders` endpoint takes ~4s under load and i think it's because we call the stripe sdk (the sync client) directly inside an `async def` route in `src/payments/router.py`. what's the right fix?" | `references/async-patterns.md` — blocking call on the event loop, resolve with `run_in_threadpool` |
+| 2 | "adding `PATCH /profiles/{profile_id}` and i need the same 'does this profile exist / does the caller own it' check that's already copy-pasted into three other handlers" | `references/dependencies.md` — validation via a chained `Annotated[..., Depends(...)]` dependency |
+| 3 | "review `src/posts/schemas.py` — `PostCreate`, `PostUpdate` and `PostResponse` all inherit one model and the response is leaking `internal_notes` to clients" | `references/pydantic-patterns.md` — separate input and output schemas |
+| 4 | "starting a new fastapi service for our billing domain, everything is in `main.py` right now. how should the packages be laid out?" | `references/project-conventions.md` — domain-based module layout |
+
+### Should not trigger
+
+| # | Prompt | Expected |
+|---|---|---|
+| 5 | "can you modernize the type hints in this module? there's a bunch of `Optional[Dict[str, Any]]` that should use the new syntax" | `modern-python-development` — general typing, no FastAPI surface |
+| 6 | "my pytest fixtures leak state between tests, the `db` fixture is session-scoped and i think that's the problem" | `pytest-best-practices` — fixture scoping, not FastAPI's async test client |
+| 7 | "this query does a seq scan on a 2M-row table, `EXPLAIN` shows the index isn't being used" | `postgres-best-practices` — query planning, not the skill's SQL-first guidance |
+
+### Running them
+
+Use the `skill-creator` skill's description-tuning mode, which runs each prompt several
+times and reports a trigger rate per prompt, then proposes description edits from the
+cases that fail:
+
+```bash
+python -m scripts.run_loop \
+  --eval-set <eval-set.json> \
+  --skill-path registry/skills/fastapi-best-practices \
+  --model <model-id> \
+  --max-iterations 5 --verbose
+```
+
+That script takes a JSON array of `{"query": ..., "should_trigger": true|false}` objects —
+build it from the two tables above. Treat a regression on rows 5-7 as seriously as a miss
+on rows 1-4: a description that over-triggers pulls FastAPI conventions into work that
+isn't about FastAPI.

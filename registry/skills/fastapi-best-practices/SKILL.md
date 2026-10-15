@@ -77,6 +77,7 @@ See `references/pydantic-patterns.md` for base model template, schema design, an
 ### Dependencies
 
 - Use for **request validation** (DB lookups, auth), not just DI
+- Declare as `Annotated[T, Depends(fn)]`, not `param: T = Depends(fn)`; reuse a module-level alias
 - Chain dependencies to compose validation without repetition
 - Dependencies are **cached per request** — same dependency in multiple chains runs once
 - Prefer `async` dependencies to avoid threadpool overhead on trivial operations

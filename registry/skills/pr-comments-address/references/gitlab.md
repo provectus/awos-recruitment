@@ -2,6 +2,18 @@
 
 > **Part of:** [pr-comments-address](../SKILL.md). The GitLab commands for the receiving workflow in **public mode**, keyed by the same operation names as [github.md](github.md) — so the SKILL workflow stays platform-agnostic and only this file changes. Local mode never runs any of these — it stays on the working tree and never invokes `glab` or posts to the platform.
 
+## Contents
+
+- [Terminology](#terminology) — MR/iid/discussion vocabulary, shell setup, the `path` variable trap, host pinning
+- [Transport: glab first, MCP as fallback](#transport-glab-first-mcp-as-fallback)
+- [preflight](#preflight)
+- [checkout-pr](#checkout-pr)
+- [fetch-working-set](#fetch-working-set)
+- [reply-to-thread](#reply-to-thread)
+- [reply-to-top-level](#reply-to-top-level)
+- [resolve-thread](#resolve-thread)
+- [Failure modes](#failure-modes)
+
 ## Terminology
 
 | SKILL says | GitLab means |

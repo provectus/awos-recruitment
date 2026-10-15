@@ -1,8 +1,24 @@
 # Python Type Hints Reference (3.12+)
 
+## Contents
+- Built-in Generics
+- Union Types
+- Type Aliases with `type` Statement
+- TypeVar and Generics (generic functions, bounded generics, generic classes)
+- Protocol (structural typing, runtime-checkable, generic protocols)
+- Self Type
+- TypeGuard and TypeIs
+- Overload
+- ParamSpec
+- Callable Types
+- Common Patterns (TypedDict, Literal, Never)
+- Rules Summary
+
 ## Built-in Generics
 
-As of Python 3.9+, use built-in types directly — never import from `typing`:
+As of Python 3.9+, use the built-in containers directly and never import their
+capitalised `typing` aliases (`List`, `Dict`, `Tuple`, `Set`, `FrozenSet`), which are
+deprecated:
 
 ```python
 # Correct
@@ -12,9 +28,15 @@ coords: tuple[float, float] = (0.0, 0.0)
 unique: set[str] = set()
 frozen: frozenset[int] = frozenset()
 
-# Wrong — legacy imports
+# Wrong — deprecated aliases
 from typing import List, Dict, Tuple, Set  # Do not use
 ```
+
+This rule is about the deprecated container aliases only. The `typing` module remains
+the right import for everything that has no builtin equivalent — `Protocol`, `Self`,
+`Literal`, `TypedDict`, `overload`, `override`, `Never` and friends — and the abstract
+containers (`Iterable`, `Sequence`, `Callable`, `Iterator`) come from
+`collections.abc`.
 
 ## Union Types
 
@@ -158,18 +180,20 @@ def process(data: list[object]) -> None:
         print(", ".join(data))
 ```
 
-### TypeIs (3.12+)
+### TypeIs (3.13+; `typing_extensions.TypeIs` on 3.12)
 
-Stricter narrowing — narrows in both branches:
+Stricter narrowing — narrows in both branches. `typing.TypeIs` was added by PEP 742 in
+Python 3.13, so on a 3.12 target `from typing import TypeIs` raises `ImportError` and
+`TypeGuard` is the only stdlib option:
 
 ```python
 from typing import TypeIs
 
-def is_positive_int(val: int | str) -> TypeIs[int]:
-    return isinstance(val, int) and val > 0
+def is_int(val: int | str) -> TypeIs[int]:
+    return isinstance(val, int)
 
 def handle(val: int | str) -> None:
-    if is_positive_int(val):
+    if is_int(val):
         # val is int
         print(val + 1)
     else:
@@ -177,7 +201,21 @@ def handle(val: int | str) -> None:
         print(val.upper())
 ```
 
-Prefer `TypeIs` over `TypeGuard` when possible — it provides stronger guarantees.
+`TypeIs` narrows the type in both branches. Thus, a `TypeIs` predicate must return
+`True` for every value of the narrowed type and `False` for every other value.
+
+Do not put a value check in a `TypeIs` predicate:
+
+```python
+isinstance(val, int) and val > 0  # wrong for TypeIs
+```
+
+For `-1`, this predicate returns `False`. The type checker then gives `-1` the type
+`str` in the `else` branch. At runtime, the code would crash. Put a value check in a
+`TypeGuard` or in a plain `bool` function.
+
+- Python 3.13 or later: use `TypeIs`. It gives stronger guarantees.
+- Earlier versions: use `TypeGuard`, or `TypeIs` from `typing_extensions`.
 
 ## Overload
 
@@ -205,10 +243,8 @@ Use `@overload` when the return type varies based on argument types or counts.
 Preserve function signatures through decorators:
 
 ```python
-from typing import ParamSpec, Callable
+from collections.abc import Callable
 from functools import wraps
-
-type P = ParamSpec("P")  # or use inline [**P] syntax
 
 def logged[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     @wraps(func)
@@ -217,6 +253,19 @@ def logged[**P, R](func: Callable[P, R]) -> Callable[P, R]:
         return func(*args, **kwargs)
     return wrapper
 ```
+
+Declare the ParamSpec inline in the parameter list (`[**P, R]`). This is the 3.12+
+idiom.
+
+Do not declare a ParamSpec with the `type` statement:
+
+```python
+type P = ParamSpec("P")  # wrong
+```
+
+The `type` statement builds a `TypeAliasType`, so `P.args` and `P.kwargs` are
+undefined and type checkers reject `Callable[P, R]`. When a ParamSpec must be shared
+across functions, declare it with a plain assignment: `P = ParamSpec("P")`.
 
 ## Callable Types
 
@@ -290,12 +339,13 @@ match status:
 ## Rules Summary
 
 1. Always annotate function signatures (parameters and return type).
-2. Use built-in generics (`list`, `dict`, `tuple`, `set`), never `typing` equivalents.
+2. Use built-in generics (`list`, `dict`, `tuple`, `set`), never the deprecated `typing`
+   aliases (`List`, `Dict`, `Tuple`, `Set`).
 3. Use `X | None` instead of `Optional[X]`.
 4. Use `type` statement for all type aliases.
 5. Use `[T]` syntax for generic functions and classes, not explicit `TypeVar`.
 6. Prefer `Protocol` over `ABC` when only method signatures matter.
 7. Use `@override` on every overriding method.
 8. Use `Self` for fluent interfaces and `@classmethod` return types.
-9. Use `TypeIs` over `TypeGuard` when possible.
-10. Omit return annotation only for `__init__`.
+9. Prefer `TypeIs` when targeting 3.13+; otherwise use `TypeGuard`.
+10. Annotate every function signature, including `__init__(...) -> None`.

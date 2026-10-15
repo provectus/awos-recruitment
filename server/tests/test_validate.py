@@ -87,6 +87,64 @@ def test_skill_unknown_field():
     )
 
 
+def test_skill_spec_fields_accepted():
+    """license, compatibility and a string-to-string metadata map are spec fields."""
+    meta = SkillMetadata.model_validate(
+        {
+            "name": "spec-skill",
+            "description": "Uses every Agent Skills spec field",
+            "license": "Apache-2.0",
+            "compatibility": "Requires git and the gh CLI",
+            "metadata": {"author": "Provectus", "version": "1.6.0"},
+        }
+    )
+    assert meta.license == "Apache-2.0", (
+        f"Expected license 'Apache-2.0', got '{meta.license}'"
+    )
+    assert meta.compatibility == "Requires git and the gh CLI", (
+        f"Expected compatibility to round-trip, got '{meta.compatibility}'"
+    )
+    assert meta.metadata == {"author": "Provectus", "version": "1.6.0"}, (
+        f"Expected metadata map to round-trip, got {meta.metadata}"
+    )
+
+
+def test_skill_metadata_values_must_be_strings():
+    """metadata is a string-to-string map; nested or numeric values are rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        SkillMetadata.model_validate(
+            {
+                "name": "spec-skill",
+                "description": "metadata with a nested map",
+                "metadata": {"tags": ["a", "b"]},
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert any(f.startswith("metadata") for f in error_fields), (
+        f"Expected a validation error under 'metadata', got errors for: {error_fields}"
+    )
+
+
+def test_skill_compatibility_length_capped():
+    """compatibility is capped at 500 characters by the spec."""
+    with pytest.raises(ValidationError) as exc_info:
+        SkillMetadata.model_validate(
+            {
+                "name": "spec-skill",
+                "description": "compatibility too long",
+                "compatibility": "x" * 501,
+            }
+        )
+    error_fields = {
+        ".".join(str(p) for p in e["loc"]) for e in exc_info.value.errors()
+    }
+    assert "compatibility" in error_fields, (
+        f"Expected a validation error for 'compatibility', got errors for: {error_fields}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # AgentMetadata model tests
 # ---------------------------------------------------------------------------
@@ -672,6 +730,58 @@ def test_validate_skill_rejects_unknown_script_extension(tmp_path: Path):
     messages = [e.message for e in results[0].errors]
     assert any("scan.rb" in m and "disallowed extension" in m for m in messages), (
         f"Expected disallowed-extension error for scan.rb, got: {messages}"
+    )
+
+
+def test_validate_skill_allows_evals_dir(tmp_path: Path):
+    """evals/ with skill-creator's evals.json and markdown notes is a valid layout."""
+    skill_dir = _make_skill_dir(tmp_path, "with-evals", "ships eval cases")
+    evals = skill_dir / "evals"
+    evals.mkdir()
+    (evals / "evals.json").write_text('{"evals": []}\n')
+    (evals / "README.md").write_text("# How to run\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected evals/ to pass, got errors: "
+        f"{[e.message for e in results[0].errors]}"
+    )
+
+
+def test_validate_skill_rejects_unknown_eval_extension(tmp_path: Path):
+    """evals/ only takes .json and .md — anything else is flagged."""
+    skill_dir = _make_skill_dir(tmp_path, "with-eval-script", "eval dir has a script")
+    evals = skill_dir / "evals"
+    evals.mkdir()
+    (evals / "evals.json").write_text('{"evals": []}\n')
+    (evals / "run.py").write_text("print('ok')\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert not results[0].valid, "Expected evals/run.py to be rejected"
+    messages = [e.message for e in results[0].errors]
+    assert any("evals/run.py" in m and "disallowed extension" in m for m in messages), (
+        f"Expected disallowed-extension error for evals/run.py, got: {messages}"
+    )
+
+
+def test_validate_skill_allows_assets_dir(tmp_path: Path):
+    """assets/ holds templates and other flat resources; any file type is fine."""
+    skill_dir = _make_skill_dir(tmp_path, "with-assets", "ships a template")
+    assets = skill_dir / "assets"
+    assets.mkdir()
+    (assets / "template.html").write_text("<html></html>\n")
+    (assets / "logo.png").write_bytes(b"\x89PNG\r\n")
+
+    results = validate_skills(tmp_path)
+
+    assert len(results) == 1
+    assert results[0].valid, (
+        f"Expected assets/ to pass, got errors: "
+        f"{[e.message for e in results[0].errors]}"
     )
 
 

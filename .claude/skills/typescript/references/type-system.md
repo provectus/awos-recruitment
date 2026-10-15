@@ -1,5 +1,19 @@
 # TypeScript Type System Reference
 
+## Contents
+
+- [Generics](#generics) — basic, constrained, generic interfaces, defaults
+- [Utility Types](#utility-types) — built-in table and how to combine them
+- [Conditional Types](#conditional-types) — basic, `infer`, distributive
+- [Mapped Types](#mapped-types) — basic, key remapping, filtering keys
+- [Template Literal Types](#template-literal-types) — basic and intrinsic string types
+- [Type Guards](#type-guards) — `typeof`, `instanceof`, custom predicates
+- [Discriminated Unions](#discriminated-unions) — the pattern, switch narrowing, exhaustive matching
+- [Branded Types](#branded-types) — nominal typing over structural types
+- [Satisfies Operator](#satisfies-operator) — validate without widening
+- [Const Assertions](#const-assertions) — literal and readonly inference
+- [Declaration Merging](#declaration-merging) — interface merging, module augmentation
+
 ## Generics
 
 ### Basic generics
@@ -103,12 +117,11 @@ type StringOrNumber<T> = T extends string ? string : number;
 type ElementType<T> = T extends (infer E)[] ? E : T;
 // ElementType<string[]> → string
 // ElementType<number>   → number
-
-type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
-// UnwrapPromise<Promise<string>> → string
-
-type FunctionReturn<T> = T extends (...args: unknown[]) => infer R ? R : never;
 ```
+
+Extracting return types, tuple elements and template-literal parts with `infer` — including
+why a function placeholder must be `(...args: never[])`, not `unknown[]` — is covered in
+`type-inference.md`.
 
 ### Distributive conditional types
 
@@ -232,16 +245,17 @@ interface Cat {
 function isDog(animal: Dog | Cat): animal is Dog {
   return animal.kind === "dog";
 }
-
-// Assertion function — throws if condition not met
-function assertNonNull<T>(value: T | null | undefined, name: string): asserts value is T {
-  if (value === null || value === undefined) {
-    throw new Error(`Expected ${name} to be defined`);
-  }
-}
 ```
 
-### Discriminated unions with type guards
+Assertion functions (`asserts value is T`) — `assertDefined` and `assertNever` — are in
+`patterns.md` (Assertion Functions).
+
+## Discriminated Unions
+
+### Pattern
+
+Every member shares a literal `kind` (or `type`, `tag`, `status`) property, and a check
+on that property narrows to the one member that carries it:
 
 ```typescript
 type Shape =
@@ -252,33 +266,27 @@ type Shape =
 function area(shape: Shape): number {
   switch (shape.kind) {
     case "circle":
-      return Math.PI * shape.radius ** 2;
+      return Math.PI * shape.radius ** 2; // narrowed to the circle member
     case "rectangle":
       return shape.width * shape.height;
     case "triangle":
       return (shape.base * shape.height) / 2;
   }
 }
-```
 
-## Discriminated Unions
+// An if-check narrows the same way — here on a boolean discriminant
+type Loaded = { ready: true; data: string } | { ready: false; reason: string };
 
-### Pattern
-
-Every member shares a literal `kind` (or `type`, `tag`) property:
-
-```typescript
-type Result<T, E = Error> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
-
-function processResult<T>(result: Result<T>): T {
-  if (result.ok) {
-    return result.value; // narrowed to { ok: true; value: T }
+function describe(state: Loaded): string {
+  if (state.ready) {
+    return state.data; // narrowed to { ready: true; data: string }
   }
-  throw result.error; // narrowed to { ok: false; error: Error }
+  return state.reason; // narrowed to { ready: false; reason: string }
 }
 ```
+
+The `Result<T, E>` type is the same pattern with `ok` as the discriminant; it and its
+constructors live in `patterns.md` (Error Handling Patterns).
 
 ### Exhaustive matching
 
@@ -322,7 +330,7 @@ function createOrderId(id: string): OrderId {
   return id as OrderId;
 }
 
-function fetchUser(id: UserId): Promise<User> { /* ... */ }
+declare function fetchUser(id: UserId): Promise<User>;
 
 const userId = createUserId("u-123");
 const orderId = createOrderId("o-456");
@@ -388,7 +396,7 @@ interface Config {
 
 ```typescript
 // Extend an existing module's types
-declare module "./types" {
+declare module "./types.js" {
   interface AppConfig {
     newFeatureFlag: boolean;
   }

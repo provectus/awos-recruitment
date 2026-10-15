@@ -1,6 +1,6 @@
 ---
 name: modern-python-development
-description: This skill should be used when the user asks to "write Python code", "create a Python module", "set up a Python project", "review Python code", "refactor Python", "add type hints", "fix Python style", or when generating any Python source code. Provides modern Python 3.12+ best practices covering syntax, type hints, error handling, project structure, and idiomatic patterns. Does not cover any specific library or framework.
+description: Provides modern Python 3.12+ best practices covering syntax, type hints, error handling, project structure, and idiomatic patterns. Use when the user asks to "write Python code", "create a Python module", "set up a Python project", "review Python code", "refactor Python", "add type hints", "fix Python style", or when generating any Python source code. Does not cover any specific library or framework — see the fastmcp, chromadb, pytest-best-practices and fastapi-best-practices skills for those.
 version: 0.1.0
 ---
 
@@ -42,7 +42,7 @@ Prefix boolean variables and functions with `is_`, `has_`, `can_`, or `should_`.
 
 ### Structural pattern matching
 
-Use `match`/`case` for value dispatch, destructuring, and type narrowing — not as a simple switch replacement. See `references/modern-syntax.md` for detailed patterns.
+Use `match`/`case` for value dispatch, destructuring, and type narrowing — not as a simple switch replacement.
 
 ```python
 match command:
@@ -64,7 +64,7 @@ type Handler[**P] = Callable[P, Awaitable[None]]
 
 ## Type Hints
 
-Apply type hints to all function signatures, class attributes, and module-level variables. Omit return type only for `__init__`.
+Apply type hints to all function signatures, class attributes, and module-level variables. Annotate every signature, including `__init__(...) -> None` — strict type checkers require the explicit `-> None`.
 
 ```python
 def calculate_total(items: list[float], *, tax_rate: float = 0.0) -> float:
@@ -78,8 +78,6 @@ Key rules:
 - Prefer `Protocol` over `ABC` when only structural typing is needed
 - Use `@override` decorator (3.12+) when overriding base class methods
 - Use `Self` for methods returning the instance type
-
-For comprehensive typing patterns including generics, `Protocol`, `TypeGuard`, `TypeVar`, and `ParamSpec`, consult `references/type-hints.md`.
 
 ## Error Handling
 
@@ -110,7 +108,7 @@ class NotFoundError(AppError):
 
 ```python
 try:
-    async with TaskGroup() as tg:
+    async with asyncio.TaskGroup() as tg:
         tg.create_task(validate_name(data))
         tg.create_task(validate_email(data))
 except* ValidationError as eg:
@@ -163,8 +161,6 @@ Key conventions:
 - Keep `__init__.py` files minimal — define the public API, not implementation.
 - Organize by domain, not by technical role (prefer `users/` over `services/`).
 
-For complete project structure guidance including `pyproject.toml` conventions, module organization, and entry points, consult `references/project-structure.md`.
-
 ## Idiomatic Patterns
 
 ### Prefer stdlib over hand-rolling
@@ -195,14 +191,12 @@ if (match := pattern.search(line)) is not None:
 __all__ = ["UserService", "create_user", "UserError"]
 ```
 
-For comprehensive patterns including Protocols, ABCs, descriptors, context managers, enums, and more, consult `references/patterns.md`.
-
 ## Additional Resources
 
 ### Reference Files
 
 For detailed guidance beyond this overview, consult:
-- **`references/modern-syntax.md`** — Structural pattern matching, `type` statement, exception groups, `@override`, f-string details
-- **`references/type-hints.md`** — Generics, Protocol, TypeGuard, TypeVar, ParamSpec, Self, Overload
-- **`references/patterns.md`** — Idiomatic patterns: Protocols, enums, context managers, generators, pathlib, ABC
-- **`references/project-structure.md`** — `pyproject.toml` conventions, src layout, module organization, entry points, `__init__.py` patterns
+- [references/modern-syntax.md](references/modern-syntax.md) — structural pattern matching, `type` statement, exception groups, `@override`, f-string details
+- [references/type-hints.md](references/type-hints.md) — generics, `Protocol`, `TypeGuard`, `TypeVar`, `ParamSpec`, `Self`, `@overload`
+- [references/patterns.md](references/patterns.md) — idiomatic patterns: Protocols over ABCs, enums, context managers, generators, pathlib, dataclasses, properties, slots
+- [references/project-structure.md](references/project-structure.md) — `pyproject.toml` conventions, src layout, module organization, entry points, `__init__.py` patterns

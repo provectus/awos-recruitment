@@ -37,7 +37,7 @@ function useWindowEvent(event: string, handler: () => void) {
 }
 ```
 
-**Alternative: use `useEffectEvent` if you're on latest React:**
+**Alternative: use `useEffectEvent` if your project uses React 19.2 or later:**
 
 ```tsx
 import { useEffectEvent } from 'react'

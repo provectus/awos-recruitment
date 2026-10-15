@@ -1,5 +1,13 @@
 # Data Modeling Patterns
 
+## Contents
+
+- **Adjacency List Pattern** — many-to-many edges in one table, access patterns, GSI for reverse lookups
+- **Time Series Pattern** — table-per-period strategy, prebuilding the next table, within-table time series with TTL
+- **Large Items** — 400 KB limit, compression, vertical partitioning, S3 offload
+- **One-to-Many Patterns** — denormalized parent partition vs normalized with GSI
+- **Anti-Patterns** — table-per-entity by default, large lists in one attribute, Scan for relationships, over-normalization
+
 ## Adjacency List Pattern
 
 The adjacency list pattern models many-to-many relationships in a single table without joins. Each relationship is stored as an item where both the source and target appear in the key.

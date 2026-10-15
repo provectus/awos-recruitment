@@ -2,6 +2,20 @@
 
 > **Part of:** [pr-review](../SKILL.md). The GitLab commands for **public mode** (reviewing a real GitLab merge request), keyed by the same operation names as [github.md](github.md) — so the SKILL workflow stays platform-agnostic and only this file changes. Local mode uses [local.md](local.md) instead and runs none of these — it never invokes `glab` or posts to the platform.
 
+## Contents
+
+- [Terminology](#terminology) — name mapping and the shell variables every recipe uses
+- [Transport: glab first, MCP as fallback](#transport-glab-first-mcp-as-fallback)
+- [preflight](#preflight) — includes the draft-notes capability probe
+- [fetch-pr-context](#fetch-pr-context)
+- [fetch-existing-comments](#fetch-existing-comments)
+- [find-pending-review](#find-pending-review)
+- [create-draft-review](#create-draft-review)
+- [update-draft-note](#update-draft-note)
+- [submit-review](#submit-review) — includes the `DRAFTS=no` publish-now path
+- [reply-to-thread](#reply-to-thread)
+- [Failure modes](#failure-modes)
+
 ## Terminology
 
 GitLab's model differs from GitHub's in names more than in substance. Throughout the SKILL body, read:

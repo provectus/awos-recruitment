@@ -1,5 +1,16 @@
 # iPadOS Patterns
 
+## Contents
+- Multitasking (Size class adaptation, Responding to size changes, Stage Manager)
+- Pointer and Keyboard Support (Hover effects, Custom pointer shape, Keyboard shortcuts, App-level keyboard commands, Hardware keyboard navigation)
+- Drag and Drop (Transferable protocol, Draggable views, Drop destination, Multi-item drag with reordering, Accepting external content (images, files))
+- Sidebar Navigation (Two-column layout, Three-column layout, Controlling column visibility and width, Compact adaptation)
+- Pencil Support (PencilKit canvas via UIViewRepresentable, Using the canvas in SwiftUI, Pencil hover detection (iPad Pro with Apple Pencil 2nd gen+))
+- Mac Catalyst (Enabling Mac Catalyst, Detecting Mac Catalyst at runtime, Conditional code with ProcessInfo, Accessing AppKit via plugin bundle (advanced), Mac Catalyst vs native macOS target)
+- Desktop-Class iPad (Customizable toolbar, Document-based apps, Find and replace, Undo and redo)
+- External Display (Multi-scene support, Extending content to external display, Detecting and managing external screens with UIKit, Scene-based external display (iPadOS 16+))
+- iPadOS 18+ Features (Floating Tab Bar / Sidebar Adaptable, Apple Pencil Pro (iPadOS 18+))
+
 ## Multitasking
 
 iPadOS supports Split View, Slide Over, and Stage Manager. Apps must handle dynamic size changes by reading the horizontal size class and adapting layout accordingly.

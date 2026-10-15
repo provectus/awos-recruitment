@@ -5,6 +5,8 @@
 
 This document provides detailed CI/CD workflow templates and optimization strategies for infrastructure-as-code pipelines.
 
+Action refs, tool versions and image tags in the templates below (`@vX.Y.Z`, `tflint_version`, `hashicorp/terraform:X.Y.Z`) are illustrative, like every version number in this skill: look up the current release before copying one, and never bump an existing pin unless the user asks.
+
 ---
 
 ## Table of Contents
@@ -14,10 +16,17 @@ This document provides detailed CI/CD workflow templates and optimization strate
 3. [Cost Optimization](#cost-optimization)
 4. [Automated Cleanup](#automated-cleanup)
 5. [Best Practices](#best-practices)
+6. [Atlantis Integration](#atlantis-integration)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## GitHub Actions Workflow
+
+Action refs are pinned exactly, the same rule that applies to provider
+versions — a floating `@master` or bare major tag changes what CI runs without
+a commit. Bump these deliberately. For production pipelines pin to the commit
+SHA the tag points at, since tags themselves are mutable.
 
 ### Complete Example
 
@@ -31,8 +40,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: X.Y.Z  # Same version as required_version
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -43,9 +54,16 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # tflint's curl | bash install script was removed from the repo;
+      # the setup action is the supported installer. Pin the binary as well as
+      # the action, otherwise `latest` changes what lints without a commit.
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6.3.2
+        with:
+          tflint_version: v0.64.0
+
       - name: TFLint
         run: |
-          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --init
           tflint
 
@@ -53,28 +71,35 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: X.Y.Z  # Terraform is not on the runner image
 
       - name: Run Terraform Tests
         run: terraform test
 
       # Or for Terratest:
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.21'
+          go-version-file: tests/go.mod  # The Go version the Terratest module declares
 
       - name: Run Terratest
         run: |
           cd tests
           go test -v -timeout 30m -parallel 4
 
+  # plan and apply are optional: drop both jobs when the project plans and
+  # applies locally (see Recommended Workflow Stages in SKILL.md)
   plan:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: X.Y.Z  # Without this the action installs latest
 
       - name: Terraform Init
         run: terraform init
@@ -83,7 +108,7 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Upload Plan
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: tfplan
           path: tfplan
@@ -94,43 +119,18 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: X.Y.Z  # Must match the version that made the plan
 
       - name: Download Plan
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8.0.1
         with:
           name: tfplan
 
       - name: Terraform Apply
         run: terraform apply tfplan
-```
-
-### With Cost Estimation (Infracost)
-
-```yaml
-  cost-estimate:
-    needs: plan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v2
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Generate Cost Estimate
-        run: |
-          infracost breakdown --path . \
-            --format json \
-            --out-file /tmp/infracost.json
-
-      - name: Post Cost Comment
-        uses: infracost/actions/comment@v1
-        with:
-          path: /tmp/infracost.json
-          behavior: update
 ```
 
 ---
@@ -142,14 +142,18 @@ jobs:
 stages:
   - validate
   - test
-  - plan
-  - apply
+  - plan   # plan and apply are optional: drop both stages and jobs
+  - apply  # when the project plans and applies locally
 
 variables:
   TF_ROOT: ${CI_PROJECT_DIR}
 
 .terraform_template:
-  image: hashicorp/terraform:latest
+  # Pin the image tag to the same version as required_version in versions.tf.
+  # The image's entrypoint is `terraform`; clear it so before_script runs.
+  image:
+    name: hashicorp/terraform:X.Y.Z
+    entrypoint: [""]
   before_script:
     - cd ${TF_ROOT}
     - terraform init
@@ -214,15 +218,22 @@ apply:
 # GitHub Actions
 test:
   runs-on: ubuntu-latest
+  permissions:
+    id-token: write  # OIDC token for configure-aws-credentials; no static keys
+    contents: read
   steps:
     - name: Run Unit Tests (Mocked)
       run: terraform test
 
+    - name: Configure AWS Credentials
+      if: github.ref == 'refs/heads/main'
+      uses: aws-actions/configure-aws-credentials@v6.3.0
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # CI role with OIDC trust scoped to this repo
+        aws-region: us-east-1
+
     - name: Run Integration Tests
       if: github.ref == 'refs/heads/main'
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         cd tests
         go test -v -timeout 30m
@@ -283,14 +294,16 @@ on:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # OIDC token for configure-aws-credentials; no static keys
+      contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7.0.1
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # CI role with OIDC trust scoped to this repo
           aws-region: us-east-1
 
       - name: Run Cleanup Script
@@ -347,7 +360,7 @@ terraform {
     bucket         = "my-terraform-state"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
+    use_lockfile   = true              # S3 native state locking (Terraform >= 1.10)
     encrypt        = true
   }
 }
@@ -366,7 +379,7 @@ terraform {
 ```yaml
 # GitHub Actions
 - name: Cache Terraform Plugins
-  uses: actions/cache@v3
+  uses: actions/cache@v6.1.0
   with:
     path: |
       ~/.terraform.d/plugin-cache
@@ -379,16 +392,16 @@ terraform {
 security-scan:
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7.0.1
 
     - name: Run Trivy
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         scan-type: 'config'
         scan-ref: '.'
 
     - name: Run Checkov
-      uses: bridgecrewio/checkov-action@master
+      uses: bridgecrewio/checkov-action@v12.1347.0
       with:
         directory: .
         framework: terraform
@@ -406,9 +419,9 @@ security-scan:
 version: 3
 projects:
   - name: production
-    dir: environments/prod
+    dir: infra/111111111111/prod
     workspace: default
-    terraform_version: v1.6.0
+    terraform_version: vX.Y.Z # same as the root's required_version; >= 1.10 for use_lockfile
     workflow: custom
 
 workflows:
@@ -416,8 +429,7 @@ workflows:
     plan:
       steps:
         - init
-        - plan:
-            extra_args: ["-lock", "false"]
+        - plan
     apply:
       steps:
         - apply
@@ -441,14 +453,14 @@ workflows:
 **Solution:**
 
 ```hcl
-# versions.tf - Pin versions
+# versions.tf - Pin exact versions (Provectus convention)
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = "= X.Y.Z"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "= 6.41.0"
     }
   }
 }

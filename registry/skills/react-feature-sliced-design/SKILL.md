@@ -1,6 +1,16 @@
 ---
 name: react-feature-sliced-design
-description: "Enforces Feature-Sliced Design (FSD) architecture in React/TypeScript projects by scaffolding compliant folder structures, validating layer boundaries and import directions, detecting and fixing layer violations, and teaching FSD conventions during code generation and review. Use when asked to 'create a page', 'add an entity', 'build a widget', 'scaffold FSD structure', 'refactor to FSD', 'where should I put this code', 'what layer does X go in', 'organize my React code', 'fix layer violation', or 'review my FSD structure'. Triggers on any React/TypeScript task involving FSD layers, slices, segments, cross-layer imports, or public API boundaries."
+description: >-
+  Enforces Feature-Sliced Design (FSD) architecture in React/TypeScript projects by
+  scaffolding compliant folder structures, validating layer boundaries and import
+  directions, detecting and fixing layer violations, and teaching FSD conventions during
+  code generation and review. Use when asked to 'create a page', 'add an entity', 'build
+  a widget', 'scaffold FSD structure', 'refactor to FSD', 'where should I put this
+  code', 'what layer does X go in', 'organize my React code', 'fix layer violation', or
+  'review my FSD structure'. Triggers on any React/TypeScript task involving FSD layers,
+  slices, segments, cross-layer imports, or public API boundaries. Covers code structure
+  and layer boundaries only — for rendering performance use react-best-practices, for
+  language and typing questions use typescript-development.
 version: 3.0.0
 ---
 
@@ -10,12 +20,7 @@ Architectural guide for organizing React/TypeScript frontends following Feature-
 
 ## Why FSD
 
-FSD treats every slice as a **Grey Box module**: a clear public API (`index.ts`) with hidden internals (`ui/`, `model/`, `api/`, `lib/`). This is both human- and AI-friendly:
-
-- **Progressive Disclosure** — import from `@/entities/customer`, not internal files
-- **Navigability** — file structure = logical structure; code is where you expect it
-- **SRP via layers** — each layer has one job, narrowing the scope of changes
-- **Same-layer ban** — slices are isolated; changes don't cascade sideways
+Every slice exposes a public API (`index.ts`) and hides its internals (`ui/`, `model/`, `api/`, `lib/`), so refactoring a slice cannot break its consumers. The layer and same-layer rules below keep those blast radiuses small: a change lands in one slice instead of cascading sideways.
 
 ## Structure
 
@@ -31,9 +36,9 @@ src/
 
 > `app/` and `shared/` are divided directly into segments — they do not contain slices.
 
-## Layer Dependencies (CRITICAL)
+## Layer Dependencies
 
-Imports flow DOWN only. Same-layer imports are FORBIDDEN.
+Imports flow down only: a slice may import from layers strictly below it, never from another slice on its own layer.
 
 | Layer    | Can Import From                            | Cannot Import From                      |
 | -------- | ------------------------------------------ | --------------------------------------- |
@@ -188,6 +193,6 @@ This skill is a React/TypeScript adaptation of Feature-Sliced Design. For the ca
 - **Abridged**: [fsd.how/llms-small.txt](https://fsd.how/llms-small.txt) — compact reference
 - **Complete**: [fsd.how/llms-full.txt](https://fsd.how/llms-full.txt) — full documentation
 
-> **Do NOT fetch these URLs proactively.** Only use `WebFetch` when the engineer explicitly asks for the full FSD specification or you encounter a question this skill doesn't cover.
+> These files are large, so fetching them by reflex wastes the engineer's context for no gain. Use `WebFetch` only when the engineer explicitly asks for the full FSD specification, or when you hit a question this skill doesn't answer.
 
 Consult the official spec when you need details beyond what this skill covers (e.g., migration strategies, advanced decomposition patterns, framework-agnostic rules).

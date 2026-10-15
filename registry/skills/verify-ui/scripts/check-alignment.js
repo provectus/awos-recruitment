@@ -1,16 +1,47 @@
 // check-alignment.js
 // Detects layout behavior (row, column, line, v-line, grid) and verifies alignment.
 //
-// Usage with Playwright MCP browser_evaluate:
-//   1. Load the function into the page:
-//      browser_evaluate({ function: "<paste checkAlignment function>" })
-//   2. Call it:
-//      browser_evaluate({ function: "() => checkAlignment({ containerSelector: '[role=\"tablist\"]' })" })
+// Run it through the Playwright MCP with playwright:browser_run_code_unsafe:
+//   1. Inject — defines checkAlignment in the page:
+//      code: async (page) => page.evaluate(<this file's text as a JSON string literal>)
+//      (JSON.stringify the file text and paste the result — never a template
+//      literal: the file contains backticks and ${…}, which break parsing)
+//   2. Call:
+//      code: async (page) => page.evaluate(
+//        (opts) => checkAlignment(opts),
+//        { containerSelector: '[role="tablist"]' })
 //
-// Or with browser_run_code_unsafe:
-//   async (page) => page.evaluate((opts) => checkAlignment(opts), { containerSelector: '...' })
+// Options:
+//   selectors         array of CSS selectors naming the elements to compare
+//   containerSelector CSS selector for the container whose children to compare
+//   scopeSelector     CSS selector to search within (defaults to the document)
+//   tolerance         px slack for "same edge" and "same gap" (default 1)
 
-function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
+function checkAlignment({
+  selectors,
+  containerSelector,
+  scopeSelector,
+  tolerance: toleranceOption,
+} = {}) {
+  // Browsers report getBoundingClientRect() as sub-pixel floats, so visually
+  // aligned elements routinely differ by a fraction of a pixel: a 1px border,
+  // a CSS transform, a fractional font metric, or a non-integer device pixel
+  // ratio is enough. Comparing those floats for strict equality reports a
+  // perfectly aligned flex row as unaligned. 1px is the smallest difference a
+  // user can actually see, so treat anything at or below it as the same
+  // position. Raise it (2-3) for layouts scaled by a transform; lower it to 0
+  // only to assert exact pixel equality.
+  const DEFAULT_TOLERANCE_PX = 1;
+  const tolerance =
+    toleranceOption === undefined || toleranceOption === null
+      ? DEFAULT_TOLERANCE_PX
+      : Number(toleranceOption);
+  if (Number.isNaN(tolerance) || tolerance < 0) {
+    return {
+      error: `tolerance must be a non-negative number, got ${JSON.stringify(toleranceOption)}`,
+    };
+  }
+
   // --- Resolve scope ---
   const scopeEl = scopeSelector
     ? document.querySelector(scopeSelector)
@@ -69,16 +100,53 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
   const xOf = (r, edge) =>
     edge === "left" ? r.left : edge === "right" ? r.right : r.left + r.width / 2;
 
-  const allEqual = (arr) => arr.length > 1 && arr.every((v) => v === arr[0]);
+  // Spread of a numeric list — how far apart its extremes are.
+  const spread = (arr) => Math.max(...arr) - Math.min(...arr);
 
+  // "All the same" within the tolerance, rather than bit-identical floats.
+  const allEqual = (arr) => arr.length > 1 && spread(arr) <= tolerance;
+
+  // Cluster indices whose value sits within `tolerance` of the cluster's first
+  // member. Anchoring on the first member (not the previous one) stops a long
+  // chain of just-under-tolerance steps from drifting into one wide cluster.
   const groupByValue = (indices, valueFn) => {
-    const map = new Map();
-    for (const i of indices) {
-      const key = valueFn(i);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(i);
+    const sorted = [...indices].sort((a, b) => valueFn(a) - valueFn(b));
+    const groups = [];
+    let current = [];
+    let anchor = 0;
+    for (const i of sorted) {
+      const value = valueFn(i);
+      if (current.length === 0) {
+        anchor = value;
+        current.push(i);
+      } else if (Math.abs(value - anchor) <= tolerance) {
+        current.push(i);
+      } else {
+        groups.push(current);
+        anchor = value;
+        current = [i];
+      }
     }
-    return [...map.values()];
+    if (current.length > 0) groups.push(current);
+    return groups;
+  };
+
+  // True when consecutive groups (already sorted along `axis`) do not
+  // intersect: each one starts at or after the previous one ends. Touching
+  // groups (a 0.5px overlap from rounding) still count as separate.
+  const linesAreStacked = (groups, axis) => {
+    for (let i = 1; i < groups.length; i++) {
+      const prevEnd =
+        axis === "y"
+          ? Math.max(...groups[i - 1].map((j) => rects[j].bottom))
+          : Math.max(...groups[i - 1].map((j) => rects[j].right));
+      const currStart =
+        axis === "y"
+          ? Math.min(...groups[i].map((j) => rects[j].top))
+          : Math.min(...groups[i].map((j) => rects[j].left));
+      if (currStart < prevEnd - tolerance) return false;
+    }
+    return true;
   };
 
   const edgeLabel = (edge) => (edge.includes("center") ? edge : `${edge}-aligned`);
@@ -111,34 +179,45 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
   });
 
   // --- Gap calculation ---
+  // Every gap list reports the same way: the raw floats decide uniformity, so
+  // a 0.4px difference between two gaps doesn't read as two different gaps,
+  // while the reported values stay rounded to whole pixels. `values` lists
+  // each gap rounded; `value` (uniform gaps only) is the rounded mean, so it
+  // represents all of them rather than whichever gap happened to come first.
+  const describeGaps = (vals) => {
+    if (vals.length === 0) return { uniform: true, values: [] };
+    const uniform = spread(vals) <= tolerance;
+    const result = { uniform, values: vals.map((v) => `${Math.round(v)}px`) };
+    if (uniform) {
+      const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
+      result.value = `${Math.round(mean)}px`;
+    }
+    return result;
+  };
+
+  const gapBetween = (prevIdx, currIdx, axis) => {
+    const prev = rects[prevIdx];
+    const curr = rects[currIdx];
+    return axis === "x" ? curr.left - prev.right : curr.top - prev.bottom;
+  };
+
   const calcGaps = (sortedIndices, axis) => {
     if (sortedIndices.length < 2) return { uniform: true, values: [] };
     const vals = [];
     for (let i = 1; i < sortedIndices.length; i++) {
-      const prev = rects[sortedIndices[i - 1]];
-      const curr = rects[sortedIndices[i]];
-      vals.push(Math.round(axis === "x" ? curr.left - prev.right : curr.top - prev.bottom));
+      vals.push(gapBetween(sortedIndices[i - 1], sortedIndices[i], axis));
     }
-    const uniform = vals.every((v) => v === vals[0]);
-    const result = { uniform, values: vals.map((v) => `${v}px`) };
-    if (uniform) result.value = `${vals[0]}px`;
-    return result;
+    return describeGaps(vals);
   };
 
   const aggregateGaps = (groups, axis) => {
     const all = [];
     for (const g of groups) {
       for (let i = 1; i < g.length; i++) {
-        const prev = rects[g[i - 1]];
-        const curr = rects[g[i]];
-        all.push(Math.round(axis === "x" ? curr.left - prev.right : curr.top - prev.bottom));
+        all.push(gapBetween(g[i - 1], g[i], axis));
       }
     }
-    if (all.length === 0) return { uniform: true, values: [] };
-    const uniform = all.every((v) => v === all[0]);
-    const result = { uniform, values: all.map((v) => `${v}px`) };
-    if (uniform) result.value = `${all[0]}px`;
-    return result;
+    return describeGaps(all);
   };
 
   const calcLineGaps = (groups, axis) => {
@@ -148,17 +227,14 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       if (axis === "y") {
         const prevBottom = Math.max(...groups[i - 1].map((j) => rects[j].bottom));
         const currTop = Math.min(...groups[i].map((j) => rects[j].top));
-        vals.push(Math.round(currTop - prevBottom));
+        vals.push(currTop - prevBottom);
       } else {
         const prevRight = Math.max(...groups[i - 1].map((j) => rects[j].right));
         const currLeft = Math.min(...groups[i].map((j) => rects[j].left));
-        vals.push(Math.round(currLeft - prevRight));
+        vals.push(currLeft - prevRight);
       }
     }
-    const uniform = vals.every((v) => v === vals[0]);
-    const result = { uniform, values: vals.map((v) => `${v}px`) };
-    if (uniform) result.value = `${vals[0]}px`;
-    return result;
+    return describeGaps(vals);
   };
 
   // --- Collect alignment labels ---
@@ -182,6 +258,7 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
   if (elements.length === 1) {
     return {
       count: 1,
+      tolerance,
       behavior: "single",
       alignment: [],
       lines: [{ elements: [describeElement(0)], gaps: { uniform: true, values: [] } }],
@@ -252,6 +329,18 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       rows.sort((a, b) => rects[a[0]].top - rects[b[0]].top);
       for (const row of rows) row.sort((a, b) => rects[a].left - rects[b].left);
 
+      // Wrapped lines sit one below the other. If two "lines" overlap
+      // vertically, the grouping only split one line on sub-tolerance drift
+      // (tops of 0, 0.9 and 1.8px at tolerance 1), and reporting them as two
+      // lines would be false. Leave it unmatched so the result is "unknown"
+      // and the caller re-runs with a larger tolerance.
+      if (!linesAreStacked(rows, "y")) continue;
+
+      // Wrapping means at least one line holds more than one element. A set
+      // of single-element "lines" is a column whose alignment check failed,
+      // not a wrap, so it is not this behaviour either.
+      if (!rows.some((row) => row.length > 1)) continue;
+
       // Find reference gap from first multi-element row
       let refGap = 0;
       for (const row of rows) {
@@ -268,15 +357,17 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
         const rowWidth = rects[row[row.length - 1]].right - rects[row[0]].left;
 
         // Row must fit inside container
-        if (rowWidth > containerRect.width) {
+        if (rowWidth > containerRect.width + tolerance) {
           valid = false;
           break;
         }
 
-        // Single-element row (not last): wrapping must be justified
+        // Single-element row (not last): wrapping must be justified. Require
+        // the next element to fit with room to spare before calling the wrap
+        // unjustified — a borderline fit is exactly what wrapping looks like.
         if (row.length === 1 && r < rows.length - 1) {
           const nextFirst = rects[rows[r + 1][0]];
-          if (rects[row[0]].width + refGap + nextFirst.width <= containerRect.width) {
+          if (rects[row[0]].width + refGap + nextFirst.width <= containerRect.width - tolerance) {
             valid = false;
             break;
           }
@@ -313,6 +404,12 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
       cols.sort((a, b) => rects[a[0]].left - rects[b[0]].left);
       for (const col of cols) col.sort((a, b) => rects[a].top - rects[b].top);
 
+      // Same rules as tryLine, on the x axis: columns must not overlap, and
+      // at least one column must hold more than one element (single-element
+      // columns are a row whose alignment check failed, not a wrap).
+      if (!linesAreStacked(cols, "x")) continue;
+      if (!cols.some((col) => col.length > 1)) continue;
+
       // Find reference gap from first multi-element column
       let refGap = 0;
       for (const col of cols) {
@@ -328,15 +425,16 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
         const col = cols[c];
         const colHeight = rects[col[col.length - 1]].bottom - rects[col[0]].top;
 
-        if (colHeight > containerRect.height) {
+        if (colHeight > containerRect.height + tolerance) {
           valid = false;
           break;
         }
 
-        // Single-element column (not last): wrapping must be justified
+        // Single-element column (not last): wrapping must be justified. Same
+        // reasoning as tryLine — a borderline fit is what wrapping looks like.
         if (col.length === 1 && c < cols.length - 1) {
           const nextFirst = rects[cols[c + 1][0]];
-          if (rects[col[0]].height + refGap + nextFirst.height <= containerRect.height) {
+          if (rects[col[0]].height + refGap + nextFirst.height <= containerRect.height - tolerance) {
             valid = false;
             break;
           }
@@ -369,17 +467,8 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
 
       rows.sort((a, b) => rects[a[0]].top - rects[b[0]].top);
 
-      // Rows must not intersect vertically
-      let valid = true;
-      for (let i = 1; i < rows.length; i++) {
-        const prevBottom = Math.max(...rows[i - 1].map((j) => rects[j].bottom));
-        const currTop = Math.min(...rows[i].map((j) => rects[j].top));
-        if (currTop < prevBottom) {
-          valid = false;
-          break;
-        }
-      }
-      if (!valid) continue;
+      // Rows must not intersect vertically.
+      if (!linesAreStacked(rows, "y")) continue;
 
       for (const row of rows) row.sort((a, b) => rects[a].left - rects[b].left);
 
@@ -408,12 +497,16 @@ function checkAlignment({ selectors, containerSelector, scopeSelector } = {}) {
 
   if (result) {
     result.count = elements.length;
+    result.tolerance = tolerance;
     result.elements = idx.map(describeElement);
     return result;
   }
 
+  // No layout matched. `tolerance` is reported so that a genuinely odd layout
+  // can be told apart from one that just needs more slack than was allowed.
   return {
     count: elements.length,
+    tolerance,
     behavior: "unknown",
     alignment: [],
     lines: [],

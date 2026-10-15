@@ -5,10 +5,10 @@ description = "MCP server providing AI coding assistants with a discovery engine
 requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.0.0",
-    # Floor at 3.4.4 so re-locks pull mcp >=1.28.1, patching CVE-2026-52869,
-    # CVE-2026-52870, CVE-2026-59950 (HTTP/WebSocket transport auth and
-    # Origin validation). Note fastmcp itself only requires mcp>=1.24.0.
-    "fastmcp>=3.4.4",
+    # Floor at 4.0.0: the test suite uses Client.server_info, which FastMCP 4
+    # added, and FastMCP 4 requires mcp 2.x, which supersedes the mcp>=1.28.1
+    # floor that patched CVE-2026-52869, CVE-2026-52870 and CVE-2026-59950.
+    "fastmcp>=4.0.0",
     "posthog>=7.0.0",
     "python-dotenv>=1.0.0",
     "python-frontmatter>=1.1.0",

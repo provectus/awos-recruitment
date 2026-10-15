@@ -1,12 +1,15 @@
 # Static Analysis Reference
 
-Covers Detekt and ktlint — the two primary Kotlin static analysis tools. Applicable to all Kotlin targets: Android, server-side (Ktor, Spring), multiplatform, and CLI tools.
+Covers Detekt and ktlint — the two primary Kotlin static analysis tools. The configuration below is target-neutral and works unchanged for server-side (Ktor, Spring), CLI, and multiplatform code. Android/Compose-specific settings are collected in one section ("Android and Compose projects") — apply them only when the project actually uses Android or Compose.
+
+`<latest>` marks a version to look up on Maven Central or the Gradle Plugin Portal before writing the file — it is a placeholder, not valid Gradle syntax.
 
 ## Contents
-- Detekt — setup, configuration, rule sets, custom rules, suppression, baseline, type resolution, Compose rules, CI
+- Detekt — setup, configuration, rule sets, custom rules, suppression, baseline, type resolution, CI
 - ktlint — setup, `.editorconfig` configuration, standard/experimental rules, custom rules, format vs check, CI
 - Detekt vs ktlint — when to use which, overlap and complementary areas
 - Shared Configuration — multi-module setup, convention plugins, pre-commit hooks
+- Android and Compose projects — optional additions for both tools
 - Best Practices — incremental adoption, baseline-driven migration, severity tuning
 
 
@@ -80,7 +83,6 @@ complexity:
     active: true
     functionThreshold: 6
     constructorThreshold: 8
-    ignoreAnnotated: ['Composable'] # Composables often have many params
   CyclomaticComplexMethod:
     active: true
     threshold: 15
@@ -119,7 +121,6 @@ naming:
   FunctionNaming:
     active: true
     functionPattern: '[a-z][a-zA-Z0-9]*'
-    ignoreAnnotated: ['Composable'] # Composables are PascalCase
   TopLevelPropertyNaming:
     active: true
     constantPattern: '[A-Z][A-Za-z0-9_]*'
@@ -244,31 +245,10 @@ Register via `META-INF/services/io.gitlab.arturbosch.detekt.api.RuleSetProvider`
 com.example.rules.CustomRuleSetProvider
 ```
 
-### Compose Rules (detekt-compose)
-
-Third-party rule set for Compose-specific patterns:
-
-```kotlin
-// build.gradle.kts
-dependencies {
-    detektPlugins("io.nlopez.compose.rules:detekt:<latest>")
-}
-```
-
-Key rules:
-| Rule | Description |
-|---|---|
-| `ComposableParametersOrdering` | Modifier should be first optional parameter |
-| `MutableStateParam` | Don't pass `MutableState` as parameter — hoist state |
-| `ViewModelForwarding` | Don't forward ViewModel to child Composables |
-| `ViewModelInjection` | Only inject ViewModel at screen-level Composable |
-| `UnstableCollections` | Flag `List`, `Set`, `Map` params (use `ImmutableList`, `PersistentList`) |
-| `ModifierMissing` | Top-level Composable should accept `Modifier` parameter |
-
 
 ## ktlint
 
-ktlint is an opinionated Kotlin code formatter and linter. It enforces the Kotlin coding conventions and Android Kotlin style guide with minimal configuration.
+ktlint is an opinionated Kotlin code formatter and linter. It enforces the Kotlin coding conventions with minimal configuration; `ktlint_official` is the default code style, with `intellij_idea` and `android_studio` available as alternatives.
 
 ### Gradle Setup (ktlint-gradle plugin)
 
@@ -293,7 +273,6 @@ subprojects {
 
     configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
         version.set("<latest>")
-        android.set(true) // Android Kotlin style guide
         verbose.set(true)
         outputToConsole.set(true)
     }
@@ -316,7 +295,6 @@ spotless {
             .editorConfigOverride(
                 mapOf(
                     "max_line_length" to "120",
-                    "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
                 )
             )
     }
@@ -359,15 +337,12 @@ trim_trailing_whitespace = true
 max_line_length = 120
 
 [*.{kt,kts}]
-# ktlint specific
-ktlint_code_style = android_studio
+# ktlint specific — ktlint_official is the default; shown explicitly so the choice is visible
+ktlint_code_style = ktlint_official
 
 # Disable specific rules
 ktlint_standard_no-wildcard-imports = disabled
 ktlint_standard_package-name = disabled
-
-# Compose: allow PascalCase functions
-ktlint_function_naming_ignore_when_annotated_with = Composable
 
 # Multiline: trailing comma
 ktlint_standard_trailing-comma-on-call-site = enabled
@@ -443,7 +418,6 @@ class KotlinStaticAnalysisConventionPlugin : Plugin<Project> {
 
             extensions.configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
                 version.set("<latest>")
-                android.set(true)
                 verbose.set(true)
             }
         }
@@ -499,6 +473,62 @@ repos:
 ```
 
 
+## Android and Compose projects
+
+Apply this section only when the module uses Android or Jetpack Compose. Composables are PascalCase functions that often take many parameters, so the target-neutral naming and parameter-count rules above would flag every one of them.
+
+### Detekt additions
+
+```yaml
+# config/detekt/detekt.yml — add to the target-neutral config above
+complexity:
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+```
+
+Third-party rule set for Compose-specific patterns:
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    detektPlugins("io.nlopez.compose.rules:detekt:<latest>")
+}
+```
+
+Key rules:
+| Rule | Description |
+|---|---|
+| `ComposableParametersOrdering` | Modifier should be first optional parameter |
+| `MutableStateParam` | Don't pass `MutableState` as parameter — hoist state |
+| `ViewModelForwarding` | Don't forward ViewModel to child Composables |
+| `ViewModelInjection` | Only inject ViewModel at screen-level Composable |
+| `UnstableCollections` | Flag `List`, `Set`, `Map` params (use `ImmutableList`, `PersistentList`) |
+| `ModifierMissing` | Top-level Composable should accept `Modifier` parameter |
+
+### ktlint additions
+
+```ini
+# .editorconfig
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+ktlint_function_naming_ignore_when_annotated_with = Composable
+```
+
+```kotlin
+// build.gradle.kts — ktlint-gradle plugin (also in the convention plugin above)
+configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+    android.set(true) // Android Kotlin style guide; default is false
+}
+
+// Spotless — add to the editorConfigOverride map
+"ktlint_function_naming_ignore_when_annotated_with" to "Composable",
+```
+
+
 ## Best Practices
 
 - **Adopt incrementally.** Start with baseline, enforce on new code. Shrink baseline over time. Trying to fix all issues at once creates merge conflicts and review fatigue.
@@ -507,5 +537,5 @@ repos:
 - **Tune severity, don't disable.** Downgrade noisy rules to `warning` before disabling. This keeps them visible without blocking builds. Disable only after team consensus.
 - **Keep config in version control.** `detekt.yml`, `.editorconfig`, baselines — all committed. Configuration drift across developer machines causes inconsistent results.
 - **Review baseline periodically.** Schedule quarterly baseline regeneration. Track issue count trends as a health metric.
-- **Compose-aware config.** Always set `ignoreAnnotated: ['Composable']` for `FunctionNaming` and `LongParameterList` in Detekt. Configure `ktlint_function_naming_ignore_when_annotated_with = Composable` in `.editorconfig`.
+- **Keep Android/Compose settings conditional.** Add the "Android and Compose projects" section only to modules that use them; a server-side or CLI project should not carry `android_studio` style or `Composable` exemptions.
 - **Separate formatting from analysis.** ktlint for formatting (fast, auto-fixable), Detekt for deeper analysis. Don't overlap rules between them.

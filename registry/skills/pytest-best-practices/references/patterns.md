@@ -1,5 +1,15 @@
 # Patterns Reference
 
+## Contents
+- Markers (built-in, custom, selecting with `-m`)
+- Exception Testing (`pytest.raises`, `match=`, exception attributes)
+- Assertions (plain asserts, `pytest.approx`, collections)
+- Async Testing (`pytest.mark.asyncio`, async fixtures, `asyncio_mode`)
+- Test Independence (shared-state anti-pattern and the fixture fix)
+- Global State (resetting with an `autouse` fixture)
+- Configuration (`pytest.ini` and `pyproject.toml`)
+- Edge-case Checklist
+
 <markers>
 
 **Built-in markers:**

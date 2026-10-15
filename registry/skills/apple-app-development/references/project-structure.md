@@ -15,7 +15,6 @@
 ## Xcode Project Organization
 
 ### Groups vs folders
----
 
 Xcode 16+ uses **filesystem-backed folders** by default. Every group in the Project Navigator corresponds to a real directory on disk. This replaced the legacy "virtual groups" behavior where Xcode groups could diverge from the filesystem.
 

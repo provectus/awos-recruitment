@@ -1,5 +1,15 @@
 # TypeScript Project Structure Reference
 
+## Contents
+
+- [tsconfig.json Essentials](#tsconfigjson-essentials) — strict mode, base config, extra safety flags
+- [Module Configuration](#module-configuration) — ESM and CJS setup
+- [Directory Layout](#directory-layout) — standard layout, organizing types, barrel exports
+- [Declaration Files](#declaration-files) — when to emit, custom `.d.ts`
+- [Import Organization](#import-organization) — import order, type-only imports
+- [Path Aliases](#path-aliases) — setup and the runtime caveat
+- [Gitignore for TypeScript Projects](#gitignore-for-typescript-projects)
+
 ## tsconfig.json Essentials
 
 ### Strict mode (non-negotiable)
@@ -93,15 +103,9 @@ In `tsconfig.json`:
 }
 ```
 
-**Critical rule:** All relative imports must include the `.js` extension (even in `.ts` source):
-
-```typescript
-// Correct
-import { helper } from "./utils.js";
-
-// Wrong — fails at runtime with ESM
-import { helper } from "./utils";
-```
+This is what activates the `.js`-extension rule in SKILL.md: under `Node16`, every relative
+import needs the `.js` suffix even in `.ts` source, because the emitted specifier is passed
+to the Node ESM resolver unchanged and Node does no extension guessing.
 
 ### CJS setup (legacy)
 
@@ -174,15 +178,15 @@ Use `index.ts` files to create clean public APIs:
 
 ```typescript
 // domain/index.ts
-export { User, createUser } from "./user.js";
-export { Order, createOrder } from "./order.js";
+export { type User, createUser } from "./user.js";
+export { type Order, createOrder } from "./order.js";
 export type { UserFilter } from "./user.js";
 ```
 
 **Guidelines for barrel exports:**
 - Use barrel files at module boundaries (one level deep)
 - Avoid deep nesting of barrel files (re-exporting from re-exports)
-- Use `export type` for type-only re-exports
+- Use `export type` (or an inline `type` modifier) for type-only re-exports — under the `isolatedModules: true` recommended above, re-exporting a type without it is an error
 
 ## Declaration Files
 
@@ -203,15 +207,22 @@ Set `declaration: true` when the package is consumed by other TypeScript code (l
 
 ### Custom type declarations
 
-For untyped modules or global augmentation:
+For untyped modules or global augmentation — two separate files, because the two forms need
+opposite file kinds:
 
 ```typescript
-// src/types/global.d.ts
+// src/types/modules.d.ts — a script file: no import/export at top level.
+// With one, `declare module` becomes an augmentation of a module tsc must resolve.
 declare module "untyped-module" {
   export function doSomething(input: string): Promise<void>;
 }
+```
 
-// Augment global scope
+```typescript
+// src/types/global.d.ts — a module file: `declare global` is only legal inside one,
+// so the empty export is what makes it compile.
+export {};
+
 declare global {
   interface Window {
     appConfig: AppConfig;

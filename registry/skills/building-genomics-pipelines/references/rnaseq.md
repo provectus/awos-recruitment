@@ -1,5 +1,17 @@
 # RNA-seq Analysis Pipeline
 
+## Contents
+- Workflow Overview (bulk, single-cell)
+- Bulk RNA-seq: Quality Control
+- Bulk RNA-seq: Alignment Options (STAR + featureCounts, Salmon, kallisto)
+- Differential Expression (DESeq2, edgeR, limma-voom)
+- Visualization (PCA, volcano, heatmap, MA)
+- Pathway Analysis (GO, KEGG, GSEA)
+- Single-cell RNA-seq (Cell Ranger, Seurat, Scanpy)
+- nf-core/rnaseq Pipeline
+- Quality Metrics
+- Common Issues
+
 ## Workflow Overview
 
 ### Bulk RNA-seq
@@ -262,10 +274,15 @@ cnetplot(go_bp, categorySize = "pvalue")
 
 ### Cell Ranger (10x Genomics)
 
+Download the current human reference from the 10x Genomics support site rather
+than reusing whatever is on disk — the transcriptome build is part of the
+result, so pin it and record it. `refdata-gex-GRCh38-2024-A` is the build this
+example was written against; substitute the release you downloaded.
+
 ```bash
 # Run Cell Ranger count
 cellranger count --id=sample \
-    --transcriptome=/ref/refdata-gex-GRCh38-2024-A \
+    --transcriptome=/ref/refdata-gex-GRCh38-<release> \
     --fastqs=/data/fastqs \
     --sample=sample \
     --localcores=16 \

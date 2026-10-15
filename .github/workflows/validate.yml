@@ -11,14 +11,23 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
 
+      # Errors fail the job. Skill-quality warnings show as PR annotations
+      # (GitHub caps these at 10 per severity) and in full in the job summary.
       - name: Validate registry
-        run: cd server && uv run python -m awos_recruitment_mcp.validate
+        run: >-
+          cd server && uv run python -m awos_recruitment_mcp.validate
+          --format github --summary "$GITHUB_STEP_SUMMARY"
+
+      # The skills copied into .claude/skills/ must match their registry
+      # source (pairs listed in validate/parity.py).
+      - name: Check repo-local skill copies match the registry
+        run: cd server && uv run python -m awos_recruitment_mcp.validate.parity
 
       - name: Run tests
         run: cd server && uv run pytest

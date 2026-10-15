@@ -77,7 +77,9 @@ async def bundle_skills(request: Request) -> Response:
     Expects a JSON body matching :class:`BundleRequest`.  Resolves each
     requested skill name to its on-disk directory, then streams back a
     gzip-compressed tar archive containing ``<name>/SKILL.md`` and any
-    ``<name>/references/*`` or ``<name>/scripts/*`` files found for each skill.
+    ``<name>/references/*``, ``<name>/scripts/*`` or ``<name>/assets/*`` files
+    found for each skill. ``evals/`` is deliberately left out: it holds the
+    author's test cases, not anything the installed skill reads.
 
     Returns 400 with a JSON error body when the request fails validation.
     """
@@ -107,7 +109,7 @@ async def bundle_skills(request: Request) -> Response:
             if skill_md.is_file():
                 tar.add(str(skill_md), arcname=f"{skill_name}/SKILL.md")
 
-            for subdir_name in ("references", "scripts"):
+            for subdir_name in ("references", "scripts", "assets"):
                 subdir = skill_dir / subdir_name
                 if subdir.is_dir():
                     for sub_file in sorted(subdir.iterdir()):

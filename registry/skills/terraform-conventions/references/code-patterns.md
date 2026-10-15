@@ -22,9 +22,9 @@ This document provides detailed code patterns, structure guidelines, and modern 
 
 ### Resource Block Structure
 
-**Strict argument ordering:**
+**Argument ordering:**
 
-1. `count` or `for_each` FIRST (blank line after)
+1. `count` or `for_each` first (blank line after)
 2. Other arguments (alphabetical or logical grouping)
 3. `tags` as last real argument
 4. `depends_on` after tags (if needed)
@@ -71,7 +71,7 @@ resource "aws_nat_gateway" "this" {
 
 **Variable block ordering:**
 
-1. `description` (ALWAYS required)
+1. `description` (always required)
 2. `type`
 3. `default`
 4. `sensitive` (when setting to true)
@@ -231,29 +231,55 @@ resource "aws_subnet" "private" {
 ```
 
 **Creating multiple named resources:**
+
+A resource can set `count` or `for_each`, never both — Terraform rejects the
+configuration with "Invalid combination of `count` and `for_each`". When each
+key needs more than one instance, flatten the input into one map entry per
+instance first, so every instance keeps its own stable address.
+
 ```hcl
 variable "environments" {
+  description = "Per-environment instance settings, keyed by environment name"
+  type = map(object({
+    instance_type  = string
+    instance_count = number
+  }))
+
   default = {
     dev = {
-      instance_type = "t3.micro"
+      instance_type  = "t3.micro"
       instance_count = 1
     }
     prod = {
-      instance_type = "t3.large"
+      instance_type  = "t3.large"
       instance_count = 3
     }
   }
 }
 
+locals {
+  # One entry per instance: { "dev-0" = {...}, "prod-0" = {...}, ... }
+  app_instances = merge([
+    for environment, config in var.environments : {
+      for index in range(config.instance_count) :
+      "${environment}-${index}" => {
+        environment   = environment
+        instance_type = config.instance_type
+      }
+    }
+  ]...)
+}
+
 resource "aws_instance" "app" {
-  for_each = var.environments
+  for_each = local.app_instances
 
+  ami           = var.ami_id
   instance_type = each.value.instance_type
-  count         = each.value.instance_count
 
-  tags = {
-    Environment = each.key  # "dev" or "prod"
-  }
+  tags = merge(local.required_tags, {
+    Name        = "app-${each.key}"
+    Environment = each.value.environment
+  })
 }
 ```
 
@@ -430,11 +456,13 @@ moved {
 
 ```hcl
 # AWS provider function example
-data "aws_region" "current" {}
+data "aws_partition" "current" {}
 
 locals {
-  # Provider function (Terraform 1.8+)
-  bucket_name = provider::aws::arn_build("s3", "my-bucket", data.aws_region.current.name)
+  # Provider function (Terraform 1.8+):
+  # arn_build(partition, service, region, account_id, resource)
+  # S3 bucket ARNs carry no region or account, so those two are empty strings.
+  bucket_arn = provider::aws::arn_build(data.aws_partition.current.partition, "s3", "", "", "my-bucket")
 }
 
 # Check provider documentation for available functions
@@ -486,16 +514,21 @@ variable "backup_retention" {
 
 ### Write-Only Arguments (Terraform 1.11+)
 
-**Always use write-only arguments or external secret management:**
+**Use write-only arguments or external secret management for every secret.**
+
+Read the secret through an `ephemeral` resource rather than a `data` source:
+Terraform writes data-source results to state, and `password_wo` protects only
+the resource attribute.
+
+This path requires Terraform 1.11+ and AWS provider 5.88.0+ (where
+`aws_db_instance.password_wo` landed). Check the pins in `versions.tf` first;
+below those floors, use `manage_master_user_password` instead (see Secrets
+Management in the Security & Compliance reference listed in SKILL.md).
 
 ```hcl
-# GOOD - External secret with write-only argument
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - External secret, ephemeral lookup, write-only argument
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
@@ -503,8 +536,20 @@ resource "aws_db_instance" "this" {
   instance_class = "db.t3.micro"
   username       = "admin"
 
-  # write-only: Terraform sends to AWS then forgets it (not in state)
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Terraform sends to AWS then forgets it (not in state).
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
+}
+
+# BAD - Data source puts the secret in state before password_wo sees it
+data "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
+}
+
+resource "aws_db_instance" "this" {
+  password_wo         = data.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 
 # BAD - Secret ends up in state file
@@ -532,7 +577,7 @@ resource "aws_db_instance" "this" {
 
 ```hcl
 # Exact version (required by Provectus convention)
-version = "= 5.82.2"
+version = "= 6.41.0"
 
 # For modules (quotes-only syntax also pins exactly)
 version = "5.1.2"
@@ -556,7 +601,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"  # Pin exact version
+      version = "= 6.41.0"  # Pin exact version
     }
     random = {
       source  = "hashicorp/random"
@@ -603,7 +648,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"
+      version = "= 6.41.0"
     }
   }
 }
@@ -613,7 +658,8 @@ terraform init
 # Creates .terraform.lock.hcl with exact versions used
 
 # Step 3: When updating, change the exact version in versions.tf first
-# Then run terraform init -upgrade
+# Then run terraform init -upgrade and commit the updated lock file
+# (multi-OS teams/CI: terraform providers lock -platform=linux_amd64 -platform=darwin_arm64)
 
 # Step 4: Review and test changes before committing
 terraform plan
@@ -630,7 +676,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 5.82.2"
+      version = "= 6.41.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -740,48 +786,49 @@ resource "aws_db_instance" "this" {
 **Option 1: Write-only arguments (Terraform 1.11+)**
 
 ```hcl
-# GOOD - Fetch from AWS Secrets Manager
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+# GOOD - Ephemeral fetch from AWS Secrets Manager (never lands in state)
+ephemeral "aws_secretsmanager_secret_version" "db_password" {
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
-  engine   = "mysql"
-  username = "admin"
+  engine         = "mysql"
+  instance_class = "db.t3.micro"
+  username       = "admin"
 
-  # write-only: Sent to AWS, not stored in state
-  password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
+  # write-only: Sent to AWS, not stored in state.
+  # password_wo_version is required alongside password_wo; bump it to rotate.
+  password_wo         = ephemeral.aws_secretsmanager_secret_version.db_password.secret_string
+  password_wo_version = 1
 }
 ```
 
-**Option 2: Separate secret creation (if Terraform 1.11+ not available)**
+**Option 2: Let RDS own the password (if Terraform 1.11+ not available)**
 
 ```hcl
-# GOOD - Reference pre-existing secret
-# Secret created outside Terraform (manually or separate process)
+# GOOD - AWS generates the password, stores it in Secrets Manager,
+# and Terraform never sees the value
+resource "aws_db_instance" "this" {
+  engine         = "mysql"
+  instance_class = "db.t3.micro"
+  username       = "admin"
 
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
+  manage_master_user_password = true # Cannot be combined with password/password_wo
 }
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
-}
-
-# Note: Without write-only, you may need to handle secret rotation
-# outside Terraform or accept that the secret value appears in state
-# during initial creation but not after rotation
 ```
 
-**Migration steps:**
+Read the generated secret from `aws_db_instance.this.master_user_secret` when
+an application needs its ARN. This is not a way to keep using a pre-existing
+secret: RDS creates its own and ignores any other, so existing consumers have
+to be repointed.
+
+**Migration steps** (require Terraform 1.11+ and AWS provider 5.88.0+;
+otherwise use `manage_master_user_password` above):
 
 1. Create secret in AWS Secrets Manager (outside Terraform)
-2. Update Terraform to use data sources
-3. Use write-only argument (if Terraform 1.11+)
+2. Read the secret with an `ephemeral` lookup (not a `data` source)
+3. Pass it to the write-only argument (`password_wo` + `password_wo_version`) —
+   Terraform accepts an ephemeral value only in a write-only argument
 4. Remove `random_password` resource or variable
 5. Run `terraform apply` to update
 6. Verify secret not in state: `terraform show` should not display password
