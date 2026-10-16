@@ -56,6 +56,16 @@ npx @provectusinc/awos-recruitment mcp context7 playwright
 npx @provectusinc/awos-recruitment agent testing-expert
 ```
 
+### Installed skills and updates
+
+Every installed skill is recorded in `.claude/awos-recruitment.lock.json` with the sha256 of each file. Commit this file with the skills. A skill that is already installed is not touched; pass `--force` to replace it with the registry version:
+
+```bash
+npx @provectusinc/awos-recruitment skill modern-python-development --force
+```
+
+The server publishes the current hash of every skill and the list of removed ones at `GET /index.json`. Compare it with the lock file to see which installed skills are outdated.
+
 ## Documentation
 
 | Document | Description |

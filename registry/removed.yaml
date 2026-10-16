@@ -1,0 +1,36 @@
+# Capabilities removed from or renamed in the registry.
+#
+# Installed copies live on in user projects. The server serves this file as
+# part of GET /index.json so the CLI can report "removed from registry" and
+# point to a replacement. Add an entry whenever you delete or rename a
+# capability. Fields: removed (date, required), reason, replacement (name
+# of the capability to install instead, or omit).
+
+skills:
+  docs-that-work:
+    removed: 2026-09-01
+    reason: "Removed in #93 together with the docs-that-work-gate hook."
+  genomics:
+    removed: 2026-03-04
+    reason: Replaced by building-genomics-pipelines.
+    replacement: building-genomics-pipelines
+
+agents:
+  test-agent:
+    removed: 2026-05-07
+    reason: Replaced by testing-expert.
+    replacement: testing-expert
+
+hooks:
+  docs-that-work-gate:
+    removed: 2026-09-01
+    reason: "Removed in #93 together with the docs-that-work skill."
+  protect-env-files:
+    removed: 2026-07-17
+    reason: Seed hook, replaced by docs-that-work-gate (itself removed later).
+
+mcp:
+  aws-docs:
+    removed: 2026-03-23
+    reason: Replaced by aws-knowledge-mcp-server.
+    replacement: aws-knowledge-mcp-server

@@ -25,11 +25,13 @@ from awos_recruitment_mcp.registry import (
     resolve_mcp_paths,
     resolve_skill_paths,
 )
-from awos_recruitment_mcp.search_index import build_index
-from awos_recruitment_mcp.validate import (
-    _ALLOWED_HOOK_SCRIPT_EXTENSIONS,
-    _ALLOWED_SCRIPT_EXTENSIONS,
+from awos_recruitment_mcp.registry_index import (
+    RemovedFileError,
+    build_registry_index,
+    iter_skill_files,
 )
+from awos_recruitment_mcp.search_index import build_index
+from awos_recruitment_mcp.validate import _ALLOWED_HOOK_SCRIPT_EXTENSIONS
 
 config = Config.from_env()
 
@@ -70,6 +72,21 @@ async def health_check(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok", "version": config.version}, status_code=200)
 
 
+@mcp.custom_route("/index.json", methods=["GET"])
+async def registry_index(request: Request) -> JSONResponse:
+    """Return content hashes of every skill and tombstones for removed capabilities.
+
+    The CLI compares these hashes with its lock file to find outdated,
+    locally modified or removed installs.  Computed from the registry on
+    disk at request time, the same files ``/bundle/*`` serves.
+    """
+    try:
+        index = build_registry_index(config.registry_path)
+    except RemovedFileError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+    return JSONResponse(index, status_code=200)
+
+
 @mcp.custom_route("/bundle/skills", methods=["POST"])
 async def bundle_skills(request: Request) -> Response:
     """Bundle one or more skills into a tar.gz archive.
@@ -103,27 +120,8 @@ async def bundle_skills(request: Request) -> Response:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for skill_dir in found_paths:
-            skill_name = skill_dir.name
-
-            skill_md = skill_dir / "SKILL.md"
-            if skill_md.is_file():
-                tar.add(str(skill_md), arcname=f"{skill_name}/SKILL.md")
-
-            for subdir_name in ("references", "scripts", "assets"):
-                subdir = skill_dir / subdir_name
-                if subdir.is_dir():
-                    for sub_file in sorted(subdir.iterdir()):
-                        if not sub_file.is_file() or sub_file.name.startswith("."):
-                            continue
-                        if (
-                            subdir_name == "scripts"
-                            and sub_file.suffix not in _ALLOWED_SCRIPT_EXTENSIONS
-                        ):
-                            continue
-                        tar.add(
-                            str(sub_file),
-                            arcname=f"{skill_name}/{subdir_name}/{sub_file.name}",
-                        )
+            for rel_path, abs_path in iter_skill_files(skill_dir):
+                tar.add(str(abs_path), arcname=f"{skill_dir.name}/{rel_path}")
 
     return Response(content=buf.getvalue(), media_type="application/gzip")
 

@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
+import { LOCK_FILE_RELATIVE, hashDirectory, readLock } from "../../lib/lock.js";
 import { installSkills } from "../skill.js";
 
 // ---------------------------------------------------------------------------
@@ -161,5 +162,90 @@ describe("installSkills", () => {
         "utf-8",
       ),
     ).toBe("# Original");
+  });
+
+  // -----------------------------------------------------------------------
+  // 4. Lock file
+  // -----------------------------------------------------------------------
+  it("records the installed skill with file hashes in the lock file", async () => {
+    const bundleDir = makeTempDir("bundle-");
+    const skillSrc = path.join(bundleDir, "my-skill");
+    fs.mkdirSync(path.join(skillSrc, "references"), { recursive: true });
+    fs.writeFileSync(path.join(skillSrc, "SKILL.md"), "# My Skill", "utf-8");
+    fs.writeFileSync(path.join(skillSrc, "references", "a.md"), "a", "utf-8");
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installSkills(["my-skill"]);
+
+    const lock = readLock(fakeCwd);
+    const entry = lock?.skills["my-skill"];
+    expect(Object.keys(entry?.files ?? {})).toEqual(["SKILL.md", "references/a.md"]);
+    expect(entry?.hash).toBe(
+      hashDirectory(path.join(fakeCwd, ".claude", "skills", "my-skill")).hash,
+    );
+  });
+
+  it("does not write a lock file when nothing was installed", async () => {
+    const bundleDir = makeTempDir("bundle-");
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installSkills(["nonexistent"]);
+
+    expect(fs.existsSync(path.join(fakeCwd, LOCK_FILE_RELATIVE))).toBe(false);
+  });
+
+  // -----------------------------------------------------------------------
+  // 5. --force
+  // -----------------------------------------------------------------------
+  it("replaces an existing skill with --force and updates the lock entry", async () => {
+    const bundleDir = makeTempDir("bundle-");
+    const skillSrc = path.join(bundleDir, "existing-skill");
+    fs.mkdirSync(skillSrc, { recursive: true });
+    fs.writeFileSync(path.join(skillSrc, "SKILL.md"), "# New Version", "utf-8");
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    const existingDir = path.join(fakeCwd, ".claude", "skills", "existing-skill");
+    fs.mkdirSync(path.join(existingDir, "references"), { recursive: true });
+    fs.writeFileSync(path.join(existingDir, "SKILL.md"), "# Old Version", "utf-8");
+    fs.writeFileSync(path.join(existingDir, "references", "stale.md"), "old", "utf-8");
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installSkills(["existing-skill"], { force: true });
+
+    expect(fs.readFileSync(path.join(existingDir, "SKILL.md"), "utf-8")).toBe("# New Version");
+    // Files that are not in the new version are gone, not merged.
+    expect(fs.existsSync(path.join(existingDir, "references", "stale.md"))).toBe(false);
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(process.stdout.write).toHaveBeenCalledWith(
+      "Replaced skill 'existing-skill' in .claude/skills/existing-skill/\n",
+    );
+    expect(Object.keys(readLock(fakeCwd)?.skills["existing-skill"]?.files ?? {})).toEqual([
+      "SKILL.md",
+    ]);
+  });
+
+  it("mentions --force in the conflict message", async () => {
+    const bundleDir = makeTempDir("bundle-");
+    fs.mkdirSync(path.join(bundleDir, "s"), { recursive: true });
+    fs.writeFileSync(path.join(bundleDir, "s", "SKILL.md"), "new", "utf-8");
+    mockDownloadBundle.mockResolvedValue(bundleDir);
+
+    const fakeCwd = makeTempDir("cwd-");
+    fs.mkdirSync(path.join(fakeCwd, ".claude", "skills", "s"), { recursive: true });
+    vi.spyOn(process, "cwd").mockReturnValue(fakeCwd);
+
+    await installSkills(["s"]);
+
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      "Error: skill 's' already exists. Use --force to replace it.\n",
+    );
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
