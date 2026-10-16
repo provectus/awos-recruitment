@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
+import { readLock } from "../../lib/lock.js";
 import { installAgents } from "../agent.js";
 
 // ---------------------------------------------------------------------------
@@ -374,6 +375,12 @@ describe("installAgents", () => {
     expect(process.stdout.write).toHaveBeenCalledWith(
       "\nSkills (auto-installed):\n",
     );
+
+    // Auto-installed skills are recorded in the lock file like direct installs.
+    expect(Object.keys(readLock(fakeCwd)?.skills ?? {}).sort()).toEqual([
+      "skill-a",
+      "skill-b",
+    ]);
 
     // No exit(1) -- everything succeeded.
     expect(process.exit).not.toHaveBeenCalled();

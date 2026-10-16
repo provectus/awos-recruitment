@@ -3,9 +3,10 @@ import * as path from "node:path";
 
 import { downloadBundle } from "../lib/download.js";
 import { parseFrontmatter } from "../lib/frontmatter.js";
+import { recordSkillInstalls } from "../lib/lock.js";
 import { resolveServerUrl } from "../lib/server-url.js";
 import type { AgentFrontmatter, InstallResult } from "../lib/types.js";
-import { processSkills } from "./skill.js";
+import { installedNames, processSkills } from "./skill.js";
 
 /**
  * Installs one or more agents by downloading their `.md` files from the
@@ -125,6 +126,11 @@ async function installReferencedSkills(
 
   try {
     const installResults = processSkills(skillTempDir, missingSkills);
+    recordSkillInstalls(
+      process.cwd(),
+      installedNames(installResults),
+      serverUrl,
+    );
     skillResults.push(...installResults);
   } finally {
     fs.rmSync(skillTempDir, { recursive: true, force: true });

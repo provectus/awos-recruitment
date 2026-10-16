@@ -76,3 +76,6 @@ review/
 *.tfstate
 *.tfstate.backup
 terraform.tfvars
+
+# Generated at deploy time by `python -m awos_recruitment_mcp.history`
+registry/history.json

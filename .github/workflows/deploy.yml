@@ -29,6 +29,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history for registry/history.json
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Generate skill version history
+        run: uv run --directory server --no-dev python -m awos_recruitment_mcp.history .. > registry/history.json
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
