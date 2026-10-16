@@ -56,6 +56,40 @@ npx @provectusinc/awos-recruitment mcp context7 playwright
 npx @provectusinc/awos-recruitment agent testing-expert
 ```
 
+### Installed skills and updates
+
+Every installed skill is recorded in `.claude/awos-recruitment.lock.json` with the sha256 of each file. Commit this file with the skills.
+
+```bash
+# Compare installed skills with the registry
+npx @provectusinc/awos-recruitment skill status
+
+# Update the outdated ones
+npx @provectusinc/awos-recruitment skill update
+npx @provectusinc/awos-recruitment skill update --dry-run     # show the plan only
+npx @provectusinc/awos-recruitment skill update react-best-practices
+
+# Replace one skill with the registry version, whatever its state
+npx @provectusinc/awos-recruitment skill modern-python-development --force
+```
+
+`skill status` prints one of: `up to date`, `outdated`, `modified locally`, `removed from registry` (with the replacement), `no lock entry` (installed before the lock file and different from the registry), `not in registry`, `missing locally`. Add `--json` for scripts.
+
+`skill update` replaces outdated skills and records them in the lock file. A skill you changed locally is not overwritten silently:
+
+- in a terminal, `update` asks: overwrite, skip, or back up to `.claude/awos-backup/skills/<name>/<timestamp>/` and overwrite;
+- without a terminal (CI, `claude -p`), it keeps your copy and says so;
+- `--overwrite` and `--no-overwrite` set the answer for every skill.
+
+Both commands send anonymous counts (project id from the lock file, skill names, outcome) to the server. Set `AWOS_TELEMETRY=0` to turn that off. The server publishes the current hash of every skill and the list of removed ones at `GET /index.json`.
+
+To be told at session start instead of remembering to run `skill status`, install the `skill-update-check` hook. It checks once a day, is silent offline, and prints one line when something is outdated or removed:
+
+```bash
+npx @provectusinc/awos-recruitment hook skill-update-check
+```
+
+
 ## Documentation
 
 | Document | Description |

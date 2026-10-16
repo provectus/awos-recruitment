@@ -105,3 +105,31 @@ def track_install(capability_name: str, capability_type: str) -> None:
         )
     except Exception:
         logger.warning("Failed to track install event", exc_info=True)
+
+
+def track_client_event(
+    project_id: str,
+    event: str,
+    properties: dict[str, int | bool | str],
+) -> None:
+    """Emit an event reported by the CLI (``POST /telemetry``).
+
+    The CLI's random ``project_id`` is the distinct id, so one project's
+    checks and updates line up without a repo or user name.
+
+    Args:
+        project_id: Random id from the project's lock file.
+        event: Allow-listed event name (validated by the route).
+        properties: Scalar properties such as ``capability_name`` or counts.
+    """
+    if _client is None:
+        return
+
+    try:
+        _client.capture(
+            distinct_id=project_id,
+            event=event,
+            properties=properties,
+        )
+    except Exception:
+        logger.warning("Failed to track client event %s", event, exc_info=True)
