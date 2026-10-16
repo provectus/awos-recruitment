@@ -348,6 +348,20 @@ The CLI (`npx @provectusinc/awos-recruitment hook <names...>`) performs this mer
 
 ---
 
+## Removing or Renaming a Capability
+
+Installed copies live on in user projects after a capability leaves the registry. Add an entry to `registry/removed.yaml` so the CLI can report the removal and point to a replacement:
+
+```yaml
+skills:
+  old-skill:
+    removed: 2026-09-01          # required
+    reason: Replaced by new-skill # optional
+    replacement: new-skill       # optional, must exist in the registry
+```
+
+Types: `skills`, `agents`, `hooks`, `mcp`. The server serves these entries at `GET /index.json`; the tests check that a tombstoned name no longer exists and that its replacement does.
+
 ## Validating Your Changes
 
 Before submitting, run the registry validator:
