@@ -2,7 +2,7 @@
 # Installs dependencies and pre-downloads the ONNX embedding model
 # so the runtime image can start without network access to model registries.
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 # Install uv from the official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -42,7 +42,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---- Runtime stage ----
 # Minimal image with only the venv, cached model, and registry.
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Upgrade OS packages to pull in security patches not yet present in the
 # base image (e.g. openssl CVE fixes flagged by the Trivy image scan).
