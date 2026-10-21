@@ -7,10 +7,20 @@ import { hashDirectory } from "../lib/lock.js";
 import { fetchRegistryIndex } from "../lib/registry-index.js";
 import { resolveServerUrl } from "../lib/server-url.js";
 import { diffLines } from "../lib/text-diff.js";
+import { backupSkill } from "./skill-update.js";
+
+/** Where `--keep` puts the registry version for a merge; outside .claude/skills/. */
+export const INCOMING_DIR_RELATIVE = path.join(".claude", "awos-recruitment", "incoming");
 
 export interface DiffOptions {
   /** Most output lines per skill; the rest is counted, not printed. */
   maxLines?: number;
+  /**
+   * Keep the registry version in `.claude/awos-recruitment/incoming/<name>/`
+   * and back up the current copy, so an agent can merge the two and then run
+   * `skill merged <name>`.
+   */
+  keep?: boolean;
 }
 
 const DEFAULT_MAX_LINES = 300;
@@ -62,6 +72,18 @@ export async function skillDiff(names: string[], options: DiffOptions = {}): Pro
       process.stdout.write(
         formatSkillDiff(name, path.join(skillsDir, name), path.join(tempDir, name), maxLines),
       );
+      if (options.keep) {
+        const backup = backupSkill(cwd, name);
+        const incoming = path.join(cwd, INCOMING_DIR_RELATIVE, name);
+        fs.rmSync(incoming, { recursive: true, force: true });
+        fs.mkdirSync(path.dirname(incoming), { recursive: true });
+        fs.cpSync(path.join(tempDir, name), incoming, { recursive: true });
+        process.stdout.write(
+          `Registry version of '${name}' saved to ${path.relative(cwd, incoming)}/. ` +
+            `Your copy is backed up to ${path.relative(cwd, backup)}/. ` +
+            `Edit .claude/skills/${name}/, then run 'skill merged ${name}'.\n\n`,
+        );
+      }
     }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });

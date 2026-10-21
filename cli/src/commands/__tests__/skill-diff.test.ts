@@ -5,7 +5,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { hashDirectory } from "../../lib/lock.js";
 import type { RegistryIndex } from "../../lib/registry-index.js";
-import { formatSkillDiff, skillDiff } from "../skill-diff.js";
+import { formatSkillDiff, INCOMING_DIR_RELATIVE, skillDiff } from "../skill-diff.js";
+import { BACKUP_DIR_RELATIVE } from "../skill-update.js";
 
 const { mockDownloadBundle, mockFetchIndex } = vi.hoisted(() => ({
   mockDownloadBundle: vi.fn<(url: string, names: string[]) => Promise<string>>(),
@@ -116,5 +117,21 @@ describe("skillDiff", () => {
 
     await expect(skillDiff(["nope"])).rejects.toThrow("is not installed");
     await expect(skillDiff(["mine"])).rejects.toThrow("is not in the registry");
+  });
+
+  it("--keep saves the registry version for a merge and backs up the copy", async () => {
+    const cwd = makeTempDir("cwd-");
+    writeFiles(path.join(cwd, ".claude", "skills", "old"), { "SKILL.md": "v1 + mine\n" });
+    const bundle = writeFiles(makeTempDir("b-"), { "old/SKILL.md": "v2\n" });
+    vi.spyOn(process, "cwd").mockReturnValue(cwd);
+    mockFetchIndex.mockResolvedValue(index({ old: { hash: "other", files: {} } }));
+    mockDownloadBundle.mockResolvedValue(bundle);
+
+    await skillDiff(["old"], { keep: true });
+
+    expect(fs.readFileSync(path.join(cwd, INCOMING_DIR_RELATIVE, "old", "SKILL.md"), "utf-8")).toBe("v2\n");
+    const backups = fs.readdirSync(path.join(cwd, BACKUP_DIR_RELATIVE, "old"));
+    expect(backups).toHaveLength(1);
+    expect(fs.readFileSync(path.join(cwd, ".claude", "skills", "old", "SKILL.md"), "utf-8")).toBe("v1 + mine\n");
   });
 });

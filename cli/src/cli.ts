@@ -4,6 +4,7 @@ import { installMcpServers } from "./commands/mcp.js";
 import { installSkills } from "./commands/skill.js";
 import { skillStatus } from "./commands/skill-status.js";
 import { skillDiff } from "./commands/skill-diff.js";
+import { skillMerged } from "./commands/skill-merged.js";
 import { skipSkills } from "./commands/skill-skip.js";
 import { skillUpdate } from "./commands/skill-update.js";
 import { CliError } from "./lib/errors.js";
@@ -15,7 +16,8 @@ Commands:
   skill status              Compare installed skills with the registry (--json)
   skill update [names...]   Update outdated skills (--dry-run, --overwrite, --no-overwrite)
   skill skip <names...>     Do not offer the current registry version of these skills again
-  skill diff [names...]     Show what an update would change in each skill
+  skill diff [names...]     Show what an update would change in each skill (--keep to prepare a merge)
+  skill merged <names...>   Record a merge of the registry version with your own edits
   mcp <names...>            Install MCP servers into .mcp.json
   agent <names...>          Install agents into .claude/agents/
   hook <names...>           Install hooks into .claude/hooks/ (prompts; --yes/-y to skip)
@@ -30,6 +32,7 @@ const KNOWN_FLAGS = new Set([
   "--dry-run",
   "--overwrite",
   "--no-overwrite",
+  "--keep",
 ]);
 
 export async function run(): Promise<void> {
@@ -61,7 +64,12 @@ export async function run(): Promise<void> {
   }
 
   if (subcommand === "skill" && names[0] === "diff") {
-    await skillDiff(names.slice(1));
+    await skillDiff(names.slice(1), { keep: flags.has("--keep") });
+    return;
+  }
+
+  if (subcommand === "skill" && names[0] === "merged") {
+    await skillMerged(names.slice(1));
     return;
   }
 
@@ -98,6 +106,9 @@ export async function run(): Promise<void> {
 
   if (force && subcommand !== "skill") {
     throw new CliError("Error: --force is supported for 'skill' only.");
+  }
+  if (flags.has("--keep")) {
+    throw new CliError("Error: --keep is supported for 'skill diff' only.");
   }
   for (const flag of ["--json", "--dry-run", "--overwrite", "--no-overwrite"]) {
     if (flags.has(flag)) {

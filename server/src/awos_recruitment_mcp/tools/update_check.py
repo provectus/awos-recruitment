@@ -9,8 +9,8 @@ from awos_recruitment_mcp.update_check import (
     check_files,
     load_history,
     parse_shasum_output,
+    parse_lock,
     result_from_files,
-    skips_from_lock,
     summarize_files,
     track_check,
 )
@@ -38,7 +38,8 @@ async def check_skill_updates(
     skill diff <names>` and tell the user in one line what is outdated and,
     per skill, in two or three short points what the update would change
     (including their own edits that it would remove); then offer to update
-    before you continue. If it is empty, say nothing about it. Do not
+    before you continue. Do not paste the diff. For a skill in state
+    `modified-or-unknown`, also offer to merge (see the server instructions). If it is empty, say nothing about it. Do not
     update on your own: run `command` only after the user agrees. If the user
     declines, offer `skill skip <names>` so this version is not offered again,
     and run it if they agree. Pass the lock file text as `lock` when it exists.
@@ -61,12 +62,12 @@ async def check_skill_updates(
             "note": "No `.claude/skills/<name>/<file>` paths found in file_hashes.",
         }
 
-    skips, lock_project_id = skips_from_lock(lock)
+    skips, bases, lock_project_id = parse_lock(lock)
     project_id = project_id or lock_project_id
 
     index = build_registry_index(config.registry_path)
     history = load_history(config.registry_path)
-    results = check_files(skills, index, history, skips)
+    results = check_files(skills, index, history, skips, bases)
 
     if project_id is not None:
         track_check(project_id, result_from_files(results), source="mcp")

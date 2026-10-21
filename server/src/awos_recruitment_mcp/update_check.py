@@ -177,27 +177,41 @@ def load_history(registry_path: str | Path) -> dict[str, Any]:
         return {"skills": {}}
 
 
-def skips_from_lock(lock_text: str | None) -> tuple[dict[str, str], str | None]:
-    """Read ``{skill: skipped registry hash}`` and ``project_id`` from lock file text.
+def parse_lock(lock_text: str | None) -> tuple[dict[str, str], dict[str, str], str | None]:
+    """Read skips, bases and ``project_id`` from lock file text.
 
-    Malformed or missing text yields nothing: the check then reports every
-    outdated skill, which is the safe default.
+    Returns ``(skips, bases, project_id)``: ``skips`` maps a skill to the
+    registry hash the user skipped, ``bases`` maps a skill to the registry
+    hash its lock entry records (the version installed or merged). Malformed
+    or missing text yields nothing: the check then reports every outdated
+    skill, which is the safe default.
     """
     if not lock_text:
-        return {}, None
+        return {}, {}, None
     try:
         lock = json.loads(lock_text)
     except ValueError:
-        return {}, None
+        return {}, {}, None
     if not isinstance(lock, dict):
-        return {}, None
+        return {}, {}, None
     skips: dict[str, str] = {}
+    bases: dict[str, str] = {}
     for name, entry in (lock.get("skills") or {}).items():
-        skip = entry.get("skip") if isinstance(entry, dict) else None
+        if not isinstance(entry, dict):
+            continue
+        skip = entry.get("skip")
         if isinstance(skip, dict) and isinstance(skip.get("hash"), str):
             skips[str(name)] = skip["hash"]
+        if isinstance(entry.get("hash"), str):
+            bases[str(name)] = entry["hash"]
     project_id = lock.get("project_id")
-    return skips, project_id if isinstance(project_id, str) else None
+    return skips, bases, project_id if isinstance(project_id, str) else None
+
+
+def skips_from_lock(lock_text: str | None) -> tuple[dict[str, str], str | None]:
+    """Read ``{skill: skipped registry hash}`` and ``project_id`` from lock file text."""
+    skips, _bases, project_id = parse_lock(lock_text)
+    return skips, project_id
 
 
 def check_files(
@@ -205,6 +219,7 @@ def check_files(
     index: dict[str, Any],
     history: dict[str, Any],
     skips: dict[str, str] | None = None,
+    bases: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Classify installed skills from their file hashes.
 
@@ -243,6 +258,11 @@ def check_files(
         elif (skips or {}).get(name) == registry_skills[name]["hash"]:
             entry["state"] = "skipped"
             entry["detail"] = "the user skipped this registry version"
+        elif (bases or {}).get(name) == registry_skills[name]["hash"]:
+            # The lock file says this copy is the current registry version
+            # plus the user's own edits (installed or merged): nothing to offer.
+            entry["state"] = "current-with-edits"
+            entry["detail"] = "current registry version plus the user's own edits"
         else:
             versions = history_skills.get(name, [])
             position = next((i for i, v in enumerate(versions) if v["hash"] == local_hash), -1)

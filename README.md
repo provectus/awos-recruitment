@@ -77,7 +77,14 @@ npx @provectusinc/awos-recruitment skill skip react-best-practices
 
 # Show what an update would change (your files against the registry)
 npx @provectusinc/awos-recruitment skill diff
+
+# Merge the registry version with your own edits (Claude does the editing)
+npx @provectusinc/awos-recruitment skill diff --keep react-best-practices
+#   ... edit .claude/skills/react-best-practices/ ...
+npx @provectusinc/awos-recruitment skill merged react-best-practices
 ```
+
+`skill diff --keep` saves the registry version to `.claude/awos-recruitment/incoming/<name>/` and backs up your copy to `.claude/awos-backup/skills/`. After the files in `.claude/skills/<name>/` have both the registry's changes and your edits, `skill merged` records the registry version as the base in the lock file and removes the saved copy. From then on the skill counts as current with your own edits, not as outdated. In Claude Code you only choose "update and keep my edits"; Claude runs these steps.
 
 `skill skip` records the skipped registry version in the lock file. `status` shows the skill as `skipped by you`, and `update`, the session-start hook and the MCP check stay quiet about it until the registry publishes a newer version. `skill update <name>` still updates it. When the installed files are the registry's current version, the lock entry also records its registry `commit` and `released` date, and `status` shows them.
 

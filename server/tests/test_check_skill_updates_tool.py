@@ -164,3 +164,39 @@ def test_skips_from_lock_ignores_garbage():
     assert skips_from_lock(None) == ({}, None)
     assert skips_from_lock("{not json") == ({}, None)
     assert skips_from_lock('{"skills": {"a": {"skip": "nope"}}}') == ({}, None)
+
+
+@patch("awos_recruitment_mcp.update_check.track_client_event")
+async def test_tool_is_quiet_about_a_merged_copy_with_edits(mock_track, registry):
+    """Lock base = current registry version, files differ (the user's edits): no summary."""
+    file_hashes = f"{sha('v2 plus my note' + chr(10))}  .claude/skills/s/SKILL.md\n"
+    current = hash_skill(registry / "skills" / "s")["hash"]
+    lock = json.dumps({"version": 1, "project_id": PROJECT_ID, "skills": {"s": {"hash": current, "files": {}}}})
+
+    async with Client(server_module.mcp) as client:
+        result = await client.call_tool("check_skill_updates", {"file_hashes": file_hashes, "lock": lock})
+
+    data = result.data if getattr(result, "data", None) else json.loads(result.content[0].text)
+    assert data["summary"] == ""
+    assert data["skills"][0]["state"] == "current-with-edits"
+
+
+async def test_tool_reports_edits_without_a_lock_as_modified(registry):
+    file_hashes = f"{sha('v2 plus my note' + chr(10))}  .claude/skills/s/SKILL.md\n"
+
+    async with Client(server_module.mcp) as client:
+        result = await client.call_tool("check_skill_updates", {"file_hashes": file_hashes})
+
+    data = result.data if getattr(result, "data", None) else json.loads(result.content[0].text)
+    assert data["skills"][0]["state"] == "modified-or-unknown"
+
+
+def test_parse_lock_reads_bases_and_skips():
+    from awos_recruitment_mcp.update_check import parse_lock
+
+    skips, bases, pid = parse_lock(
+        json.dumps({"project_id": PROJECT_ID, "skills": {"a": {"hash": "h", "skip": {"hash": "k"}}, "b": "junk"}})
+    )
+    assert skips == {"a": "k"}
+    assert bases == {"a": "h"}
+    assert pid == PROJECT_ID
