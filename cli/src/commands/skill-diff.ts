@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { displayPath, incomingRoot } from "../lib/cache-dir.js";
 import { downloadBundle } from "../lib/download.js";
 import { CliError } from "../lib/errors.js";
 import { hashDirectory } from "../lib/lock.js";
@@ -9,15 +10,13 @@ import { resolveServerUrl } from "../lib/server-url.js";
 import { diffLines } from "../lib/text-diff.js";
 import { backupSkill } from "./skill-update.js";
 
-/** Where `--keep` puts the registry version for a merge; outside .claude/skills/. */
-export const INCOMING_DIR_RELATIVE = path.join(".claude", "awos-recruitment", "incoming");
-
 export interface DiffOptions {
   /** Most output lines per skill; the rest is counted, not printed. */
   maxLines?: number;
   /**
-   * Keep the registry version in `.claude/awos-recruitment/incoming/<name>/`
-   * and back up the current copy, so an agent can merge the two and then run
+   * Keep the registry version in the project's cache folder
+   * (`~/.cache/awos-recruitment/projects/…/incoming/<name>/`) and back up the
+   * current copy, so an agent can merge the two and then run
    * `skill merged <name>`.
    */
   keep?: boolean;
@@ -74,13 +73,13 @@ export async function skillDiff(names: string[], options: DiffOptions = {}): Pro
       );
       if (options.keep) {
         const backup = backupSkill(cwd, name);
-        const incoming = path.join(cwd, INCOMING_DIR_RELATIVE, name);
+        const incoming = path.join(incomingRoot(cwd), name);
         fs.rmSync(incoming, { recursive: true, force: true });
         fs.mkdirSync(path.dirname(incoming), { recursive: true });
         fs.cpSync(path.join(tempDir, name), incoming, { recursive: true });
         process.stdout.write(
-          `Registry version of '${name}' saved to ${path.relative(cwd, incoming)}/. ` +
-            `Your copy is backed up to ${path.relative(cwd, backup)}/. ` +
+          `Registry version of '${name}' saved to ${displayPath(incoming)}/. ` +
+            `Your copy is backed up to ${displayPath(backup)}/. ` +
             `Edit .claude/skills/${name}/, then run 'skill merged ${name}'.\n\n`,
         );
       }

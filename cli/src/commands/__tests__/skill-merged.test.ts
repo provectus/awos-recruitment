@@ -6,7 +6,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { hashDirectory, readLock, writeLock } from "../../lib/lock.js";
 import type { RegistryIndex } from "../../lib/registry-index.js";
 import { computeSkillStatuses } from "../../lib/status.js";
-import { INCOMING_DIR_RELATIVE } from "../skill-diff.js";
+import { incomingRoot } from "../../lib/cache-dir.js";
 import { skillMerged } from "../skill-merged.js";
 
 const { mockFetchIndex } = vi.hoisted(() => ({
@@ -33,6 +33,7 @@ describe("skillMerged", () => {
   beforeEach(() => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     process.env.AWOS_SERVER_URL = "http://127.0.0.1:8000";
+    process.env.XDG_CACHE_HOME = makeCwd();
   });
 
   afterEach(() => {
@@ -45,7 +46,7 @@ describe("skillMerged", () => {
   it("records the registry version as the base, keeps the edited files and cleans up", async () => {
     const cwd = makeCwd();
     const local = writeSkill(path.join(cwd, ".claude", "skills", "s"), "v2 + my note\n");
-    const incoming = writeSkill(path.join(cwd, INCOMING_DIR_RELATIVE, "s"), "v2\n");
+    const incoming = writeSkill(path.join(incomingRoot(cwd), "s"), "v2\n");
     const v2 = hashDirectory(incoming);
     writeLock(cwd, {
       version: 1,
@@ -68,7 +69,7 @@ describe("skillMerged", () => {
     expect(entry?.commit).toBe("abc1234");
     expect(entry?.skip).toBeUndefined();
     expect(fs.readFileSync(path.join(local, "SKILL.md"), "utf-8")).toBe("v2 + my note\n");
-    expect(fs.existsSync(path.join(cwd, ".claude", "awos-recruitment"))).toBe(false);
+    expect(fs.existsSync(path.join(incomingRoot(cwd), "s"))).toBe(false);
     expect(process.stdout.write).toHaveBeenCalledWith(
       "Recorded 's' as merged with the registry version (your own edits kept).\n",
     );

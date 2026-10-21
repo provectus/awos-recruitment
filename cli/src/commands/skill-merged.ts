@@ -1,15 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import { incomingRoot } from "../lib/cache-dir.js";
 import { CliError } from "../lib/errors.js";
 import { hashDirectory, readOrCreateLock, writeLock, type LockEntry } from "../lib/lock.js";
 import { fetchRegistryIndex, type RegistryIndex } from "../lib/registry-index.js";
 import { resolveServerUrl } from "../lib/server-url.js";
-import { INCOMING_DIR_RELATIVE } from "./skill-diff.js";
 
 /**
  * `skill merged <names>`: record that the copy in `.claude/skills/<name>/` now
- * contains the registry version saved by `skill diff --keep`, plus the user's
+ * contains the registry version saved by `skill diff --keep` (in the project's
+ * cache folder), plus the user's
  * own edits. The lock entry's base becomes that registry version, so `status`,
  * `update`, the hook and the MCP check treat the skill as current with local
  * edits instead of outdated. The saved registry version is then removed.
@@ -23,7 +24,7 @@ export async function skillMerged(names: string[]): Promise<void> {
   const cwd = process.cwd();
 
   for (const name of names) {
-    if (!fs.existsSync(path.join(cwd, INCOMING_DIR_RELATIVE, name))) {
+    if (!fs.existsSync(path.join(incomingRoot(cwd), name))) {
       throw new CliError(
         `Error: no saved registry version for '${name}'. Run 'skill diff --keep ${name}' first.`,
       );
@@ -44,7 +45,7 @@ export async function skillMerged(names: string[]): Promise<void> {
   const now = new Date().toISOString();
 
   for (const name of names) {
-    const incoming = path.join(cwd, INCOMING_DIR_RELATIVE, name);
+    const incoming = path.join(incomingRoot(cwd), name);
     const base = hashDirectory(incoming);
     const entry: LockEntry = {
       server: serverUrl,
@@ -70,7 +71,7 @@ export async function skillMerged(names: string[]): Promise<void> {
   writeLock(cwd, lock);
 
   // Leave no empty folders behind.
-  for (const dir of [path.join(cwd, INCOMING_DIR_RELATIVE), path.dirname(path.join(cwd, INCOMING_DIR_RELATIVE))]) {
+  for (const dir of [incomingRoot(cwd)]) {
     if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
       fs.rmdirSync(dir);
     }

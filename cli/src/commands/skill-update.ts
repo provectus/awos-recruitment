@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as readline from "node:readline/promises";
 
 import { downloadBundle } from "../lib/download.js";
+import { backupRoot, displayPath } from "../lib/cache-dir.js";
 import { CliError } from "../lib/errors.js";
 import { readLock, recordSkillInstalls } from "../lib/lock.js";
 import { fetchRegistryHistory, fetchRegistryIndex } from "../lib/registry-index.js";
@@ -24,8 +25,6 @@ export interface UpdateOptions {
 /** What to do with a skill that has local changes and a newer registry version. */
 export type ConflictDecision = "overwrite" | "skip" | "backup";
 
-/** Where backups go. Outside `.claude/skills/` so Claude Code does not load them. */
-export const BACKUP_DIR_RELATIVE = path.join(".claude", "awos-backup", "skills");
 
 interface PlannedAction {
   status: SkillStatus;
@@ -37,7 +36,8 @@ interface PlannedAction {
  * `skill update [names]`: replaces outdated skills with the registry
  * version and records the result in the lock file. Skills with local
  * changes are only replaced after a decision (prompt, `--overwrite` or
- * `--no-overwrite`); a backup goes to `.claude/awos-backup/skills/`.
+ * `--no-overwrite`); a backup goes to the project's cache folder
+ * (`~/.cache/awos-recruitment/projects/…/backups/`), outside the project.
  */
 export async function skillUpdate(
   names: string[],
@@ -134,7 +134,7 @@ export async function skillUpdate(
       for (const { status, backup } of toReplace) {
         if (backup) {
           const backupDir = backupSkill(cwd, status.name);
-          process.stdout.write(`Backed up '${status.name}' to ${path.relative(cwd, backupDir)}/\n`);
+          process.stdout.write(`Backed up '${status.name}' to ${displayPath(backupDir)}/\n`);
         }
       }
       const results = processSkills(tempDir, replaceNames, { force: true });
@@ -238,10 +238,10 @@ export function formatPlan(plan: PlannedAction[]): string {
   );
 }
 
-/** Copies the current skill folder to `.claude/awos-backup/skills/<name>/<timestamp>/`. */
+/** Copies the current skill folder to `<project cache>/backups/<name>/<timestamp>/`. */
 export function backupSkill(cwd: string, name: string): string {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const target = path.join(cwd, BACKUP_DIR_RELATIVE, name, stamp);
+  const target = path.join(backupRoot(cwd), name, stamp);
   fs.mkdirSync(target, { recursive: true });
   fs.cpSync(path.join(cwd, ".claude", "skills", name), target, { recursive: true });
   return target;
@@ -276,7 +276,7 @@ async function decideConflict(
       const answer = (
         await rl.question(
           `'${status.name}' has local changes (${files}${more}) and a newer registry version.\n` +
-            "  [o] overwrite  [s] skip  [b] backup to .claude/awos-backup/ and overwrite  > ",
+            "  [o] overwrite  [s] skip  [b] back up and overwrite  > ",
         )
       )
         .trim()

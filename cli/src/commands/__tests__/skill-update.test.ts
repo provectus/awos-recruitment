@@ -5,7 +5,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { hashDirectory, readLock, writeLock } from "../../lib/lock.js";
 import type { RegistryHistory, RegistryIndex } from "../../lib/registry-index.js";
-import { BACKUP_DIR_RELATIVE, skillUpdate } from "../skill-update.js";
+import { backupRoot } from "../../lib/cache-dir.js";
+import { skillUpdate } from "../skill-update.js";
 
 const { mockDownloadBundle, mockFetchIndex, mockFetchHistory, mockSendTelemetry } = vi.hoisted(() => ({
   mockDownloadBundle: vi.fn<(url: string, names: string[]) => Promise<string>>(),
@@ -66,6 +67,7 @@ describe("skillUpdate", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     process.env.AWOS_SERVER_URL = "http://127.0.0.1:8000";
+    process.env.XDG_CACHE_HOME = makeTempDir("cache-");
   });
 
   afterEach(() => {
@@ -129,7 +131,7 @@ describe("skillUpdate", () => {
     await skillUpdate([], { overwrite: true });
 
     expect(fs.readFileSync(path.join(cwd, ".claude", "skills", "s", "SKILL.md"), "utf-8")).toBe("v2");
-    expect(fs.existsSync(path.join(cwd, BACKUP_DIR_RELATIVE))).toBe(false);
+    expect(fs.existsSync(backupRoot(cwd))).toBe(false);
   });
 
   it("--no-overwrite keeps a locally modified skill", async () => {

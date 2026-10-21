@@ -5,8 +5,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 import { hashDirectory } from "../../lib/lock.js";
 import type { RegistryIndex } from "../../lib/registry-index.js";
-import { formatSkillDiff, INCOMING_DIR_RELATIVE, skillDiff } from "../skill-diff.js";
-import { BACKUP_DIR_RELATIVE } from "../skill-update.js";
+import { backupRoot, incomingRoot } from "../../lib/cache-dir.js";
+import { formatSkillDiff, skillDiff } from "../skill-diff.js";
 
 const { mockDownloadBundle, mockFetchIndex } = vi.hoisted(() => ({
   mockDownloadBundle: vi.fn<(url: string, names: string[]) => Promise<string>>(),
@@ -119,7 +119,8 @@ describe("skillDiff", () => {
     await expect(skillDiff(["mine"])).rejects.toThrow("is not in the registry");
   });
 
-  it("--keep saves the registry version for a merge and backs up the copy", async () => {
+  it("--keep saves the registry version for a merge and backs up the copy, outside the project", async () => {
+    process.env.XDG_CACHE_HOME = makeTempDir("cache-");
     const cwd = makeTempDir("cwd-");
     writeFiles(path.join(cwd, ".claude", "skills", "old"), { "SKILL.md": "v1 + mine\n" });
     const bundle = writeFiles(makeTempDir("b-"), { "old/SKILL.md": "v2\n" });
@@ -129,9 +130,12 @@ describe("skillDiff", () => {
 
     await skillDiff(["old"], { keep: true });
 
-    expect(fs.readFileSync(path.join(cwd, INCOMING_DIR_RELATIVE, "old", "SKILL.md"), "utf-8")).toBe("v2\n");
-    const backups = fs.readdirSync(path.join(cwd, BACKUP_DIR_RELATIVE, "old"));
+    expect(fs.readFileSync(path.join(incomingRoot(cwd), "old", "SKILL.md"), "utf-8")).toBe("v2\n");
+    expect(incomingRoot(cwd).startsWith(process.env.XDG_CACHE_HOME!)).toBe(true);
+    const backups = fs.readdirSync(path.join(backupRoot(cwd), "old"));
     expect(backups).toHaveLength(1);
     expect(fs.readFileSync(path.join(cwd, ".claude", "skills", "old", "SKILL.md"), "utf-8")).toBe("v1 + mine\n");
+    // Nothing new inside the project apart from the skill itself.
+    expect(fs.readdirSync(path.join(cwd, ".claude"))).toEqual(["skills"]);
   });
 });

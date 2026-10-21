@@ -84,7 +84,7 @@ npx @provectusinc/awos-recruitment skill diff --keep react-best-practices
 npx @provectusinc/awos-recruitment skill merged react-best-practices
 ```
 
-`skill diff --keep` saves the registry version to `.claude/awos-recruitment/incoming/<name>/` and backs up your copy to `.claude/awos-backup/skills/`. After the files in `.claude/skills/<name>/` have both the registry's changes and your edits, `skill merged` records the registry version as the base in the lock file and removes the saved copy. From then on the skill counts as current with your own edits, not as outdated. In Claude Code you only choose "update and keep my edits"; Claude runs these steps.
+`skill diff --keep` saves the registry version and a backup of your copy to the project's cache folder, `~/.cache/awos-recruitment/projects/<folder>-<hash>/` (`$XDG_CACHE_HOME` when set), outside the project, so nothing of it lands in git. After the files in `.claude/skills/<name>/` have both the registry's changes and your edits, `skill merged` records the registry version as the base in the lock file and removes the saved copy. From then on the skill counts as current with your own edits, not as outdated. In Claude Code you only choose "update and keep my edits"; Claude runs these steps.
 
 `skill skip` records the skipped registry version in the lock file. `status` shows the skill as `skipped by you`, and `update`, the session-start hook and the MCP check stay quiet about it until the registry publishes a newer version. `skill update <name>` still updates it. When the installed files are the registry's current version, the lock entry also records its registry `commit` and `released` date, and `status` shows them.
 
@@ -94,7 +94,7 @@ Skills installed before the lock file existed are matched against the registry's
 
 `skill update` replaces outdated skills and records them in the lock file. A skill you changed locally is not overwritten silently:
 
-- in a terminal, `update` asks: overwrite, skip, or back up to `.claude/awos-backup/skills/<name>/<timestamp>/` and overwrite;
+- in a terminal, `update` asks: overwrite, skip, or back up to `~/.cache/awos-recruitment/projects/<folder>-<hash>/backups/<name>/<timestamp>/` and overwrite;
 - without a terminal (CI, `claude -p`), it keeps your copy and says so;
 - `--overwrite` and `--no-overwrite` set the answer for every skill.
 
