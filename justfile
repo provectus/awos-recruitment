@@ -14,6 +14,10 @@ validate-registry *ARGS:
 check-skill-parity *ARGS:
     cd server && uv run python -m awos_recruitment_mcp.validate.parity {{ARGS}}
 
+# Generate registry/history.json (every past version of every skill) from git
+history:
+    cd server && uv run python -m awos_recruitment_mcp.history .. > ../registry/history.json
+
 # Build the CLI
 build-cli:
     cd cli && npm run build
@@ -34,6 +38,9 @@ deploy account_id region="us-east-1":
     IMAGE="awos-recruitment-mcp"
     ECR_URL="{{account_id}}.dkr.ecr.{{region}}.amazonaws.com/$IMAGE"
     SHA="$(git rev-parse --short HEAD)"
+
+    echo "Generating registry/history.json..."
+    (cd server && uv run python -m awos_recruitment_mcp.history ..) > registry/history.json
 
     echo "Building image..."
     docker build --platform linux/amd64 -t "$IMAGE" -f server/Dockerfile .

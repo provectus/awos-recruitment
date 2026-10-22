@@ -15,9 +15,20 @@ from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+import json
+from pathlib import Path
+
 from awos_recruitment_mcp.config import Config
+from awos_recruitment_mcp.history import HISTORY_FILE, empty_history
 from awos_recruitment_mcp.models.bundle import BundleRequest
-from awos_recruitment_mcp.telemetry import init_telemetry, shutdown_telemetry, track_install
+from awos_recruitment_mcp.models.check import CheckRequest
+from awos_recruitment_mcp.models.telemetry import TelemetryRequest
+from awos_recruitment_mcp.telemetry import (
+    init_telemetry,
+    shutdown_telemetry,
+    track_client_event,
+    track_install,
+)
 from awos_recruitment_mcp.registry import (
     load_registry,
     resolve_agent_paths,
@@ -25,11 +36,14 @@ from awos_recruitment_mcp.registry import (
     resolve_mcp_paths,
     resolve_skill_paths,
 )
-from awos_recruitment_mcp.search_index import build_index
-from awos_recruitment_mcp.validate import (
-    _ALLOWED_HOOK_SCRIPT_EXTENSIONS,
-    _ALLOWED_SCRIPT_EXTENSIONS,
+from awos_recruitment_mcp.registry_index import (
+    RemovedFileError,
+    build_registry_index,
+    iter_skill_files,
 )
+from awos_recruitment_mcp.search_index import build_index
+from awos_recruitment_mcp.update_check import check_skills, track_check
+from awos_recruitment_mcp.validate import _ALLOWED_HOOK_SCRIPT_EXTENSIONS
 
 config = Config.from_env()
 
@@ -56,9 +70,37 @@ mcp = FastMCP(
     name="AWOS Recruitment",
     version=config.version,
     instructions=(
-        "This server provides AI coding assistants with a discovery engine "
-        "for skills, agents, tools, and hooks. Use the search_capabilities "
-        "tool to find capabilities matching a natural language query."
+        "Installed skills are copies that do not update themselves. Check "
+        "them, at most once per session, at these moments only: when the user "
+        "runs /awos:tech, /awos:hire or /awos:implement (before you start the "
+        "command's own work), or when the user asks about skills, versions or "
+        "updates. Do not check on other messages. To check: run "
+        "`shasum -a 256 .claude/skills/*/* .claude/skills/*/*/*` as its own "
+        "command (do not chain it with other commands; a non-zero exit from "
+        "'Is a directory' lines is expected) and pass the output to the "
+        "check_skill_updates tool (with the text of "
+        ".claude/awos-recruitment.lock.json as `lock` when that file exists). "
+        "If its summary is not empty, run `npx @provectusinc/awos-recruitment "
+        "skill diff <names>` as its own command, then tell the user in one "
+        "line what is outdated and, per skill, in two or three short points "
+        "what the update would change (lines marked - disappear, + appear, "
+        "including the user's own edits). Do not paste the diff. Then offer "
+        "the choices. Update: run `npx @provectusinc/awos-recruitment skill "
+        "update <names>`; the user's own edits in those files are lost. "
+        "Skip: run `npx @provectusinc/awos-recruitment skill skip <names>` so "
+        "this version is not offered again. For a skill the tool reports as "
+        "modified-or-unknown, also offer Merge: run `npx "
+        "@provectusinc/awos-recruitment skill diff --keep <name>` (it saves "
+        "the registry version to the folder it prints and backs up the "
+        "current copy), edit the files in "
+        ".claude/skills/<name>/ so they take the registry's changes and keep "
+        "the user's own edits, run `npx @provectusinc/awos-recruitment skill "
+        "merged <name>`, and tell the user in two or three points what you "
+        "took from the registry and what you kept. Do not update, skip or "
+        "merge on your own: run each command only after the user chooses it. "
+        "This server also provides a discovery engine for skills, agents, "
+        "tools, and hooks: use search_capabilities to find capabilities "
+        "matching a natural language query."
     ),
     lifespan=lifespan,
 )
@@ -68,6 +110,109 @@ mcp = FastMCP(
 async def health_check(request: Request) -> JSONResponse:
     """Return server health status and version."""
     return JSONResponse({"status": "ok", "version": config.version}, status_code=200)
+
+
+@mcp.custom_route("/index.json", methods=["GET"])
+async def registry_index(request: Request) -> JSONResponse:
+    """Return content hashes of every skill and tombstones for removed capabilities.
+
+    The CLI compares these hashes with its lock file to find outdated,
+    locally modified or removed installs.  Computed from the registry on
+    disk at request time, the same files ``/bundle/*`` serves.
+    """
+    try:
+        index = build_registry_index(config.registry_path)
+    except RemovedFileError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+    return JSONResponse(index, status_code=200)
+
+
+@mcp.custom_route("/history.json", methods=["GET"])
+async def registry_history(request: Request) -> JSONResponse:
+    """Return every past version of every skill (hash, dates, commit).
+
+    Generated from git at deploy time into ``<registry>/history.json`` by
+    ``python -m awos_recruitment_mcp.history``.  The CLI uses it to
+    fingerprint copies installed before the lock file existed.  Serves an
+    empty document when the file is absent (local dev).
+    """
+    history_file = Path(config.registry_path) / HISTORY_FILE
+    if not history_file.is_file():
+        return JSONResponse(empty_history(), status_code=200)
+    try:
+        with open(history_file, encoding="utf-8") as fh:
+            return JSONResponse(json.load(fh), status_code=200)
+    except (OSError, ValueError) as exc:
+        return JSONResponse({"error": f"{HISTORY_FILE}: {exc}"}, status_code=500)
+
+
+@mcp.custom_route("/check", methods=["POST"])
+async def check_updates(request: Request) -> Response:
+    """Compare a project's lock file with the registry.
+
+    The ``skill-update-check`` hook POSTs ``.claude/awos-recruitment.lock.json``
+    as is.  With ``Accept: text/plain`` the body is the one-line summary
+    (empty when everything is current); otherwise a JSON document with
+    ``summary``, ``outdated``, ``removed``, ``unknown``, ``up_to_date`` and
+    ``command``.  Returns 400 when the body is not a lock file.
+    """
+    try:
+        body = await request.json()
+        check_request = CheckRequest.model_validate(body)
+    except (ValidationError, ValueError) as exc:
+        detail = exc.errors() if isinstance(exc, ValidationError) else str(exc)
+        return JSONResponse({"error": "Validation failed", "detail": detail}, status_code=400)
+
+    try:
+        index = build_registry_index(config.registry_path)
+    except RemovedFileError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+    installed = {name: entry.hash for name, entry in check_request.skills.items()}
+    skips = {
+        name: entry.skip.hash
+        for name, entry in check_request.skills.items()
+        if entry.skip is not None
+    }
+    result = check_skills(installed, index, skips)
+
+    if check_request.project_id is not None:
+        track_check(check_request.project_id, result, source="hook")
+
+    if "text/plain" in request.headers.get("accept", ""):
+        return Response(content=result.summary, media_type="text/plain")
+    return JSONResponse(result.to_dict(), status_code=200)
+
+
+@mcp.custom_route("/telemetry", methods=["POST"])
+async def client_telemetry(request: Request) -> Response:
+    """Accept update-related events from the CLI.
+
+    The CLI reports ``capability_update_checked``, ``capability_updated``
+    and ``capability_removed_in_use`` after ``skill status`` / ``skill
+    update``.  Events are keyed by the project's random id only.
+
+    Returns 204 on success, 400 when the body fails validation.
+    """
+    try:
+        body = await request.json()
+        telemetry_request = TelemetryRequest.model_validate(body)
+    except (ValidationError, ValueError) as exc:
+        detail = exc.errors() if isinstance(exc, ValidationError) else str(exc)
+        return JSONResponse(
+            {"error": "Validation failed", "detail": detail},
+            status_code=400,
+        )
+
+    for event in telemetry_request.events:
+        properties: dict[str, int | bool | str] = dict(event.properties)
+        if event.capability_name is not None:
+            properties["capability_name"] = event.capability_name
+        if event.capability_type is not None:
+            properties["capability_type"] = event.capability_type
+        track_client_event(telemetry_request.project_id, event.event, properties)
+
+    return Response(status_code=204)
 
 
 @mcp.custom_route("/bundle/skills", methods=["POST"])
@@ -103,27 +248,8 @@ async def bundle_skills(request: Request) -> Response:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for skill_dir in found_paths:
-            skill_name = skill_dir.name
-
-            skill_md = skill_dir / "SKILL.md"
-            if skill_md.is_file():
-                tar.add(str(skill_md), arcname=f"{skill_name}/SKILL.md")
-
-            for subdir_name in ("references", "scripts", "assets"):
-                subdir = skill_dir / subdir_name
-                if subdir.is_dir():
-                    for sub_file in sorted(subdir.iterdir()):
-                        if not sub_file.is_file() or sub_file.name.startswith("."):
-                            continue
-                        if (
-                            subdir_name == "scripts"
-                            and sub_file.suffix not in _ALLOWED_SCRIPT_EXTENSIONS
-                        ):
-                            continue
-                        tar.add(
-                            str(sub_file),
-                            arcname=f"{skill_name}/{subdir_name}/{sub_file.name}",
-                        )
+            for rel_path, abs_path in iter_skill_files(skill_dir):
+                tar.add(str(abs_path), arcname=f"{skill_dir.name}/{rel_path}")
 
     return Response(content=buf.getvalue(), media_type="application/gzip")
 
@@ -269,3 +395,4 @@ async def bundle_hooks(request: Request) -> Response:
 # Import tool modules AFTER `mcp` is created so they can reference it without
 # triggering a circular-import error.
 import awos_recruitment_mcp.tools.search  # noqa: E402, F401 — registers MCP tools
+import awos_recruitment_mcp.tools.update_check  # noqa: E402, F401 — registers MCP tools
