@@ -77,11 +77,10 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 ### Phase 5: Validation
 
-1. **Cross-reference implementation** against AWS Well-Architected principles via `aws-knowledge-mcp-server`
-2. **Verify resource configurations** against AWS documentation — check limits, supported values, and regional availability
-3. **Run `terraform init`** in each changed root. Without backend credentials, run `terraform init -backend=false` instead: `validate` still works but `plan` does not, so report the plan as not run and say why
-4. **Run the checks until they pass** — `terraform fmt -recursive`, `terraform validate`, the repository's own pre-commit hooks or CI lint job when it has one (it may add tflint or terraform_docs), then `trivy config .` and `checkov -d .`. Fix what they report and run them again. Scanner HIGH/CRITICAL findings block: fix them, or suppress inline with the check ID and the deviation reason from the design; never a blanket skip. If a tool is not installed, say so instead of reporting a pass
-5. **Never run `terraform apply`.** Generate the plan into a temporary path outside the repository so it can never be committed or picked up as a shared artifact (plans can contain sensitive values): `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Summarize it and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
+1. **Check the code against the approved design** — every component-table row exists with its source and exact version, public endpoints, ingress rules and IAM grants match the security posture, and nothing billable was added that the cost review does not list. Report gaps, not style
+2. **Run `terraform init`** in each changed root. Without backend credentials, run `terraform init -backend=false` instead: `validate` still works but `plan` does not, so report the plan as not run and say why
+3. **Run the checks until they pass** — `terraform fmt -recursive`, `terraform validate`, the repository's own pre-commit hooks or CI lint job when it has one (it may add tflint or terraform_docs), then `trivy config .` and `checkov -d .`. Fix what they report and run them again. Scanner HIGH/CRITICAL findings block: fix them, or suppress inline with the check ID and the deviation reason from the design; never a blanket skip. If a tool is not installed, say so instead of reporting a pass
+4. **Never run `terraform apply`.** Generate the plan into a temporary path outside the repository so it can never be committed or picked up as a shared artifact (plans can contain sensitive values): `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Summarize it and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
 
 ## Key Rules
 
@@ -114,5 +113,6 @@ End every run with these sections, in this order:
 - **Assumptions** — every gap you filled with a judgment call rather than a verified fact.
 - **Needs a decision** — when the run stopped at Phase 3, the full design (layout, component table,
   security posture, cost review, alternatives) and the layout facts you could not discover; otherwise
-  whether to apply the plan. Plus any version upgrade, destructive change, or ambiguity that is the
+  whether to apply the plan, after an independent review of the diff in a fresh context (for example
+  `/code-review`), since you checked your own work. Plus any version upgrade, destructive change, or ambiguity that is the
   caller's call and not yours. Write "none" when there is nothing.
