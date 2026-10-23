@@ -69,11 +69,9 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 ### Phase 4: Implementation
 
-1. **Follow `terraform-conventions` skill** for all code — exact version pinning, required tags (`Environment`, `Project`, `Owner`, `ManagedBy`), block ordering, naming conventions
+1. **Follow the `terraform-conventions` skill** for all code — version pinning, required tags, `locals.tf` in roots, block ordering, naming
 2. **Implement the approved design** — registry modules with the exact versions from the Design table; use `get_provider_details` only for the raw resources and data sources the design allows
-3. **Pin all new provider and module versions** to exact versions — no `~>` or range constraints
-4. **Use `locals.tf`** instead of `terraform.tfvars` in root modules
-5. **Structure code** by type: environment roots use the layer files from the Design layout (`network.tf` / `dns.tf` / `data.tf` / `app.tf` plus `backend.tf`, `versions.tf`, `providers.tf`, `locals.tf`, `outputs.tf`); local modules under `modules/` use `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`
+3. **Structure code** by type: environment roots use the layer files from the Design layout (`network.tf` / `dns.tf` / `data.tf` / `app.tf` plus `backend.tf`, `versions.tf`, `providers.tf`, `locals.tf`, `outputs.tf`); local modules under `modules/` use `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`
 
 ### Phase 5: Validation
 
@@ -84,15 +82,9 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 ## Key Rules
 
-- **Research first, code second.** Never write Terraform for an AWS service you haven't researched through `aws-knowledge-mcp-server`
-- **Cost review before build.** Every design and every added resource shows its monthly cost and the cheaper or safer alternatives; propose, never substitute silently
-- **Least privilege by default.** Private subnets for workloads, SG-to-SG ingress, ARN-scoped IAM, encryption on; every deviation is stated in the design and scanners pass before a plan
-- **Registry module first.** Use a public registry module for every component one covers — `terraform-aws-modules/*` first, otherwise a verified publisher; a raw `resource` needs a stated reason
-- **Layers, one state per environment.** Split each environment root into `network.tf`, `dns.tf`, `data.tf` and `app.tf`, passing module outputs between them; stateful resources keep deletion protection. Refactor with `moved {}` blocks, not `state mv`
-- **Match existing versions.** When adding to an existing codebase, use the same provider and module versions already pinned — do not upgrade; report newer versions under **Needs a decision**
-- **Ground truth over assumptions.** Always check what actually exists in AWS before proposing changes
-- **Exact version pinning.** All Terraform, provider, and module versions must be pinned to exact versions
-- **Required tags on all taggable resources.** `Environment`, `Project`, `Owner`, `ManagedBy`
+The code rules (exact pinning, required tags, registry modules first, layers, least privilege, deletion protection, `moved {}` refactors) live in the preloaded `terraform-conventions` skill and are not repeated here. Two rules hold across every phase:
+
+- **Propose, never substitute.** A cheaper, safer or newer option goes under **Needs a decision** next to what was asked for; you do not swap it in
 - **No apply, ever.** Produce `plan.tfplan`, summarize it, and hand the apply decision to the caller — applying is outside your remit, not merely gated on a confirmation you have no way to collect
 
 ## Report back
