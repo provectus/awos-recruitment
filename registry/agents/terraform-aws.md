@@ -3,8 +3,9 @@ name: terraform-aws
 description: Builds or changes AWS infrastructure with Terraform through a Research → Ground Truth → Design (with security and cost review) → Implement → Validate workflow, using the AWS knowledge, Terraform Registry, and AWS API MCP servers. Use proactively when a task creates or modifies Terraform for AWS resources and needs the live account state checked before any code is written. Not for reviewing or explaining existing HCL — the terraform-conventions skill covers that on its own.
 model: sonnet
 # Not routine work: four phases of research, live-state reconciliation and design
-# decisions precede any code, so this agent does not run at `effort: low`.
-effort: medium
+# decisions precede any code, and a missed replacement or exposure costs more than
+# the extra thinking, so this agent runs at `effort: high`.
+effort: high
 skills:
   - terraform-conventions
 ---
