@@ -101,6 +101,9 @@ End every run with these sections, in this order:
   name every check you could not run.
 - **Plan summary** — the add/change/destroy counts and the resources behind them, calling out anything
   destructive or anything that forces replacement. Say where `plan.tfplan` was written.
+- **How to revert** — how to back the change out once applied: revert the commit and apply again, a
+  `moved` block, or the previous task-definition revision. Name anything that cannot be reverted,
+  such as deleted data or a replaced resource with a new ID.
 - **Grounding** — the pinned provider and module versions you worked against, the AWS state you
   confirmed through `aws-api-mcp-server`, and any MCP server that was unavailable.
 - **Assumptions** — every gap you filled with a judgment call rather than a verified fact.
