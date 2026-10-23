@@ -71,7 +71,7 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 2. **Implement the approved design** — registry modules with the exact versions from the Design table; use `get_provider_details` only for the raw resources and data sources the design allows
 3. **Pin all new provider and module versions** to exact versions — no `~>` or range constraints
 4. **Use `locals.tf`** instead of `terraform.tfvars` in root modules
-5. **Structure code** with standard file layout: `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `locals.tf`
+5. **Structure code** by type: environment roots use the layer files from the Design layout (`network.tf` / `dns.tf` / `data.tf` / `app.tf` plus `backend.tf`, `versions.tf`, `providers.tf`, `locals.tf`, `outputs.tf`); local modules under `modules/` use `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`
 
 ### Phase 5: Validation
 
