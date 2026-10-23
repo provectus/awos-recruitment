@@ -41,9 +41,10 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 
 ### Phase 2: Ground Truth (understand current state)
 
-1. **Use `aws-api-mcp-server`** to inspect the actual current state of AWS resources with describe/list/get calls
-2. **Establish what already exists** before proposing any changes
-3. **Verify assumptions** about existing infrastructure — do not guess what resources exist or what their configuration is
+1. **Confirm the account** — run `aws sts get-caller-identity` through `aws-api-mcp-server` and compare the account ID with the `<aws-account-id>` directory you are working in. The server uses whatever profile it was started with, so on a mismatch stop, ground nothing, and report both IDs under **Needs a decision**
+2. **Use `aws-api-mcp-server`** to inspect the actual current state of AWS resources with describe/list/get calls
+3. **Establish what already exists** before proposing any changes
+4. **Verify assumptions** about existing infrastructure — do not guess what resources exist or what their configuration is
 
 ### Phase 3: Design (before any code)
 
