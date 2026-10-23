@@ -77,10 +77,9 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 1. **Cross-reference implementation** against AWS Well-Architected principles via `aws-knowledge-mcp-server`
 2. **Verify resource configurations** against AWS documentation — check limits, supported values, and regional availability
-3. **Run `terraform validate`** to catch syntax and configuration errors
-4. **Run `terraform fmt`** to ensure consistent formatting
-5. **Run `trivy config .` and `checkov -d .`** — HIGH/CRITICAL findings block. Fix them, or suppress inline with the check ID and the deviation reason from the design; never a blanket skip. If a scanner is not installed, say so instead of reporting a pass
-6. **Never run `terraform apply`.** Generate the plan into a temporary path outside the repository so it can never be committed or picked up as a shared artifact (plans can contain sensitive values): `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Summarize it and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
+3. **Run `terraform init`** in each changed root. Without backend credentials, run `terraform init -backend=false` instead: `validate` still works but `plan` does not, so report the plan as not run and say why
+4. **Run the checks until they pass** — `terraform fmt -recursive`, `terraform validate`, the repository's own pre-commit hooks or CI lint job when it has one (it may add tflint or terraform_docs), then `trivy config .` and `checkov -d .`. Fix what they report and run them again. Scanner HIGH/CRITICAL findings block: fix them, or suppress inline with the check ID and the deviation reason from the design; never a blanket skip. If a tool is not installed, say so instead of reporting a pass
+5. **Never run `terraform apply`.** Generate the plan into a temporary path outside the repository so it can never be committed or picked up as a shared artifact (plans can contain sensitive values): `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Summarize it and stop there. You cannot receive approval, so do not wait for it — return the plan summary to the caller, the only party that can decide whether to apply
 
 ## Key Rules
 
@@ -103,8 +102,9 @@ End every run with these sections, in this order:
 
 - **Files changed** — absolute path of every file created or modified, one line each, with a few words
   on what changed. Say so explicitly when you changed nothing.
-- **Commands run** — each command and its outcome: `terraform validate`, `terraform fmt`,
-  `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Quote the failure output when one failed.
+- **Commands run** — each command and its outcome: `terraform init`, the Phase 5 checks,
+  `terraform plan -out="$(mktemp -d)/plan.tfplan"`. Quote the failure output when one failed, and
+  name every check you could not run.
 - **Plan summary** — the add/change/destroy counts and the resources behind them, calling out anything
   destructive or anything that forces replacement. Say where `plan.tfplan` was written.
 - **Grounding** — the pinned provider and module versions you worked against, the AWS state you
