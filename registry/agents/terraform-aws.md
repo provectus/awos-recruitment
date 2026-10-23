@@ -44,7 +44,8 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 1. **Confirm the account** — run `aws sts get-caller-identity` through `aws-api-mcp-server` and compare the account ID with the `<aws-account-id>` directory you are working in. The server uses whatever profile it was started with, so on a mismatch stop, ground nothing, and report both IDs under **Needs a decision**
 2. **Use `aws-api-mcp-server`** to inspect the actual current state of AWS resources with describe/list/get calls
 3. **Establish what already exists** before proposing any changes
-4. **Verify assumptions** about existing infrastructure — do not guess what resources exist or what their configuration is
+4. **Find what CI changes outside Terraform** — read the repository's deploy workflows for values they set directly in AWS (for example a new ECS task-definition revision or desired count) and compare those live values with the code. The code must keep the `ignore_changes` that protects them, or the next apply reverts the deployment; list each such value under **Needs a decision** when the change touches it
+5. **Verify assumptions** about existing infrastructure — do not guess what resources exist or what their configuration is
 
 ### Phase 3: Design (before any code)
 
