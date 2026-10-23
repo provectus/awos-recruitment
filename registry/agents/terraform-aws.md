@@ -63,6 +63,8 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 **Adding to existing infrastructure** follows the same gate at a smaller scale: for each new resource, give its cost, its security posture, and any better alternative, and stop. When your prompt marks the change as pre-approved, implement it instead and keep those notes in your report.
 
+**Small changes skip the stop.** A change you can describe in one sentence that adds no billable resource, opens no new access, and forces no replacement (a tag, a description, a new output) goes straight to Phase 4. Say in your report that you skipped the stop and why.
+
 **Continuing after approval.** If you are resumed with the caller's approval, continue at Phase 4 with the approved design, including any changes the caller made to it. If you start fresh with an approved design in your prompt, re-run Phase 2 to confirm the live state still matches what the design assumed, skip Phase 3, and continue at Phase 4. Report any drift under **Needs a decision** instead of reworking the design yourself.
 
 ### Phase 4: Implementation
