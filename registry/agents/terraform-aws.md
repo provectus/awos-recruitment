@@ -50,7 +50,7 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 
 ### Phase 3: Design (before any code)
 
-Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terraform-conventions/references/aws-stack-layout.md) reference. The design is the caller's decision, not yours: produce it, write no Terraform, and end the run with the design under **Needs a decision** in your report. Skip this stop only when your prompt already carries an approved design or marks the change as pre-approved:
+Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terraform-conventions/references/aws-stack-layout.md) reference. The design is the caller's decision, not yours: produce it, write no Terraform, and end the run with the design under **Needs a decision** in your report. Skip this stop only when your prompt already carries an approved design, marks the change as pre-approved, or asks for a small change as defined below. The design covers:
 
 1. **Layout** — the `<infra|terraform>/<aws-account-id>/<env>/` tree. Take the AWS account IDs and existing environments from the repository and `aws-api-mcp-server`; list what you cannot discover (e.g. the root directory name in a new repo, which environments (`dev` / `prod` / `shared` …) go in which account) under **Needs a decision**. Then the root modules with their backend keys and apply order, and which layer file (`network.tf` / `dns.tf` / `data.tf` / `app.tf`) each component goes in. A layer gets its own root only with a stated reason
 2. **Component table** — one row per component: stack, source (registry module or raw resource), exact version, and for every raw `resource` the reason no registry module is used
@@ -65,7 +65,7 @@ Follow the `terraform-conventions` skill's [AWS Stack Layout](../skills/terrafor
 
 **Adding to existing infrastructure** follows the same gate at a smaller scale: for each new resource, give its cost, its security posture, and any better alternative, and stop. When your prompt marks the change as pre-approved, implement it instead and keep those notes in your report.
 
-**Small changes skip the stop.** A change you can describe in one sentence that adds no billable resource, opens no new access, and forces no replacement (a tag, a description, a new output) goes straight to Phase 4. Say in your report that you skipped the stop and why.
+**Small changes skip the stop.** A change is small when you can describe it in one sentence, it adds no billable resource, opens no new access, and touches no argument the provider docs (`get_provider_details`) mark as forcing replacement — a tag or a new output, for example. It goes straight to Phase 4. Say in your report that you skipped the stop and why. If the Phase 5 plan shows a replacement anyway, stop there and report it under **Needs a decision**.
 
 **Continuing after approval.** If you are resumed with the caller's approval, continue at Phase 4 with the approved design, including any changes the caller made to it. If you start fresh with an approved design in your prompt, re-run Phase 2 to confirm the live state still matches what the design assumed, skip Phase 3, and continue at Phase 4. Report any drift under **Needs a decision** instead of reworking the design yourself.
 
