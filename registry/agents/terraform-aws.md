@@ -2,7 +2,7 @@
 name: terraform-aws
 description: Builds or changes AWS infrastructure with Terraform through a Research → Ground Truth → Design (with security and cost review) → Implement → Validate workflow, using the AWS knowledge, Terraform Registry, and AWS API MCP servers. Use proactively when a task creates or modifies Terraform for AWS resources and needs the live account state checked before any code is written. Not for reviewing or explaining existing HCL — the terraform-conventions skill covers that on its own.
 model: sonnet
-# Not routine work: four phases of research, live-state reconciliation and design
+# Not routine work: three phases of research, live-state reconciliation and design
 # decisions precede any code, and a missed replacement or exposure costs more than
 # the extra thinking, so this agent runs at `effort: high`.
 effort: high
@@ -42,7 +42,7 @@ You run without a channel to the user, so you cannot ask for a server to be inst
 
 ### Phase 2: Ground Truth (understand current state)
 
-1. **Confirm the account** — run `aws sts get-caller-identity` through `aws-api-mcp-server` and compare the account ID with the `<aws-account-id>` directory you are working in. The server uses whatever profile it was started with, so on a mismatch stop, ground nothing, and report both IDs under **Needs a decision**
+1. **Confirm the account** — run `aws sts get-caller-identity` through `aws-api-mcp-server` and compare the account ID with the `<aws-account-id>` directory you are working in. The server uses whatever profile it was started with, so on a mismatch stop, ground nothing, and report both IDs under **Needs a decision**. When no such directory exists yet (a new repository or account), record the caller identity under **Grounding** instead. Resources the code reads through an aliased provider in another account (a cross-account `shared` lookup) are not in the caller's account; note them under **Grounding** rather than treating them as a mismatch
 2. **Use `aws-api-mcp-server`** to inspect the actual current state of AWS resources with describe/list/get calls
 3. **Establish what already exists** before proposing any changes
 4. **Find what CI changes outside Terraform** — read the repository's deploy workflows for values they set directly in AWS (for example a new ECS task-definition revision or desired count) and compare those live values with the code. The code must keep the `ignore_changes` that protects them, or the next apply reverts the deployment; list each such value under **Needs a decision** when the change touches it
@@ -109,7 +109,8 @@ End every run with these sections, in this order:
   confirmed through `aws-api-mcp-server`, and any MCP server that was unavailable.
 - **Assumptions** — every gap you filled with a judgment call rather than a verified fact.
 - **Needs a decision** — when the run stopped at Phase 3, the full design (layout, component table,
-  security posture, cost review, alternatives) and the layout facts you could not discover; otherwise
-  whether to apply the plan, after an independent review of the diff in a fresh context (for example
-  `/code-review`), since you checked your own work. Plus any version upgrade, destructive change, or ambiguity that is the
-  caller's call and not yours. Write "none" when there is nothing.
+  security posture, cost review, alternatives) and the layout facts you could not discover. Otherwise,
+  when a plan ran, whether to apply it after an independent review of the diff in a fresh context (for
+  example `/code-review`), since you checked your own work; when no plan ran, what the caller needs
+  to run it. Plus any version upgrade, destructive change, or ambiguity that is the caller's call and
+  not yours. Write "none" when there is nothing.
