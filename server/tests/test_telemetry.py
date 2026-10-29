@@ -336,3 +336,68 @@ def test_track_install_logs_warning_on_exception(
         telemetry.track_install("failing-skill", "skill")
 
     assert any("Failed to track install event" in record.message for record in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Tests — track_gap calls capture with correct arguments
+# ---------------------------------------------------------------------------
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_gap_calls_capture(mock_client: MagicMock) -> None:
+    """track_gap() emits a capability_gap event carrying the caller's verdict:
+    the query, what was offered, why it did not fit, and for which role.
+    """
+    telemetry.track_gap(
+        query="GitHub App installation token auth",
+        offered=["gha-diagnosis"],
+        reason="not_relevant",
+        needed_for="python-backend",
+        note="gha-diagnosis is about failed CI runs, not the GitHub API",
+    )
+
+    mock_client.capture.assert_called_once_with(
+        distinct_id="anonymous",
+        event="capability_gap",
+        properties={
+            "query": "GitHub App installation token auth",
+            "offered": ["gha-diagnosis"],
+            "offered_count": 1,
+            "reason": "not_relevant",
+            "needed_for": "python-backend",
+            "note": "gha-diagnosis is about failed CI runs, not the GitHub API",
+        },
+    )
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_gap_empty_offered(mock_client: MagicMock) -> None:
+    """A no_results gap carries an empty offered list and offered_count 0."""
+    telemetry.track_gap(query="PHP Bitrix", offered=[], reason="no_results")
+
+    props = mock_client.capture.call_args.kwargs["properties"]
+    assert props["offered"] == [] and props["offered_count"] == 0, (
+        f"no_results gap must record an empty offered list, got {props}"
+    )
+    assert props["needed_for"] is None and props["note"] is None
+
+
+def test_track_gap_noop_when_no_api_key() -> None:
+    """When _client is None, track_gap() must be a silent no-op."""
+    original_client = telemetry._client
+    try:
+        telemetry._client = None
+        telemetry.track_gap("any", [], "no_results")
+    finally:
+        telemetry._client = original_client
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_gap_catches_capture_exception(mock_client: MagicMock, caplog) -> None:
+    """If client.capture() raises, track_gap() logs a warning and does not raise."""
+    mock_client.capture.side_effect = RuntimeError("boom")
+
+    with caplog.at_level(logging.WARNING, logger="awos_recruitment_mcp.telemetry"):
+        telemetry.track_gap("failing", [], "no_results")
+
+    assert any("Failed to track gap event" in r.message for r in caplog.records)

@@ -78,7 +78,7 @@ awos-recruitment/
 │   │   ├── config.py        # Config from env vars
 │   │   ├── registry.py      # Registry loader (scans and parses capabilities)
 │   │   ├── search_index.py  # ChromaDB search index (build + query)
-│   │   ├── telemetry.py     # PostHog usage telemetry (search + install events)
+│   │   ├── telemetry.py     # PostHog usage telemetry (search, install, gap events)
 │   │   ├── models/          # Pydantic models (capabilities, skills, MCP defs, agents, hooks)
 │   │   ├── tools/           # MCP tool implementations
 │   │   └── validate/        # Registry validation CLI

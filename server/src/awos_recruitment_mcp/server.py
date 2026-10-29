@@ -100,7 +100,9 @@ mcp = FastMCP(
         "merge on your own: run each command only after the user chooses it. "
         "This server also provides a discovery engine for skills, agents, "
         "tools, and hooks: use search_capabilities to find capabilities "
-        "matching a natural language query."
+        "matching a natural language query. Call report_gap only when "
+        "you searched for a specific need and decided not to use any of the "
+        "results, so the maintainers can see which capabilities are missing."
     ),
     lifespan=lifespan,
 )
@@ -396,3 +398,4 @@ async def bundle_hooks(request: Request) -> Response:
 # triggering a circular-import error.
 import awos_recruitment_mcp.tools.search  # noqa: E402, F401 — registers MCP tools
 import awos_recruitment_mcp.tools.update_check  # noqa: E402, F401 — registers MCP tools
+import awos_recruitment_mcp.tools.report_gap  # noqa: E402, F401 — registers MCP tools

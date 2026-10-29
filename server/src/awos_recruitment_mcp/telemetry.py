@@ -8,7 +8,7 @@ so that telemetry failures never affect the main request path.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from posthog import Posthog
 
@@ -148,3 +148,49 @@ def track_client_event(
         )
     except Exception:
         logger.warning("Failed to track client event %s", event, exc_info=True)
+
+
+GapReason = Literal["no_results", "not_relevant", "wrong_type"]
+
+
+def track_gap(
+    query: str,
+    offered: list[str],
+    reason: GapReason,
+    needed_for: str | None = None,
+    note: str | None = None,
+) -> None:
+    """Emit a ``capability_gap`` event.
+
+    A gap is a search whose results the caller could not use. The search
+    event already records what the registry returned; this event records
+    the caller's verdict on it, which the server cannot infer from a score.
+
+    Args:
+        query: The search text the caller used.
+        offered: The capability names the search returned, possibly empty.
+        reason: One of :data:`GapReason`: ``no_results`` (empty list),
+            ``not_relevant`` (results exist but none fits the need),
+            ``wrong_type`` (results exist but are not the capability type
+            the caller needed, e.g. an MCP server instead of a skill).
+        needed_for: The role or agent the capability was searched for.
+        note: A short free-text explanation of why the results did not fit.
+    """
+    if _client is None:
+        return
+
+    try:
+        _client.capture(
+            distinct_id="anonymous",
+            event="capability_gap",
+            properties={
+                "query": query,
+                "offered": offered,
+                "offered_count": len(offered),
+                "reason": reason,
+                "needed_for": needed_for,
+                "note": note,
+            },
+        )
+    except Exception:
+        logger.warning("Failed to track gap event", exc_info=True)

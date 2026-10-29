@@ -10,7 +10,7 @@
 
 The AWOS Recruitment server currently has no visibility into how its capabilities are being used in the real world. Team leads like Alex the Tech Lead have no data to answer basic questions: Which skills are developers actually searching for? Which capabilities get installed after discovery? Are certain capabilities consistently discovered but never adopted?
 
-**Usage Telemetry** addresses this by instrumenting the two most important moments in the user journey — **search** and **installation** — and forwarding those events to PostHog for storage, analysis, and dashboarding. This gives stakeholders the data they need to make informed decisions about which capabilities to invest in, promote, or deprecate.
+**Usage Telemetry** addresses this by instrumenting the two most important moments in the user journey — **search** and **installation** — plus the caller's report that a search did not help (**gap report**), and forwarding those events to PostHog for storage, analysis, and dashboarding. This gives stakeholders the data they need to make informed decisions about which capabilities to invest in, promote, or deprecate.
 
 **Success looks like:** Telemetry events flow reliably to PostHog for every search and install action, enabling dashboards that show search volume, popular queries, top-installed capabilities, and search-to-install conversion patterns.
 
@@ -46,7 +46,23 @@ When a user installs a capability, the system must emit a telemetry event to Pos
   - [x] The event payload contains the identifier of the installed capability.
   - [x] The event is sent asynchronously — it must not add latency to the install response returned to the client.
 
-### 2.3. Failure Handling
+### 2.3. Event: Search Did Not Help (Gap Report)
+
+A search event records what the registry returned; it cannot record whether the caller could use it. A result with a high similarity score may still be the wrong capability for the need. The `report_gap` MCP tool lets the caller say so, and the server records it.
+
+- **Event name:** `capability_gap`
+- **Event data:**
+  - The search text the caller used (`query`).
+  - The capability names the search returned (`offered`, possibly empty) and their count (`offered_count`).
+  - The caller's reason (`reason`): `no_results`, `not_relevant`, or `wrong_type`.
+  - Optionally the role or agent the capability was needed for (`needed_for`) and a one-sentence explanation (`note`). Both are free text from the caller and are sent as written; the tool description tells the caller not to put names of people, companies, clients or repositories in them.
+- **Acceptance Criteria:**
+  - [x] The `report_gap` tool is listed next to `search_capabilities` and accepts `query`, `reason`, and optional `offered`, `needed_for`, `note`.
+  - [x] The tool's input schema lists the allowed `reason` values; a call with any other value fails schema validation and emits nothing.
+  - [x] A valid call emits one `capability_gap` event; an empty `query`, or `no_results` with a non-empty `offered` list, returns an error string and emits nothing.
+  - [x] The tool changes nothing in the registry and never fails the caller because of a telemetry error.
+
+### 2.4. Failure Handling
 
 Telemetry must never degrade the core search and install experience.
 
@@ -54,12 +70,13 @@ Telemetry must never degrade the core search and install experience.
   - [x] If sending an event to PostHog fails (network error, service unavailable, timeout), the failure is logged for ops visibility and the event is discarded.
   - [x] A telemetry failure never causes the search or install request to fail, slow down, or return an error to the client.
 
-### 2.4. Anonymity
+### 2.5. Anonymity
 
 All telemetry events are fully anonymous.
 
 - **Acceptance Criteria:**
   - [x] No user identifier, team identifier, IP address, or any other personally identifiable information is included in any telemetry event.
+  - The free-text fields (the search `query`, and `needed_for` and `note` of a gap report) are sent as the caller wrote them. The server does not filter them; the tool descriptions tell the caller what not to put in them.
   - [x] There is no opt-out mechanism — all events are always sent.
 
 ---
@@ -70,6 +87,7 @@ All telemetry events are fully anonymous.
 
 - Emitting `capability_searched` events to PostHog on every search.
 - Emitting `capability_installed` events to PostHog on every install.
+- Emitting `capability_gap` events to PostHog when a caller reports through `report_gap` that a search did not help.
 - Asynchronous, non-blocking event delivery.
 - Logging telemetry delivery failures for ops visibility.
 
