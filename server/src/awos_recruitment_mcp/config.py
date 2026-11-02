@@ -34,7 +34,7 @@ class Config:
     port: int = 8000
     version: str = "0.1.0"
     registry_path: str = "../registry"
-    search_threshold: int = 20
+    search_threshold: int = 30
     posthog_api_key: str | None = None
     posthog_host: str = "https://us.i.posthog.com"
 
@@ -47,7 +47,7 @@ class Config:
             AWOS_PORT             -- TCP port, e.g. "9000"
             AWOS_VERSION          -- version string, e.g. "0.2.0"
             AWOS_REGISTRY_PATH    -- capability registry directory, e.g. "./registry"
-            AWOS_SEARCH_THRESHOLD -- minimum similarity score 0-100, e.g. "20"
+            AWOS_SEARCH_THRESHOLD -- minimum similarity score 0-100, e.g. "30"
             AWOS_POSTHOG_API_KEY  -- PostHog project API key (unset = telemetry disabled)
             AWOS_POSTHOG_HOST     -- PostHog ingestion host, e.g. "https://eu.i.posthog.com"
         """

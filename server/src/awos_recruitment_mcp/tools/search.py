@@ -25,7 +25,10 @@ async def search_capabilities(
     """Search the capability registry for skills, agents, tools, and hooks matching a query.
 
     Returns a ranked list of capabilities.  Each result includes a name,
-    description, and similarity score (0--100).  Returns at most 10 results.
+    type (``"skill"``, ``"agent"``, ``"tool"``, or ``"hook"``), description,
+    and similarity score (0--100).  Use the type to pick the install
+    command: a ``tool`` is an MCP server and installs with ``mcp``, not
+    ``skill``.  Returns at most 10 results.
 
     Args:
         query: Natural-language search query describing the capability

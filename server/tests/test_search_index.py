@@ -117,8 +117,25 @@ class TestQueryRelevant:
         assert len(results) > 0
         for result in results:
             assert "name" in result
+            assert "type" in result
             assert "description" in result
             assert "score" in result
+
+    def test_result_type_matches_the_capability(
+        self,
+        capabilities_collection: Collection,
+        sample_capabilities: list[RegistryCapability],
+    ) -> None:
+        """Each result carries the type of its capability, so the caller can
+        tell an MCP server from a skill without a second lookup."""
+        expected = {cap.name: cap.type for cap in sample_capabilities}
+        results = query(capabilities_collection, "Python development", threshold=0)
+        assert len(results) == len(sample_capabilities)
+        for result in results:
+            assert result["type"] == expected[result["name"]], (
+                f"Result {result['name']} has type {result['type']!r}, "
+                f"expected {expected[result['name']]!r}"
+            )
 
     def test_scores_are_integers_in_range(
         self,

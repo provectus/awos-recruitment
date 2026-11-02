@@ -45,7 +45,7 @@ resource "aws_ssm_parameter" "embedding_model" {
 resource "aws_ssm_parameter" "search_threshold" {
   name  = "/${local.project_name}/prod/search-threshold"
   type  = "String"
-  value = "20"
+  value = "30"
 
   tags = {
     Name = "${local.project_name}-ssm-search-threshold"

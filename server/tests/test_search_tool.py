@@ -62,7 +62,7 @@ async def test_search_capabilities_listed(mcp_client):
 
 
 async def test_search_capabilities_returns_results(mcp_client):
-    """Call the tool and verify each result has name, description, and score."""
+    """Call the tool and verify each result has name, type, description, and score."""
     result = await mcp_client.call_tool(
         "search_capabilities", {"query": "Python development"}
     )
@@ -78,6 +78,9 @@ async def test_search_capabilities_returns_results(mcp_client):
             f"Result[{i}] is missing 'description' field: {item}"
         )
         assert "score" in item, f"Result[{i}] is missing 'score' field: {item}"
+        assert item.get("type") in {"skill", "agent", "tool", "hook"}, (
+            f"Result[{i}]['type'] must name the capability kind, got: {item.get('type')!r}"
+        )
         assert isinstance(item["name"], str), (
             f"Result[{i}]['name'] should be a string, got: {type(item['name'])}"
         )
@@ -235,7 +238,7 @@ async def test_search_type_filter_hook(mcp_client):
 
 
 async def test_search_results_above_threshold(mcp_client):
-    """All returned results must have a score >= the configured threshold (20)."""
+    """All returned results must have a score >= the configured threshold (30)."""
     result = await mcp_client.call_tool(
         "search_capabilities", {"query": "code"}
     )
@@ -245,9 +248,9 @@ async def test_search_results_above_threshold(mcp_client):
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
     for item in parsed:
-        assert item["score"] >= 20, (
+        assert item["score"] >= 30, (
             f"Result '{item['name']}' has score {item['score']} which is below "
-            f"the threshold of 20"
+            f"the threshold of 30"
         )
 
 
@@ -284,7 +287,7 @@ async def test_search_unrelated_query_returns_few_or_no_results(mcp_client):
     parsed = _parse_result(result)
     assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
 
-    # With a threshold of 20 and a registry focused on programming topics,
+    # With a threshold of 30 and a registry focused on programming topics,
     # an unrelated query should yield very few or no results.
     assert len(parsed) <= 1, (
         f"Expected 0 or 1 results for an unrelated query, got {len(parsed)}: "

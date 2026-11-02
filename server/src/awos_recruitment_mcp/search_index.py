@@ -76,8 +76,10 @@ def query(
             this value are excluded.
 
     Returns:
-        A list of dicts with keys ``"name"``, ``"description"``, and
-        ``"score"`` (int, 0--100), ordered by score descending.
+        A list of dicts with keys ``"name"``, ``"type"`` (``"skill"``,
+        ``"tool"``, ``"agent"``, or ``"hook"``), ``"description"``, and
+        ``"score"`` (int, 0--100), ordered by score descending. The caller
+        needs ``"type"`` to pick the install command for a result.
     """
     query_kwargs: dict = {
         "query_texts": [query_text],
@@ -94,15 +96,17 @@ def query(
     ids: list[str] = raw["ids"][0]
     documents: list[str] = raw["documents"][0]
     distances: list[float] = raw["distances"][0]
+    metadatas: list[dict] = raw["metadatas"][0]
 
     results: list[dict] = []
-    for doc_id, document, distance in zip(ids, documents, distances):
+    for doc_id, document, distance, metadata in zip(ids, documents, distances, metadatas):
         score = round((1 - distance) * 100)
         if score < threshold:
             continue
         results.append(
             {
                 "name": doc_id,
+                "type": metadata["type"],
                 "description": document,
                 "score": score,
             }
