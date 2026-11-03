@@ -453,6 +453,16 @@ The check exits `0` when every pair matches and `1` otherwise, printing a short 
 
 ---
 
+## Releasing the CLI
+
+The `Publish CLI` workflow publishes `cli/` to npm as `@provectusinc/awos-recruitment` and `@provectus/awos-recruitment` when a pull request with the `release` label is merged to `main`. It publishes the version that `cli/package.json` holds after the merge, so set the new version in the release pull request.
+
+Open the release pull request from a branch in this repository, not from a fork. For a pull request from a fork, GitHub does not give the workflow the `id-token` permission, and `npm publish --provenance` fails. This happened to the 0.1.5 release in #164: the code was merged, but npm stayed on 0.1.4.
+
+The server and the CLI ship separately. The server deploys on every merge to `main`, and its instructions tell the assistant to run CLI commands. When the server starts to use a new CLI command, release the CLI too, or the assistant runs a command that the published CLI does not have.
+
+---
+
 ## Checklist
 
 Before submitting a new capability:
