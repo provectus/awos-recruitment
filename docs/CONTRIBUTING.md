@@ -459,6 +459,10 @@ The `Publish CLI` workflow publishes `cli/` to npm as `@provectusinc/awos-recrui
 
 Open the release pull request from a branch in this repository, not from a fork. For a pull request from a fork, GitHub does not give the workflow the `id-token` permission, and `npm publish --provenance` fails. This happened to the 0.1.5 release in #164: the code was merged, but npm stayed on 0.1.4.
 
+npm never accepts a version number twice, also when the version was deleted. Before you set the version, look at the version history of both packages on npmjs.com, deleted versions included. `@provectus/awos-recruitment` 0.1.5 was published and deleted in April 2026, so the next release after 0.1.4 is 0.1.6.
+
+Both packages must have a trusted publisher for this repository and `publish-cli.yml` (npmjs.com, package settings, Trusted Publisher). The workflow has no npm token. Without a trusted publisher, `npm publish` fails with `404 Not Found - PUT`.
+
 The server and the CLI ship separately. The server deploys on every merge to `main`, and its instructions tell the assistant to run CLI commands. When the server starts to use a new CLI command, release the CLI too, or the assistant runs a command that the published CLI does not have.
 
 ---
