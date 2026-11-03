@@ -242,7 +242,7 @@ The body-level skill rules (link checks, emphasis, dates) do not run on agents.
 
 ### Example
 
-See `registry/agents/testing-expert.md` for a complete example.
+See `registry/agents/terraform-aws.md` for a complete example: a role name, a `skills` list, and a body that sets the rules of the role.
 
 ---
 
