@@ -11,12 +11,10 @@ The registry contains four types of capabilities:
 
 **When to create a skill vs. an agent:**
 
-- Create a **reference skill** when you want to teach the AI the patterns of one language, library, framework, or database. Name it by the technology: `react-best-practices`.
-- Create a **task skill** when you want the AI to run a procedure with scripts. Name it by the action: `verify-ui`.
-- Create an **agent** when you need a role with its own model, effort, tool bounds, and skill list — for example, a tester that cannot read source code so it stays unbiased. Name it by the role and its main stack: `python-backend`. The agent body sets the role and its rules; the knowledge comes from the skills it lists.
-- Do not name a skill or an agent `*-expert`. The suffix hides what the thing is.
+- Create a **skill** when you want to teach the AI best practices, code examples, or standards for a specific language, library, framework, or database
+- Create an **agent** when you need to enforce behavioral rules — for example, restrict a tester agent from reading source code so it stays unbiased. The agent body sets the role and its rules; the knowledge comes from the skills it lists.
 
-See [Philosophy](PHILOSOPHY.md#terms) for the definitions and the reasoning behind this distinction.
+See [Philosophy](PHILOSOPHY.md) for the reasoning behind this distinction.
 
 > **Before writing a skill**, read the official [Best Practices for Writing Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices). It covers structure, prompting techniques, and common pitfalls.
 
@@ -462,7 +460,6 @@ Before submitting a new capability:
 - [ ] File is in the correct location (`registry/skills/<name>/SKILL.md`, `registry/mcp/<name>.yaml`, `registry/agents/<name>.md`, or `registry/hooks/<name>/HOOK.md`)
 - [ ] All required fields are present and non-empty
 - [ ] `name` is kebab-case, max 64 characters
-- [ ] `name` follows the naming rule: a skill by technology or action, an agent by role and stack, no `*-expert`
 - [ ] Agent body sets the role and its rules, not an expert persona; the knowledge is in `skills`
 - [ ] No unknown fields in front matter (skills, agents, and hooks use `extra="forbid"`)
 - [ ] MCP `config` has exactly one server key with a valid `type`
