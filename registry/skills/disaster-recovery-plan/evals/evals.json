@@ -1,0 +1,41 @@
+{
+  "skill_name": "disaster-recovery-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write a disaster recovery plan for production. We run on AWS in eu-central-1.",
+      "expected_output": "Writes context/disaster-recovery/production/dr-recovery-today.md, context/disaster-recovery/production/dr-improvement-plan.md and context/disaster-recovery/disaster-recovery-plan.md. Runs only read-only cloud commands, scoped to the project's resources. Proposes a recovery region as an assumption. Every command sits in a fenced code block, none in a table cell. Every live fact is marked verified with a date or unverified with how to verify it.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Our cloud login has expired. Make the DR plan for staging anyway.",
+      "expected_output": "Checks access once, tells the user once which login is missing, and still writes all three documents with every live fact marked unverified and the command to run once access exists. Does not retry each check.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Write the DR plan for production, and include a recovery procedure for when someone deletes the orders table by mistake.",
+      "expected_output": "Explains that an in-region data loss is a resilience gap, not region-loss disaster recovery. Records it in the shared strategy's gaps table with a pointer to the architecture or a feature spec, and writes no recovery procedure for it.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Write the DR plan for production. Note: infra/plan in this repo is a saved Terraform plan.",
+      "expected_output": "If the saved plan holds secrets, reports the file and commit only, never opens, decodes or measures the secret, and lists it as a security fix to make before any phase that copies secrets to the recovery region.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "/disaster-recovery-plan",
+      "expected_output": "The project records exactly one environment. The skill uses it and says so in one line, without asking which environment to plan.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Write the DR plan for production. Use my AWS profile acme-admin.",
+      "expected_output": "Runs its read-only checks with the acme-admin profile, but no document contains acme-admin or any other local profile, path or username. Commands use <AWS_PROFILE>, and each per-environment document starts its steps with a step that selects access to the account by its account ID (aws configure list-profiles, aws configure sso, aws sts get-caller-identity).",
+      "files": []
+    }
+  ]
+}
