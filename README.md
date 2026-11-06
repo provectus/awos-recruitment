@@ -54,6 +54,7 @@ Examples:
 npx @provectusinc/awos-recruitment@latest skill modern-python-development
 npx @provectusinc/awos-recruitment@latest mcp context7 playwright
 npx @provectusinc/awos-recruitment@latest agent testing-expert
+npx @provectusinc/awos-recruitment@latest hook format-on-edit checks-before-stop
 ```
 
 ### Installed skills and updates
@@ -105,6 +106,18 @@ To be told at session start instead of remembering to run `skill status`, instal
 ```bash
 npx @provectusinc/awos-recruitment@latest hook skill-update-check
 ```
+
+### Hooks
+
+A hook runs on a Claude Code event, so it works every time, not only when Claude follows an instruction. The registry has these hooks:
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| [`skill-update-check`](registry/hooks/skill-update-check/HOOK.md) | SessionStart | Once a day, prints one line when an installed skill is outdated or removed from the registry. |
+| [`format-on-edit`](registry/hooks/format-on-edit/HOOK.md) | PostToolUse | Formats each file that Claude edits with the project's own formatter: Prettier or Biome, ruff or black, gofmt, terraform fmt. It never blocks an edit. |
+| [`checks-before-stop`](registry/hooks/checks-before-stop/HOOK.md) | Stop | Runs the project's lint, type check and tests before Claude finishes. If a check fails, Claude gets the output and fixes the problem. |
+
+Each hook name links to its page with the settings and the manual installation steps.
 
 
 ## Documentation
