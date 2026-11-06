@@ -102,7 +102,7 @@ def test_python_uses_ruff_only_with_ruff_config(project, log):
     log.unlink()
     (project / "pyproject.toml").write_text("[tool.ruff]\nline-length = 100\n")
     run_hook(project, edit_payload(target))
-    assert calls(log) == [f"ruff format {target}"]
+    assert calls(log) == [f"ruff format --force-exclude {target}"]
 
 
 def test_go_uses_gofmt_from_path(project, log, tmp_path):

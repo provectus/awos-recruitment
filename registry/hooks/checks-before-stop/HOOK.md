@@ -21,8 +21,8 @@ When Claude is about to finish its reply, the hook runs the project's checks. If
 Which checks run:
 
 1. `AWOS_STOP_CHECKS_CMD`, when set — one shell command, for example `make check`.
-2. Otherwise, in a project with `package.json`: the scripts `lint`, `typecheck`, `type-check` and `test` that exist, in that order, with the package manager the lock file names (npm, pnpm, yarn or bun). The placeholder `test` script that `npm init` writes is skipped.
-3. Otherwise, in a Python project: `.venv/bin/ruff check .` when the project configures ruff, and `.venv/bin/pytest -q` when pytest is in `.venv`.
+2. Otherwise, in a project with `package.json`: the scripts `lint`, `typecheck`, `type-check` and `test` from the top-level `scripts` object, in that order, with the package manager the lock file names (npm, pnpm, yarn or bun). Keys with the same names in other objects (`directories`, Nx targets, tool settings) do not count. The placeholder `test` script that `npm init` writes is skipped.
+3. Otherwise, in a Python project: `.venv/bin/ruff check .` when the project configures ruff, and `.venv/bin/pytest -q` when pytest is in `.venv`. pytest exit code 5 (no tests collected) counts as a pass.
 
 If none of these apply, the hook does nothing. Checks run with `CI=1`, so test runners such as Vitest and Jest run once instead of watching.
 
@@ -33,6 +33,7 @@ The hook keeps quiet so it does not slow down ordinary questions:
 - The git working tree is clean: nothing changed, nothing to check.
 - The working tree is the same as at the last green run (fingerprint under `${XDG_CACHE_HOME:-$HOME/.cache}/awos-recruitment/`).
 - Claude is already continuing because of this hook (`stop_hook_active`). So the hook blocks at most once per turn and cannot loop. If the checks still fail, Claude finishes and the hook tries again on the next change.
+- The package manager that the lock file names is not installed (for example `pnpm-lock.yaml` without pnpm on `PATH`). Claude cannot fix that, so the hook exits 0.
 - The project is not a git repository, or anything unexpected happens: the hook exits 0.
 
 ## Why a team wants it

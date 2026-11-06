@@ -119,6 +119,61 @@ def test_uses_the_package_manager_of_the_lock_file(repo, tmp_path, tools, log):
     assert calls(log) == ["pnpm run lint"]
 
 
+def test_reads_only_the_scripts_object(repo, tmp_path, tools, log):
+    # "directories.test" and an Nx "lint" target are not scripts.
+    (repo / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "x",
+                "directories": {"test": "spec"},
+                "nx": {"targets": {"lint": {"executor": "x"}}},
+                "scripts": {"build": "vite build"},
+            },
+            indent=2,
+        )
+    )
+
+    result = run_hook(repo, tmp_path, path_dirs=[tools], FAIL_PM="1")
+
+    assert result.returncode == 0, result.stderr
+    assert calls(log) == []
+
+
+def test_brace_inside_a_script_does_not_hide_later_scripts(repo, tmp_path, tools, log):
+    package_json(
+        repo,
+        {"lint": "eslint 'src/**/*.{ts,tsx}'", "typecheck": "tsc --noEmit", "test": "vitest"},
+    )
+
+    run_hook(repo, tmp_path, path_dirs=[tools])
+
+    assert calls(log) == ["npm run lint", "npm run typecheck", "npm run test"]
+
+
+def test_minified_package_json(repo, tmp_path, tools, log):
+    (repo / "package.json").write_text(
+        '{"name":"x","directories":{"test":"spec"},"scripts":{"lint":"eslint ."}}'
+    )
+
+    run_hook(repo, tmp_path, path_dirs=[tools])
+
+    assert calls(log) == ["npm run lint"]
+
+
+def test_package_manager_not_on_path_lets_claude_stop(repo, tmp_path, log):
+    package_json(repo, {"lint": "eslint ."})
+    (repo / "pnpm-lock.yaml").write_text("lockfileVersion: 9\n")
+    only_npm = tmp_path / "only-npm"
+    _stub(only_npm / "npm", log, fail_env="FAIL_PM")
+
+    # PATH without the user's own pnpm, so the test does not depend on the machine.
+    result = run_hook(repo, tmp_path, PATH=f"{only_npm}:/usr/bin:/bin", FAIL_PM="1")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    assert calls(log) == []
+
+
 def test_skips_the_npm_init_placeholder_test(repo, tmp_path, tools, log):
     package_json(repo, {"test": 'echo "Error: no test specified" && exit 1'})
 
@@ -202,6 +257,23 @@ def test_python_project_uses_venv_tools(repo, tmp_path, log):
 
     assert result.returncode == 0, result.stderr
     assert calls(log) == ["ruff check .", "pytest -q"]
+
+
+@pytest.mark.parametrize(("pytest_exit", "hook_exit"), [(5, 0), (1, 2)])
+def test_pytest_with_no_tests_is_not_a_failure(repo, tmp_path, pytest_exit, hook_exit):
+    # pytest exits 5 when it collects no tests: a new project, not a failure.
+    (repo / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+    stub = repo / ".venv" / "bin" / "pytest"
+    stub.parent.mkdir(parents=True)
+    stub.write_text(f"#!/bin/sh\necho 'pytest said {pytest_exit}'\nexit {pytest_exit}\n")
+    stub.chmod(0o755)
+    (repo / ".gitignore").write_text(".venv/\n")
+
+    result = run_hook(repo, tmp_path)
+
+    assert result.returncode == hook_exit, result.stderr
+    if hook_exit == 2:
+        assert "pytest said 1" in result.stderr
 
 
 def test_python_without_ruff_config_runs_only_pytest(repo, tmp_path, log):

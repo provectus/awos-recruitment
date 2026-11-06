@@ -43,6 +43,38 @@ checks=""
 add() { checks="${checks}${checks:+
 }$1"; }
 
+# Prints "name<TAB>command" for each entry of the top-level "scripts" object
+# of package.json. Reads only that object: keys with the same names in other
+# objects ("directories": {"test": ...}, Nx targets, tool settings) do not
+# count. Tracks strings and escapes, so a brace inside a command such as
+# "eslint 'src/**/*.{ts,tsx}'" does not end the object early.
+package_scripts() {
+  awk '
+    { buf = buf $0 "\n" }
+    END {
+      n = length(buf); depth = 0; ins = 0; esc = 0; want = 0; inscripts = 0; havekey = 0
+      for (i = 1; i <= n; i++) {
+        c = substr(buf, i, 1)
+        if (ins) {
+          if (esc) { esc = 0; s = s c; continue }
+          if (c == "\\") { esc = 1; s = s c; continue }
+          if (c != "\"") { s = s c; continue }
+          ins = 0; last = s
+          if (inscripts && depth == 2) {
+            if (havekey) { print key "\t" s; havekey = 0 } else { key = s; havekey = 1 }
+          }
+          continue
+        }
+        if (c == "\"") { ins = 1; s = ""; want = 0; continue }
+        if (c == ":") { want = (depth == 1 && last == "scripts"); continue }
+        if (c == "{") { depth++; if (want && depth == 2) inscripts = 1; want = 0; continue }
+        if (c == "}") { if (inscripts && depth == 2) exit; depth--; continue }
+        if (c != " " && c != "\t" && c != "\n" && c != "\r") want = 0
+      }
+    }
+  ' package.json 2>/dev/null
+}
+
 if [ -n "${AWOS_STOP_CHECKS_CMD:-}" ]; then
   add "$AWOS_STOP_CHECKS_CMD"
 elif [ -f package.json ]; then
@@ -50,8 +82,13 @@ elif [ -f package.json ]; then
   [ -f pnpm-lock.yaml ] && pm=pnpm
   [ -f yarn.lock ] && pm=yarn
   { [ -f bun.lockb ] || [ -f bun.lock ]; } && pm=bun
+  # The lock file names a package manager that is not installed (pnpm
+  # without corepack, for example): Claude cannot fix that, so let it stop.
+  command -v "$pm" >/dev/null 2>&1 || exit 0
+  scripts=$(package_scripts)
+  tab=$(printf '\t')
   for script in lint typecheck type-check test; do
-    line=$(grep -m 1 "\"$script\" *:" package.json) || continue
+    line=$(printf '%s\n' "$scripts" | grep -m 1 "^$script$tab") || continue
     # npm init writes a placeholder test script that always fails.
     case "$line" in *"no test specified"*) continue ;; esac
     add "$pm run $script"
@@ -61,7 +98,8 @@ elif [ -f pyproject.toml ] || [ -f setup.py ] || [ -f setup.cfg ]; then
     add ".venv/bin/ruff check ."
   fi
   if [ -x .venv/bin/pytest ]; then
-    add ".venv/bin/pytest -q"
+    # Exit 5 means "no tests collected": a new project, not a failure.
+    add ".venv/bin/pytest -q || [ \$? -eq 5 ]"
   fi
 fi
 

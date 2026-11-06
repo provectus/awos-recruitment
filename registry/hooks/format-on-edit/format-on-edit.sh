@@ -43,7 +43,10 @@ case "$file" in
     ;;
   *.py|*.pyi)
     if [ -x "$venv/ruff" ] && has_ruff_config; then
-      run "$venv/ruff" format "$file"
+      # --force-exclude: skip files the project excludes (generated code,
+      # migrations), as `ruff format .` does. Without it, ruff formats any
+      # file passed by name.
+      run "$venv/ruff" format --force-exclude "$file"
     elif [ -x "$venv/black" ]; then
       run "$venv/black" -q "$file"
     fi
