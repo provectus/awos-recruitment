@@ -37,12 +37,13 @@ exclude-newer = "7 days"
 # older than the window — otherwise Dependabot and `uv lock --upgrade` can never
 # move the package past it. Write cutoffs as explicit UTC timestamps: a bare
 # date resolves against the locking machine's timezone. The starlette 1.3.1 and
-# cryptography 50.0.0 exemptions expired and were dropped on 2026-09-24.
+# cryptography 50.0.0 exemptions expired and were dropped on 2026-09-24, the
+# certifi 2026.10.19 exemption on 2026-11-06.
 #
-# certifi 2026.10.19 (uploaded 2026-10-20T02:24Z) removes the compromised emSign
-# root CAs, GHSA-6q48-6c7w-9gw2 (CRITICAL). Drop this exemption after
-# 2026-10-27, when the release is older than the window.
-exclude-newer-package = { certifi = "2026-10-20T03:00:00Z" }
+# oauthlib 4.0.1 (uploaded 2026-10-31T09:52Z) fixes CVE-2026-49272 (HIGH),
+# pulled in through chromadb -> kubernetes -> requests-oauthlib. Drop this
+# exemption after 2026-11-07, when the release is older than the window.
+exclude-newer-package = { oauthlib = "2026-10-31T10:00:00Z" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/awos_recruitment_mcp"]
