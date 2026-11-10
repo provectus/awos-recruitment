@@ -18,7 +18,8 @@ hooks:
           command: >-
             sh -c 'for d in "$CLAUDE_PROJECT_DIR/.claude/skills" "$HOME/.claude/skills"; do
             f="$d/disaster-recovery-plan/scripts/block-writes.sh"; [ -f "$f" ] && exec env DRP_MODE=skill sh "$f"; done;
-            echo "disaster-recovery-plan: scripts/block-writes.sh not found, cloud writes are not blocked" >&2; exit 1'
+            echo "Blocked by the disaster-recovery-plan skill: scripts/block-writes.sh not found; reinstall the skill" >&2; exit 2'
+          onFailure: block
 metadata:
   version: "1.0.0"
 ---
@@ -82,7 +83,7 @@ One environment per run. Two per-environment documents, and one shared strategy 
 
    Give each agent [references/rules.md](references/rules.md) unchanged. It reads code and files only and runs no cloud, platform or infrastructure-as-code command; a committed secret is reported by location only, never opened or measured.
 
-4. Check live access. Run one cheap read-only call per CLI (the provider's "who am I" or account-show command) and record each CLI's version. If a login is missing, tell the user once which one and continue: every fact that needed it is recorded _unverified_, with the command to run once access exists. When a check needs a subcommand the installed version lacks, say so once and record those facts _unverified_, with upgrading the CLI as the verify step.
+4. Check the hook, then live access. First run `drp-hook-selftest` as its own Bash command. The hook must refuse it with a message that starts "Blocked by the disaster-recovery-plan skill: self-test". If the result is anything else (for example "command not found"), the hook is not active: a managed setting such as `strictPluginOnlyCustomization` can turn off the hooks of a skill outside a plugin. Tell the user at once, continue with the rules only, and say in the final report that no hook checked the commands. Then run one cheap read-only call per CLI (the provider's "who am I" or account-show command) and record each CLI's version. If a login is missing, tell the user once which one and continue: every fact that needed it is recorded _unverified_, with the command to run once access exists. When a check needs a subcommand the installed version lacks, say so once and record those facts _unverified_, with upgrading the CLI as the verify step.
 5. Verify live, read-only, and record each fact with the date. Scope every call to this environment's own resources, by the names the inventory found or by the environment's tags. Never loop over every resource in the account: shared accounts hold unrelated resources, and an account-wide sweep can stall the run for minutes.
    - Storage: redundancy, cross-region replication and its status, used capacity, soft delete and versioning.
    - Databases: high availability mode, backup retention, whether backups are copied to another region, replicas and their regions, size and tier.
@@ -150,5 +151,5 @@ Skip this step in unattended runs.
 
 ### Step 6: Report
 
-1. The saved paths; the headline today-vs-after numbers (time to recover, data lost, standing cost); open assumptions and _unverified_ facts with how each will be verified (usually in the drill); any model or effort substitution the fallback made; any security finding outside DR, such as a committed secret. Then the commands the read-only hook refused, in this session and in the subagents: count them from the hook's own messages (each starts "Blocked by the disaster-recovery-plan skill") and the subagents' lists, never from memory, and give each in one line with what was done instead. Say "none" when there were none.
+1. The saved paths; the headline today-vs-after numbers (time to recover, data lost, standing cost); open assumptions and _unverified_ facts with how each will be verified (usually in the drill); any model or effort substitution the fallback made; any security finding outside DR, such as a committed secret. Then whether the hook was active (the result of the Step 2.4 self-test), and the commands the read-only hook refused, in this session and in the subagents: count them from the hook's own messages (each starts "Blocked by the disaster-recovery-plan skill") and the subagents' lists, never from memory, and give each in one line with what was done instead. Say "none" when there were none.
 2. Next steps: run this skill for each environment not yet covered; turn the improvement plan's phases into specs or tickets; re-run after each phase lands, or after a drill measures real times, so the documents stay true.

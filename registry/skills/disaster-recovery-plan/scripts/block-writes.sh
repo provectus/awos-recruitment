@@ -211,7 +211,8 @@ function subs(q,   i, n, c, d, j, body) {
   }
 }
 function no(m) { blk(m " is not a read") }
-BEGIN { TMPRE = "^(/tmp/|/private/tmp/|/var/folders/|/private/var/folders/|\\$TMPDIR|\\$\\{TMPDIR)" }
+BEGIN { TMPRE = "^(/tmp/|/private/tmp/|/var/folders/|/private/var/folders/|\\$TMPDIR|\\$\\{TMPDIR)"
+  BLINDMSG = "a command that runs on file names it gets from input (xargs, parallel, find -exec); only ls, stat, wc, checksums and grep -l or -c may run so; write the file names out" }
 # namesonly(text): the --query or --format filter shows no environment values:
 # it takes names only (keys(@), [].name), or never touches the environment, and
 # on Google Cloud it is a projection, not json or yaml.
@@ -240,7 +241,14 @@ function secretfield(q) {
     q ~ /(^|[.:])(token|secret|password|value)([^-[:alnum:]_]|$)/ && q ~ /(secret|token|password|credential)/
 }
 
-function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
+# A command that gets its file names from input the hook cannot see (xargs,
+# parallel, find -exec) may only print names, counts or checksums.
+function blindok(b, r) {
+  if (b ~ /^(ls|stat|file|wc|du|basename|dirname|realpath|echo|printf|test|\[|shasum|sha1sum|sha256sum|md5|md5sum|cksum)$/) return 1
+  return b ~ /^(grep|egrep|fgrep|rg|ag|ack)$/ && r ~ /(^|[[:space:]])(-[[:alnum:]]*[lLc][[:alnum:]]*|--files-with-matches|--files-without-match|--count)([[:space:]]|$)/
+}
+
+function check(s, sq,   sl, i, x, w, wi, pre, envp, xa, base, a1, np, v, g, d) {
   NT = split(s, T, /[[:space:]]+/)
   for (i = 1; i <= NT; i++) gsub(/\002/, " ", T[i])
   gsub(/\002/, " ", s)
@@ -249,12 +257,12 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
 
   # The command word: past prefixes (sudo, env, xargs, do, then...), their
   # flags, variable assignments, case labels and opening brackets.
-  w = ""; wi = 0; pre = 0; envp = 0
+  w = ""; wi = 0; pre = 0; envp = 0; xa = 0
   for (i = 1; i <= NT; i++) {
     x = T[i]; sub(/^[({!]+/, "", x)
     if (x == "") continue
     if (x ~ /^#/) break
-    if (x ~ /^(do|then|else|elif|if|while|until|time|exec|command|builtin|nohup|sudo|doas|env|nice|ionice|timeout|stdbuf|xargs|parallel|watch|caffeinate)$/) { pre = 1; if (x == "env") envp = 1; continue }
+    if (x ~ /^(do|then|else|elif|if|while|until|time|exec|command|builtin|nohup|sudo|doas|env|nice|ionice|timeout|stdbuf|xargs|parallel|watch|caffeinate)$/) { pre = 1; if (x == "env") envp = 1; if (x ~ /^(xargs|parallel)$/) xa = 1; continue }
     # An assignment, with its $(...) or `...` value: subs() checks that value.
     if (x ~ /^[A-Za-z_][A-Za-z0-9_]*=/) {
       d = cnt(x, "\\(") - cnt(x, "\\)"); g = cnt(x, "`") % 2
@@ -271,6 +279,13 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
   if (w == "") { if (envp) blk("env without a command prints the environment, which can hold credentials"); return }
   base = w; sub(/.*\//, "", base)
   if (base in fn) return
+  if (base == "drp-hook-selftest") blk("self-test; the hook is active")
+  # Variables that make a tool run a command or load code: git (GIT_*), pagers,
+  # editors, less, shell start-up files, the loader, node and perl.
+  for (i = 1; i <= NT; i++)
+    if (T[i] ~ /^(GIT_[A-Z0-9_]*|PAGER|MANPAGER|EDITOR|VISUAL|LESSOPEN|LESSCLOSE|BASH_ENV|ENV|PROMPT_COMMAND|LD_[A-Z_]+|DYLD_[A-Z_]+|NODE_OPTIONS|PERL5OPT|PYTHONSTARTUP)=/)
+      blk("a variable (" substr(T[i], 1, index(T[i], "=") - 1) ") that can make a tool run a command; leave it unset")
+  if (xa) { x = s; sub(/^.*(^|[[:space:]])(xargs|parallel)[[:space:]]/, "", x); if (!blindok(base, x)) blk(BLINDMSG) }
   a1 = ""
   for (i = wi + 1; i <= NT; i++) {
     if (T[i] ~ /^#/) break
@@ -314,6 +329,11 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
       s !~ /(^|[^[:alnum:]_.-])git[[:space:]]+(log|status|branch|show-ref|rev-parse|ls-files)/)
     blk("a search for secret words that prints the matching lines; search with -l to report locations only")
 
+  # GNU sed's e command and s///e flag, and sort's compress program, run commands.
+  if (base ~ /^g?sed$/ && (s ~ /[\/|#,:@!][gpiImMw0-9]*e[gpiImM0-9]*([[:space:]'";}]|$)/ || s ~ /(^|[[:space:];{}'"0-9$])e([[:space:]'";}]|$)/))
+    blk("a sed script with the e command or flag, which runs a command")
+  if (base ~ /^g?sort$/ && s ~ /[[:space:]]--compress/) blk("sort --compress-program, which runs a command")
+
   # Shell syntax and local tools that only read, or write only local files.
   if (base ~ /^(for|case|esac|in|select|fi|done|then|else|\}|\)|cd|pushd|popd|export|unset|local|readonly|set|shift|true|false|:|exit|return|break|continue|wait|sleep|read|echo|printf|test|\[|\[\[|\]\]|let|expr|seq|bc|date|cal|uname|whoami|id|hostname|which|type|hash|pwd|basename|dirname|realpath|readlink|ls|tree|stat|file|du|df|fd|cat|bat|head|tail|less|more|grep|egrep|fgrep|rg|ag|ack|sed|jq|yq|sort|uniq|cut|tr|wc|diff|cmp|comm|column|nl|fold|fmt|paste|join|rev|tac|expand|unexpand|iconv|base64|xxd|od|hexdump|strings|shasum|sha1sum|sha256sum|md5|md5sum|cksum|mkdir|mktemp|touch|cp|tee|zcat|dig|nslookup|host|whois)$/) {
     if (base == "export" && (wi == NT || T[wi + 1] == "-p")) blk("export without a name prints the environment, which can hold credentials")
@@ -322,12 +342,17 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
   }
   if (base ~ /^(awk|gawk|mawk|nawk)$/) {
     if (s ~ /system[[:space:]]*\(|\|[[:space:]]*getline/) blk("an awk program that runs commands")
+    x = s; gsub(/\|\|/, "", x)
+    if (x ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/) blk("an awk output pipe, which runs a command")
+    if (s ~ /[[:space:]](-f|--file)([[:space:]=]|$)|[[:space:]]-f[^[:space:]]/) blk("an awk program from a file, which the hook cannot check; write the program out")
     return
   }
   if (base == "find") {
     if (s ~ /[[:space:]]-(exec|execdir|ok|okdir)[[:space:]]/) {
       x = s; sub(/^.*[[:space:]]-(exec|execdir|ok|okdir)[[:space:]]+/, "", x)
       sub(/[[:space:]]*(;|\+)[[:space:]]*$/, "", x); print "SHC\t" x
+      v = x; sub(/^[[:space:]]+/, "", v); sub(/[[:space:]].*/, "", v); sub(/.*\//, "", v)
+      if (!blindok(v, x)) blk(BLINDMSG)
     }
     if (s ~ /[[:space:]]-delete([[:space:]]|$)/ && a1 !~ /^(\/tmp\/|\/private\/tmp\/|\/var\/folders\/|\/private\/var\/folders\/|\$TMPDIR|\$\{TMPDIR)/)
       blk("find that deletes files outside a temporary folder")
@@ -455,6 +480,20 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
   # Kubernetes and Helm.
   if (base ~ /^(kubectl|oc)$/) {
     if (s ~ /[[:space:]]--raw/) blk("a raw Kubernetes API request")
+    # The verb and the resource type are the first words that are not flags
+    # or flag values: kubectl get -n prod secret db is a secret read too.
+    np = pos(wi + 1, "^(-n|--namespace|--context|--cluster|--kubeconfig|--user|-s|--server|--as|--as-group|--token|--request-timeout|-l|--selector|-o|--output|--field-selector|-L|--label-columns|--sort-by|--template|-f|--filename|-c|--container|--chunk-size|--subresource|-k|--kustomize)$")
+    if (P[1] ~ /^(get|describe)$/) {
+      x = tolower(P[2]); gsub(/,/, " ", x); np = split(x, R, " ")
+      for (i = 1; i <= np; i++) {
+        sub(/\/.*/, "", R[i]); sub(/\..*/, "", R[i])
+        if (R[i] ~ /^secrets?$/ && (P[1] == "describe" ? 0 : s ~ /(-o|--output)/)) blk("a Kubernetes command that prints secret data")
+        if (P[1] == "get" && R[i] ~ /^(cm|configmaps?|po|pods?|deploy|deployments?|sts|statefulsets?|ds|daemonsets?|rs|replicasets?|jobs?|cronjobs?|cj|all|applications?|app|applicationsets?|helmreleases?|hr|kustomizations?|notebooks?|inferenceservices?|isvc|externalsecrets?|es|secretstores?|clustersecretstores?)$/ &&
+            s ~ /[[:space:]](-o|--output)[[:space:]=]*(yaml|json)([[:space:]]|$)/)
+          blk("a Kubernetes read that prints config or environment values; select fields with -o jsonpath or -o custom-columns")
+        if (P[1] == "describe" && R[i] ~ /^(cm|configmaps?)$/) blk("kubectl describe configmap prints its data; list the keys with -o jsonpath='{.data}' | jq 'keys'")
+      }
+    }
     if (s ~ /[[:space:]]get[[:space:]]+(secret|secrets)([[:space:]]|\/|$)/ && s ~ /(-o|--output)/) blk("a Kubernetes command that prints secret data")
     if (s ~ /[[:space:]](-o|--output)[[:space:]=]*(yaml|json)([[:space:]]|$)/ &&
         s ~ /[[:space:]]get[[:space:]]+[^[:space:]]*(^|,|[[:space:]]|\/)?(cm|configmaps?|po|pods?|deploy|deployments?|sts|statefulsets?|ds|daemonsets?|rs|replicasets?|jobs?|cronjobs?|cj|all|applications?|app|applicationsets?|helmreleases?|hr|kustomizations?|notebooks?|inferenceservices?|isvc|externalsecrets?|es|secretstores?|clustersecretstores?)([.,\/[:space:]]|$)/)
@@ -487,8 +526,17 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, base, a1, np, v, g, d) {
 
   # Git and GitHub: reads only.
   if (base == "git") {
+    # Global options before the subcommand: -c, --config-env and --exec-path
+    # can make git run a command.
+    for (i = wi + 1; i <= NT && T[i] ~ /^-/; i++) {
+      if (T[i] ~ /^(-c|--config-env|--exec-path)(=|$)/ || T[i] ~ /^-c./) blk("git " T[i] ", which can make git run a command; leave git configuration to the user")
+      if (T[i] ~ /^(-C|--git-dir|--work-tree|--namespace)$/) i++
+    }
     np = pos(wi + 1, "^(-C|-c|--git-dir|--work-tree|--namespace)$")
     v = P[1]
+    if (s ~ /[[:space:]](-O[^[:space:]]*|--open-files-in-pager[^[:space:]]*|--upload-pack[^[:space:]]*|--receive-pack[^[:space:]]*|--exec[^[:space:]]*|--ext-diff|--textconv)([[:space:]]|$)/ ||
+        (v == "ls-remote" && s ~ /[[:space:]]-u([[:space:]]|$)/))
+      blk("a git option that runs a command (a pager, upload-pack or external diff)")
     if (v == "branch" && s ~ /[[:space:]](-[[:alnum:]]*[dDmMcCfu][[:alnum:]]*|--delete|--force|--move|--copy|--set-upstream-to|--unset-upstream|--edit-description)([[:space:]]|$)/)
       blk("a git command that changes branches")
     if (v == "tag" && P[2] != "" && s !~ /[[:space:]]tag[[:space:]]+(-l|--list|-n[0-9]*|--contains|--no-contains|--points-at|--merged|--no-merged|--sort)/)
