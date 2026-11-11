@@ -248,7 +248,7 @@ function blindok(b, r) {
   return b ~ /^(grep|egrep|fgrep|rg|ag|ack)$/ && r ~ /(^|[[:space:]])(-[[:alnum:]]*[lLc][[:alnum:]]*|--files-with-matches|--files-without-match|--count)([[:space:]]|$)/
 }
 
-function check(s, sq,   sl, i, x, w, wi, pre, envp, xa, base, a1, np, v, g, d) {
+function check(s, sq,   sl, i, x, y, w, wi, pre, envp, xa, base, a1, np, v, g, d) {
   NT = split(s, T, /[[:space:]]+/)
   for (i = 1; i <= NT; i++) gsub(/\002/, " ", T[i])
   gsub(/\002/, " ", s)
@@ -342,8 +342,12 @@ function check(s, sq,   sl, i, x, w, wi, pre, envp, xa, base, a1, np, v, g, d) {
   }
   if (base ~ /^(awk|gawk|mawk|nawk)$/) {
     if (s ~ /system[[:space:]]*\(|\|[[:space:]]*getline/) blk("an awk program that runs commands")
-    x = s; gsub(/\|\|/, "", x)
-    if (x ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/) blk("an awk output pipe, which runs a command")
+    # Output pipes and redirections of print and printf. This part has lost
+    # its quotes, so a match must also be in the raw command with each "..."
+    # string emptied: a printed "->" or "a|b" passes, and so does ||.
+    x = s; gsub(/\|\|/, "", x); y = full; gsub(/"([^"\\\n]|\\.)*"/, "\"\"", y); gsub(/\|\|/, "", y)
+    if (x ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/ && y ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/) blk("an awk output pipe, which runs a command")
+    if (x ~ /printf?[^;}]*>/ && y ~ /printf?[^;}]*>/) blk("an awk print redirected to a file, which changes files; print to standard output")
     if (s ~ /[[:space:]](-f|--file)([[:space:]=]|$)|[[:space:]]-f[^[:space:]]/) blk("an awk program from a file, which the hook cannot check; write the program out")
     return
   }
