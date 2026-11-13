@@ -248,6 +248,21 @@ function blindok(b, r) {
   return b ~ /^(grep|egrep|fgrep|rg|ag|ack)$/ && r ~ /(^|[[:space:]])(-[[:alnum:]]*[lLc][[:alnum:]]*|--files-with-matches|--files-without-match|--count)([[:space:]]|$)/
 }
 
+# unq(text): the text as the shell passes it on: quotes removed, and inside
+# double quotes \" \\ \$ \` turned into the character. The awk program's
+# own "..." strings stay, so they can be emptied.
+function unq(t,   i, n, c, q, r, d) {
+  n = length(t); q = ""; r = ""
+  for (i = 1; i <= n; i++) {
+    c = substr(t, i, 1)
+    if (q == "'") { if (c == "'") q = ""; else r = r c; continue }
+    if (c == "\\") { d = substr(t, i + 1, 1); if (q == "" || d ~ /["\\$`]/) { r = r d; i++ } else r = r c; continue }
+    if (q == "\"") { if (c == "\"") q = ""; else r = r c; continue }
+    if (c == "'" || c == "\"") { q = c; continue }
+    r = r c
+  }
+  return r
+}
 function check(s, sq,   sl, i, x, y, w, wi, pre, envp, xa, base, a1, np, v, g, d) {
   NT = split(s, T, /[[:space:]]+/)
   for (i = 1; i <= NT; i++) gsub(/\002/, " ", T[i])
@@ -345,10 +360,15 @@ function check(s, sq,   sl, i, x, y, w, wi, pre, envp, xa, base, a1, np, v, g, d
     # Output pipes and redirections of print and printf. This part has lost
     # its quotes, so a match must also be in the raw command with each "..."
     # string emptied: a printed "->" or "a|b" passes, and so does ||.
-    x = s; gsub(/\|\|/, "", x); y = full; gsub(/"([^"\\\n]|\\.)*"/, "\"\"", y); gsub(/\|\|/, "", y)
-    if (x ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/ && y ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_(]/) blk("an awk output pipe, which runs a command")
+    if (full ~ /(^|[[:space:]=])\$'/) blk("an awk program in $'...' quotes, which the hook cannot check; use single quotes")
+    x = s; gsub(/\|\|/, "", x); y = unq(full); gsub(/"([^"\\\n]|\\.)*"/, "\"\"", y); gsub(/\|\|/, "", y)
+    if (x ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_($]/ && y ~ /printf?[^;}]*\|&?[[:space:]]*["[:alpha:]_($]/) blk("an awk output pipe, which runs a command")
     if (x ~ /printf?[^;}]*>/ && y ~ /printf?[^;}]*>/) blk("an awk print redirected to a file, which changes files; print to standard output")
     if (s ~ /[[:space:]](-f|--file)([[:space:]=]|$)|[[:space:]]-f[^[:space:]]/) blk("an awk program from a file, which the hook cannot check; write the program out")
+    # gawk: a program file (-E), an included source file (-i, @include) or a
+    # loaded extension (-l, @load) is code the hook cannot check.
+    if (s ~ /[[:space:]](-E|--exec|-i|--include|-l|--load)([[:space:]=]|$)|[[:space:]]-[Eil][^[:space:]]|@(include|load)/) blk("an awk program file, include or extension, which the hook cannot check; write the program out")
+    if (s ~ /ENVIRON/) blk("awk ENVIRON, which prints the environment and can hold credentials")
     return
   }
   if (base == "find") {
