@@ -22,6 +22,16 @@ Skills and agents serve fundamentally different purposes in the AWOS Recruitment
 
 **Agents** play an infrastructure role. They exist for context management, parallel processing, and behavioral constraints — not for carrying domain knowledge. An agent's system prompt defines *how* it should operate: what it can and cannot do, how it interacts with the codebase, and what boundaries it must respect. For example, a tester agent might be restricted from reading source code so it remains unbiased and tests only through the public interface.
 
+### Terms
+
+The registry uses three terms. One word, one meaning.
+
+- A **reference skill** holds the knowledge of one technology: patterns, conventions, examples. An agent that lists it reads it before work. Name it by the technology: `react-best-practices`, `typescript-development`, `postgres-best-practices`.
+- A **task skill** holds a procedure with scripts. An agent runs it as a step. Name it by the action: `verify-ui`, `pr-review`, `gha-diagnosis`.
+- An **agent** is a container for a role. The front matter sets the model, the effort, the tool bounds, and the `skills:` list. The body sets the role, its scope, and its behavior rules. The knowledge comes from the skills in the list, not from the body. Name it by the role and its main stack: `python-backend`, `terraform-aws`, `react-frontend`.
+
+Do not name a skill or an agent `*-expert`. The suffix hides what the thing is. A skill is named by what it teaches. An agent is named by what it owns.
+
 This separation keeps the registry clean and composable. Skills are reusable across any agent configuration. Agents are lightweight orchestration wrappers that reference the skills they need. As features like Claude Code Teams evolve — where agents are generated dynamically — this distinction becomes even more important: the knowledge lives in skills, and any agent can pick up exactly what it needs.
 
 ## 4. Dynamic Discovery via MCP
