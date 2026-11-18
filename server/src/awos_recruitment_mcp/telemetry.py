@@ -194,3 +194,73 @@ def track_gap(
         )
     except Exception:
         logger.warning("Failed to track gap event", exc_info=True)
+
+
+def track_recommendations(stack: list[str], items: list[dict]) -> None:
+    """Emit a ``capability_recommended`` event for one recommend call.
+
+    The event is sent also when *items* is empty, so the maintainers can see
+    stacks that trigger nothing.
+
+    Args:
+        stack: The stack terms the caller sent, after trimming.
+        items: The items :func:`~awos_recruitment_mcp.recommendations.recommend`
+            returned.
+    """
+    if _client is None:
+        return
+
+    try:
+        _client.capture(
+            distinct_id="anonymous",
+            event="capability_recommended",
+            properties={
+                "stack": stack,
+                "recommended": [item["id"] for item in items],
+                "recommended_names": [item["name"] for item in items],
+                "matched_terms": [item["matched_term"] for item in items],
+                "recommended_count": len(items),
+            },
+        )
+    except Exception:
+        logger.warning("Failed to track recommendation event", exc_info=True)
+
+
+RecommendationOutcome = Literal["installed", "declined", "not_answered"]
+
+
+def track_recommendation_outcome(
+    recommendation_id: str,
+    capability_name: str,
+    capability_type: str,
+    outcome: RecommendationOutcome,
+) -> None:
+    """Emit a ``capability_recommendation_outcome`` event.
+
+    ``capability_installed`` cannot tell an install that came from a
+    recommendation from any other install, so the caller reports the user's
+    choice for each recommendation with this event.
+
+    Args:
+        recommendation_id: The entry id from ``recommendations.yaml``.
+        capability_name: The recommended capability.
+        capability_type: Its type (``"skill"``, ``"tool"``, ``"agent"``,
+            ``"hook"``).
+        outcome: One of :data:`RecommendationOutcome`.
+    """
+    if _client is None:
+        return
+
+    try:
+        _client.capture(
+            distinct_id="anonymous",
+            event="capability_recommendation_outcome",
+            properties={
+                "recommendation_id": recommendation_id,
+                "capability_name": capability_name,
+                "capability_type": capability_type,
+                "outcome": outcome,
+            },
+        )
+    except Exception:
+        logger.warning("Failed to track recommendation outcome", exc_info=True)

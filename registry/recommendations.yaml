@@ -1,0 +1,68 @@
+# Recommendations: capabilities that a project with a given stack probably
+# needs, but that a search for its stack does not find.
+#
+# The MCP tool recommend_capabilities receives the technologies and domains
+# of a project (for example from /awos:hire) and returns the entries that
+# they trigger, with the reason, for the user to accept or decline. Add an
+# entry only when a search for the stack does not already find the target.
+#
+# Fields:
+#   id               stable slug, reported back by report_recommendation
+#   recommend        capability name, as search_capabilities returns it
+#   type             skill | tool (an MCP server) | agent | hook
+#   when_stack_has   lowercase words or phrases; the entry triggers when one
+#                    of them is a whole word in a stack term
+#   unless_term_has  optional; a stack term that has one of these phrases
+#                    does not trigger the entry
+#   reason           one sentence for the user: why this project needs it
+#   examples         stack terms that must (match) and must not (no_match)
+#                    trigger the entry; validate runs them in CI
+#
+# Entries are returned in file order, at most 4 per call.
+
+- id: dr-for-cloud
+  recommend: disaster-recovery-plan
+  type: skill
+  when_stack_has: [aws, amazon web services, azure, google cloud, gcp]
+  reason: "If this system runs in production in the cloud, it needs a tested plan for the loss of its region."
+  examples:
+    match: ["AWS", "Terraform modules for AWS ECS deployment", "Google Cloud Run", "Azure Functions"]
+    no_match: ["Java lambda expressions", "TypeScript canvas game with ECS", "Spring Cloud", "Laws and regulations"]
+
+- id: ui-check-for-web-frontend
+  recommend: verify-ui
+  type: skill
+  when_stack_has: [react, vue, angular, svelte, next.js, nuxt, web frontend, web ui]
+  unless_term_has: [react native]
+  reason: "Checks a web UI change in the running app by measuring the live DOM, not by reading the code. Needs the playwright MCP server."
+  examples:
+    match: ["React 18 with Vite", "Vue 3", "Next.js App Router", "Web frontend"]
+    no_match: ["React Native", "Kotlin backend", "Reactive streams"]
+
+- id: browser-for-web-frontend
+  recommend: playwright
+  type: tool
+  when_stack_has: [react, vue, angular, svelte, next.js, nuxt, web frontend, web ui]
+  unless_term_has: [react native]
+  reason: "Gives the agent a real browser to open the app and click through it; verify-ui runs its checks through it."
+  examples:
+    match: ["React 18 with Vite", "Angular 17", "Web UI"]
+    no_match: ["React Native", "Kotlin backend", "Reactive streams"]
+
+- id: docs-for-fast-moving-libraries
+  recommend: context7
+  type: tool
+  when_stack_has: [next.js, nextjs, langgraph]
+  reason: "Gives the agent the current docs of libraries whose APIs change faster than the model's knowledge."
+  examples:
+    match: ["Next.js 14 App Router", "nextjs", "LangGraph agents"]
+    no_match: ["Next steps for the API", "LangChain", "Graph database"]
+
+- id: review-for-github
+  recommend: pr-review
+  type: skill
+  when_stack_has: [github, gitlab]
+  reason: "Reviews a pull request against its diff and posts the review as a draft for your approval."
+  examples:
+    match: ["GitHub Actions", "GitHub", "GitLab CI"]
+    no_match: ["Bitbucket Pipelines", "Git hooks"]
