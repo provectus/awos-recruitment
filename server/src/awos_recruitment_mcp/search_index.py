@@ -51,10 +51,22 @@ def build_index(
     collection.add(
         ids=[cap.name for cap in capabilities],
         documents=[cap.description for cap in capabilities],
-        metadatas=[{"name": cap.name, "type": cap.type} for cap in capabilities],
+        metadatas=[_metadata(cap) for cap in capabilities],
     )
 
     return collection
+
+
+def _metadata(cap: RegistryCapability) -> dict:
+    """Return the ChromaDB metadata for *cap*.
+
+    ChromaDB rejects ``None`` metadata values, so ``user_invoked`` is stored
+    only when it is set, which is for skills only.
+    """
+    metadata: dict = {"name": cap.name, "type": cap.type}
+    if cap.user_invoked is not None:
+        metadata["user_invoked"] = cap.user_invoked
+    return metadata
 
 
 def query(
@@ -76,8 +88,11 @@ def query(
             this value are excluded.
 
     Returns:
-        A list of dicts with keys ``"name"``, ``"description"``, and
-        ``"score"`` (int, 0--100), ordered by score descending.
+        A list of dicts with keys ``"name"``, ``"description"``, ``"type"``
+        (``"skill"``, ``"tool"``, ``"agent"``, or ``"hook"``) and ``"score"``
+        (int, 0--100), ordered by score descending.  A skill result also has
+        ``"user_invoked"`` (bool); results of other types do not have this
+        key.
     """
     query_kwargs: dict = {
         "query_texts": [query_text],
@@ -94,19 +109,25 @@ def query(
     ids: list[str] = raw["ids"][0]
     documents: list[str] = raw["documents"][0]
     distances: list[float] = raw["distances"][0]
+    metadatas: list[dict] = raw["metadatas"][0]
 
     results: list[dict] = []
-    for doc_id, document, distance in zip(ids, documents, distances):
+    for doc_id, document, distance, metadata in zip(
+        ids, documents, distances, metadatas
+    ):
         score = round((1 - distance) * 100)
         if score < threshold:
             continue
-        results.append(
-            {
-                "name": doc_id,
-                "description": document,
-                "score": score,
-            }
-        )
+        result: dict = {
+            "name": doc_id,
+            "description": document,
+            "score": score,
+        }
+        if metadata and "type" in metadata:
+            result["type"] = metadata["type"]
+        if metadata and "user_invoked" in metadata:
+            result["user_invoked"] = bool(metadata["user_invoked"])
+        results.append(result)
 
     # Ensure results are ordered by score descending.
     results.sort(key=lambda r: r["score"], reverse=True)

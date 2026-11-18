@@ -234,6 +234,7 @@ def _load_skills(root: Path) -> list[RegistryCapability]:
                 name=name,
                 description=description,
                 type="skill",
+                user_invoked=metadata.get("disable-model-invocation") is True,
             )
         )
 

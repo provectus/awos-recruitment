@@ -20,14 +20,20 @@ def _write_skill(
     name: str,
     description: str | None = None,
     body: str = "# Skill\n\nSome content.\n",
+    extra_front_matter: str | None = None,
 ) -> None:
-    """Write a SKILL.md file inside ``registry_root/skills/<folder_name>/``."""
+    """Write a SKILL.md file inside ``registry_root/skills/<folder_name>/``.
+
+    Pass ``extra_front_matter`` to add raw YAML lines after ``description``.
+    """
     skill_dir = registry_root / "skills" / folder_name
     skill_dir.mkdir(parents=True, exist_ok=True)
 
     front_matter_lines = [f"name: {name}"]
     if description is not None:
         front_matter_lines.append(f"description: {description}")
+    if extra_front_matter is not None:
+        front_matter_lines.append(extra_front_matter)
 
     content = "---\n" + "\n".join(front_matter_lines) + "\n---\n\n" + body
     (skill_dir / "SKILL.md").write_text(content)
@@ -147,6 +153,59 @@ class TestCorrectParsing:
         assert cap.name == "demo-skill"
         assert cap.description == "Demo description"
         assert cap.type == "skill"
+
+    def test_skill_with_disable_model_invocation_is_user_invoked(
+        self, tmp_path: Path
+    ) -> None:
+        _write_skill(
+            tmp_path,
+            "dr-plan",
+            "dr-plan",
+            "Writes a DR plan",
+            extra_front_matter="disable-model-invocation: true",
+        )
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 1
+        assert caps[0].user_invoked is True, (
+            "A skill with disable-model-invocation: true must load with "
+            f"user_invoked=True, got {caps[0].user_invoked!r}"
+        )
+
+    @pytest.mark.parametrize(
+        "extra",
+        [None, "disable-model-invocation: false"],
+        ids=["flag-absent", "flag-false"],
+    )
+    def test_skill_without_flag_is_not_user_invoked(
+        self, tmp_path: Path, extra: str | None
+    ) -> None:
+        _write_skill(
+            tmp_path, "demo", "demo-skill", "Demo", extra_front_matter=extra
+        )
+
+        caps = load_registry(tmp_path)
+
+        assert len(caps) == 1
+        assert caps[0].user_invoked is False, (
+            "A skill without disable-model-invocation: true must load with "
+            f"user_invoked=False, got {caps[0].user_invoked!r}"
+        )
+
+    def test_non_skill_types_have_no_user_invoked(self, tmp_path: Path) -> None:
+        _write_mcp_yaml(tmp_path, "my-tool.yaml", "My Tool", "Tool description")
+        _write_agent(tmp_path, "qa-agent.md", "qa-agent", "QA automation agent")
+        _write_hook(tmp_path, "protect-env", "protect-env", "Blocks .env edits")
+
+        caps = load_registry(tmp_path)
+
+        assert {c.type for c in caps} == {"tool", "agent", "hook"}
+        for cap in caps:
+            assert cap.user_invoked is None, (
+                f"user_invoked is a skill-only field, but the {cap.type} "
+                f"{cap.name!r} has {cap.user_invoked!r}"
+            )
 
     def test_mcp_tool_fields(self, tmp_path: Path) -> None:
         _write_mcp_yaml(tmp_path, "my-tool.yaml", "My Tool", "Tool description")
