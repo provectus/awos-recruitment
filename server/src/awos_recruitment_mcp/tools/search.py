@@ -25,7 +25,17 @@ async def search_capabilities(
     """Search the capability registry for skills, agents, tools, and hooks matching a query.
 
     Returns a ranked list of capabilities.  Each result includes a name,
-    description, and similarity score (0--100).  Returns at most 10 results.
+    description, type (``"skill"``, ``"tool"`` for an MCP server,
+    ``"agent"``, or ``"hook"``), and similarity score (0--100).  Returns at
+    most 10 results.
+
+    Each skill result also includes ``user_invoked`` (bool).  ``true`` means
+    the skill's ``SKILL.md`` has ``disable-model-invocation: true``: it is a
+    process that the user starts with its slash command (``/<name>``).
+    Install it into ``.claude/skills/``, but do not add it to the ``skills:``
+    list of an agent, because an agent cannot preload it.  ``false`` means
+    the skill is knowledge that an agent can preload.  Agent, tool, and hook
+    results do not include this field.
 
     Args:
         query: Natural-language search query describing the capability
