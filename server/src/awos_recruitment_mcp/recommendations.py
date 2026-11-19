@@ -1,4 +1,8 @@
-"""Recommendations: capabilities a stack probably needs that search does not find.
+"""Recommendations: what a stack probably needs beyond knowledge of its technologies.
+
+A search for a technology offers the knowledge of that technology. A
+recommendation is a process, a tool or a check that the stack implies; a
+search can return it, but low in the results and for no agent role.
 
 ``registry/recommendations.yaml`` is a list of entries (see
 :class:`~awos_recruitment_mcp.models.recommendation.Recommendation`). The
