@@ -33,6 +33,10 @@ claude mcp add awos-recruitment --transport http --scope project https://recruit
 
 Once connected, Claude Code gains access to the `search_capabilities` tool — search the registry using natural language with an optional type filter (`skill`, `agent`, `tool`, `hook`).
 
+Each result has `name`, `description`, `type` and `score` (0–100). Each skill result also has `user_invoked`. The value is `true` when the skill's `SKILL.md` has `disable-model-invocation: true`. Such a skill is a process that the user starts with its command (`/<name>`). Install it into `.claude/skills/`, but do not add it to the `skills:` list of an agent: Claude Code does not preload it into a subagent. The value is `false` for all other skills. Agent, tool and hook results do not have the field.
+
+The `recommend_capabilities` tool takes the technologies and domains of a project (`stack`) and returns at most 4 capabilities that the project probably needs but that are not the knowledge of one of its technologies, for example the disaster recovery skill for a system on AWS. Each item has `id`, `name`, `type`, `description`, `reason` and `matched_term`. The caller shows each item with its reason, installs only what the user selects, and reports the choice with `report_recommendation`. The cases are in [`registry/recommendations.yaml`](registry/recommendations.yaml): an entry triggers when one of its `when_stack_has` phrases is a whole word in a stack term, and `validate` checks its `examples` in CI. Add an entry only when the target is not the knowledge of one technology: a search offers that knowledge already. Entries are returned in file order, so the ones that most projects need come first.
+
 ## CLI
 
 Install discovered capabilities directly into your project:

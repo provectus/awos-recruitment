@@ -18,6 +18,9 @@ _ALL_CAPS = load_registry(_REGISTRY_PATH)
 _SKILL_NAMES = {c.name for c in _ALL_CAPS if c.type == "skill"}
 _TOOL_NAMES = {c.name for c in _ALL_CAPS if c.type == "tool"}
 _HOOK_NAMES = {c.name for c in _ALL_CAPS if c.type == "hook"}
+_USER_INVOKED_SKILLS = {
+    c.name for c in _ALL_CAPS if c.type == "skill" and c.user_invoked
+}
 
 
 # ---------------------------------------------------------------------------
@@ -290,3 +293,121 @@ async def test_search_unrelated_query_returns_few_or_no_results(mcp_client):
         f"Expected 0 or 1 results for an unrelated query, got {len(parsed)}: "
         f"{[item['name'] for item in parsed]}"
     )
+
+
+# ---------------------------------------------------------------------------
+# user_invoked field
+# ---------------------------------------------------------------------------
+
+
+async def test_search_flagged_skill_is_user_invoked(mcp_client):
+    """A real registry skill with disable-model-invocation: true returns
+    user_invoked: true through the MCP tool."""
+    assert "gha-diagnosis" in _USER_INVOKED_SKILLS, (
+        "Test premise: registry/skills/gha-diagnosis/SKILL.md must have "
+        "disable-model-invocation: true"
+    )
+    result = await mcp_client.call_tool(
+        "search_capabilities",
+        {"query": "fix failing GitHub Actions checks", "type": "skill"},
+    )
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    by_name = {item["name"]: item for item in parsed}
+    assert "gha-diagnosis" in by_name, (
+        f"Expected gha-diagnosis in results, got: {list(by_name)}"
+    )
+    assert by_name["gha-diagnosis"].get("user_invoked") is True, (
+        "gha-diagnosis has disable-model-invocation: true, so its result must "
+        f"carry user_invoked: true, got: {by_name['gha-diagnosis']}"
+    )
+
+
+async def test_search_every_skill_result_carries_user_invoked(mcp_client):
+    """Every skill result has a boolean user_invoked that matches SKILL.md."""
+    result = await mcp_client.call_tool(
+        "search_capabilities", {"query": "Python development", "type": "skill"}
+    )
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    assert parsed, "Expected at least one skill result"
+    for item in parsed:
+        assert isinstance(item.get("user_invoked"), bool), (
+            f"Skill result {item['name']!r} must carry a boolean "
+            f"user_invoked, got: {item}"
+        )
+        expected = item["name"] in _USER_INVOKED_SKILLS
+        assert item["user_invoked"] is expected, (
+            f"Skill {item['name']!r}: user_invoked must be {expected} to match "
+            f"its SKILL.md, got {item['user_invoked']}"
+        )
+    by_name = {item["name"]: item for item in parsed}
+    assert by_name.get("modern-python-development", {}).get("user_invoked") is False
+
+
+@pytest.mark.parametrize(
+    ("type_filter", "query"),
+    [
+        ("tool", "browser automation"),
+        ("hook", "keep documentation updated before committing"),
+        ("agent", "testing and quality assurance"),
+    ],
+)
+async def test_search_non_skill_results_have_no_user_invoked(
+    mcp_client, type_filter, query
+):
+    """Agent, tool, and hook results keep their old shape: no user_invoked."""
+    result = await mcp_client.call_tool(
+        "search_capabilities", {"query": query, "type": type_filter}
+    )
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    assert isinstance(parsed, list), f"Expected a list, got: {type(parsed)}"
+    for item in parsed:
+        assert "user_invoked" not in item, (
+            f"user_invoked is a skill-only field, but the {type_filter} "
+            f"{item['name']!r} returned it: {item}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# type field
+# ---------------------------------------------------------------------------
+
+
+_TYPE_BY_NAME = {c.name: c.type for c in _ALL_CAPS}
+
+
+@pytest.mark.parametrize(
+    ("type_filter", "query"),
+    [
+        (None, "GitHub Actions CI"),
+        ("skill", "Python development"),
+        ("tool", "browser automation"),
+        ("hook", "keep documentation updated before committing"),
+        ("agent", "testing and quality assurance"),
+    ],
+)
+async def test_search_every_result_carries_its_type(mcp_client, type_filter, query):
+    """Each result names its kind, so a caller can tell a skill from an MCP
+    server without guessing from the description."""
+    args = {"query": query}
+    if type_filter is not None:
+        args["type"] = type_filter
+    result = await mcp_client.call_tool("search_capabilities", args)
+    assert not result.is_error
+
+    parsed = _parse_result(result)
+    assert parsed, f"Expected results for {query!r}"
+    for item in parsed:
+        assert item.get("type") == _TYPE_BY_NAME[item["name"]], (
+            f"Result {item['name']!r} must carry type "
+            f"{_TYPE_BY_NAME[item['name']]!r} from the registry, got: {item}"
+        )
+        if type_filter is not None:
+            assert item["type"] == type_filter, (
+                f"A search filtered to {type_filter!r} returned {item}"
+            )

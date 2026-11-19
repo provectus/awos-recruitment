@@ -6,6 +6,7 @@ or prompts.
 """
 
 import io
+import logging
 import tarfile
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
@@ -41,11 +42,16 @@ from awos_recruitment_mcp.registry_index import (
     build_registry_index,
     iter_skill_files,
 )
+from awos_recruitment_mcp.recommendations import (
+    RecommendationsFileError,
+    load_recommendations,
+)
 from awos_recruitment_mcp.search_index import build_index
 from awos_recruitment_mcp.update_check import check_skills, track_check
 from awos_recruitment_mcp.validate import _ALLOWED_HOOK_SCRIPT_EXTENSIONS
 
 config = Config.from_env()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -56,12 +62,27 @@ async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
     in-memory ChromaDB collection that tools can query throughout the
     server's lifetime.  The collection is exposed to tools via
     ``ctx.lifespan_context["collection"]``.
+
+    Also loads ``recommendations.yaml`` into
+    ``ctx.lifespan_context["recommendations"]`` and keys the capabilities by
+    ``(type, name)`` in ``ctx.lifespan_context["capabilities"]``.  A
+    malformed recommendations file is logged and served as empty: ``validate``
+    rejects it in CI, and search must keep working if one slips through.
     """
     capabilities = load_registry(config.registry_path)
     collection = build_index(capabilities)
+    try:
+        recommendations = load_recommendations(config.registry_path)
+    except RecommendationsFileError:
+        logger.exception("Recommendations disabled: the file is malformed")
+        recommendations = []
     init_telemetry(config)
 
-    yield {"collection": collection}
+    yield {
+        "collection": collection,
+        "recommendations": recommendations,
+        "capabilities": {(cap.type, cap.name): cap for cap in capabilities},
+    }
 
     shutdown_telemetry()
 
@@ -102,7 +123,12 @@ mcp = FastMCP(
         "tools, and hooks: use search_capabilities to find capabilities "
         "matching a natural language query. Call report_gap only when "
         "you searched for a specific need and decided not to use any of the "
-        "results, so the maintainers can see which capabilities are missing."
+        "results, so the maintainers can see which capabilities are missing. "
+        "recommend_capabilities returns capabilities that a project's stack "
+        "probably needs but that are not the knowledge of one of its "
+        "technologies; show each one to "
+        "the user with its reason, install only what the user selects, and "
+        "call report_recommendation for each result."
     ),
     lifespan=lifespan,
 )
@@ -399,3 +425,4 @@ async def bundle_hooks(request: Request) -> Response:
 import awos_recruitment_mcp.tools.search  # noqa: E402, F401 — registers MCP tools
 import awos_recruitment_mcp.tools.update_check  # noqa: E402, F401 — registers MCP tools
 import awos_recruitment_mcp.tools.report_gap  # noqa: E402, F401 — registers MCP tools
+import awos_recruitment_mcp.tools.recommend  # noqa: E402, F401 — registers MCP tools
