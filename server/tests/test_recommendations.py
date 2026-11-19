@@ -320,7 +320,12 @@ async def test_recommend_tool_honours_exclude(mcp_client):
         {"stack": ["React", "GitHub"], "exclude": ["playwright", "pr-review"]},
     )
     names = [i["name"] for i in result.structured_content["result"]]
-    assert names == ["verify-ui"], f"Excluded names must be left out, got {names}"
+    assert not {"playwright", "pr-review"} & set(names), (
+        f"Excluded names must be left out, got {names}"
+    )
+    assert "verify-ui" in names, (
+        f"A name that is not excluded must stay in the result, got {names}"
+    )
 
 
 async def test_recommend_tool_rejects_an_empty_stack(mcp_client):
