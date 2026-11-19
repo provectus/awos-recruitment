@@ -1,8 +1,8 @@
 """Tests for recommendations: the matcher, the loader, validate and the MCP tools.
 
-A recommendation is a capability that a stack probably needs but that a
-search for the stack does not find. The match is plain text on whole words,
-so most tests pin what must and must not trigger an entry.
+A recommendation is a capability that a stack probably needs but that is
+not the knowledge of one of its technologies. The match is plain text on
+whole words, so most tests pin what must and must not trigger an entry.
 """
 
 from __future__ import annotations

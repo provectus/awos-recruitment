@@ -125,7 +125,8 @@ mcp = FastMCP(
         "you searched for a specific need and decided not to use any of the "
         "results, so the maintainers can see which capabilities are missing. "
         "recommend_capabilities returns capabilities that a project's stack "
-        "probably needs but that a search does not find; show each one to "
+        "probably needs but that are not the knowledge of one of its "
+        "technologies; show each one to "
         "the user with its reason, install only what the user selects, and "
         "call report_recommendation for each result."
     ),
