@@ -49,6 +49,16 @@
     match: ["React 18 with Vite", "Angular 17", "Web UI"]
     no_match: ["React Native", "Kotlin backend", "Reactive streams"]
 
+- id: components-for-tailwind
+  recommend: shadcn
+  type: tool
+  when_stack_has: [tailwind, tailwindcss, shadcn]
+  unless_term_has: [react native]
+  reason: "If the UI uses shadcn/ui, lets the agent find and install its components and blocks, not write its own."
+  examples:
+    match: ["Tailwind CSS", "tailwindcss 4", "shadcn/ui", "React with Tailwind"]
+    no_match: ["Tailwind in React Native", "NativeWind", "Bootstrap 5", "Material UI"]
+
 - id: docs-for-fast-moving-libraries
   recommend: context7
   type: tool
@@ -63,6 +73,15 @@
   type: skill
   when_stack_has: [github, gitlab]
   reason: "Reviews a pull request against its diff and posts the review as a draft for your approval."
+  examples:
+    match: ["GitHub Actions", "GitHub", "GitLab CI"]
+    no_match: ["Bitbucket Pipelines", "Git hooks"]
+
+- id: review-feedback-for-github
+  recommend: pr-comments-address
+  type: skill
+  when_stack_has: [github, gitlab]
+  reason: "Works through the review comments on your own pull request: drafts a fix or a reply for each, and applies them after you approve."
   examples:
     match: ["GitHub Actions", "GitHub", "GitLab CI"]
     no_match: ["Bitbucket Pipelines", "Git hooks"]
