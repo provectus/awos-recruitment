@@ -314,13 +314,27 @@ async def test_recommend_tool_for_react_native_returns_no_web_ui_items(mcp_clien
     )
 
 
+async def test_recommend_tool_leaves_review_skills_to_search(mcp_client):
+    result = await mcp_client.call_tool(
+        "recommend_capabilities", {"stack": ["GitHub", "GitHub Actions", "GitLab CI"]}
+    )
+    items = result.structured_content["result"]
+    assert items == [], (
+        "A search for GitHub or GitLab already returns the review skills near "
+        f"the top, so no entry must trigger on them; got {items}"
+    )
+
+
 async def test_recommend_tool_honours_exclude(mcp_client):
     result = await mcp_client.call_tool(
         "recommend_capabilities",
-        {"stack": ["React", "GitHub"], "exclude": ["playwright", "pr-review"]},
+        {
+            "stack": ["React", "AWS"],
+            "exclude": ["playwright", "disaster-recovery-plan"],
+        },
     )
     names = [i["name"] for i in result.structured_content["result"]]
-    assert not {"playwright", "pr-review"} & set(names), (
+    assert not {"playwright", "disaster-recovery-plan"} & set(names), (
         f"Excluded names must be left out, got {names}"
     )
     assert "verify-ui" in names, (

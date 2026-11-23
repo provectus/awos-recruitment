@@ -5,11 +5,14 @@
 # of a project (for example from /awos:hire) and returns the entries that
 # they trigger, with the reason, for the user to accept or decline.
 #
-# Add an entry only when the target is not the knowledge of one technology:
-# a process, a tool or a check that the stack implies. A search for a
-# technology can return such a target, but low in the results and for no
-# agent role. Knowledge of a technology (a React skill for React) needs no
-# entry: the search offers it.
+# Add an entry only when both conditions are true:
+#   1. The target is not the knowledge of one technology: it is a tool or a
+#      check that the agent uses, or a process that the stack implies.
+#      Knowledge of a technology (a React skill for React) needs no entry:
+#      the search offers it.
+#   2. A search for the stack does not return the target, or returns it low
+#      in the results. A target that the search returns near the top
+#      (pr-review for GitHub) needs no entry.
 #
 # Fields:
 #   id               stable slug, reported back by report_recommendation
@@ -25,36 +28,8 @@
 #
 # Entries are returned in file order, at most 4 per call. An entry after the
 # fourth match is shown only on a later run, when the caller excludes the
-# first four. Thus the order is: the entries that most projects need, then
-# the narrower ones. Put a capability before the one that needs it
-# (playwright before verify-ui).
-
-- id: dr-for-cloud
-  recommend: disaster-recovery-plan
-  type: skill
-  when_stack_has: [aws, amazon web services, azure, google cloud, gcp]
-  reason: "If this system runs in production in the cloud, it needs a tested plan for the loss of its region."
-  examples:
-    match: ["AWS", "Terraform modules for AWS ECS deployment", "Google Cloud Run", "Azure Functions"]
-    no_match: ["Java lambda expressions", "TypeScript canvas game with ECS", "Spring Cloud", "Laws and regulations"]
-
-- id: review-for-github
-  recommend: pr-review
-  type: skill
-  when_stack_has: [github, gitlab]
-  reason: "Reviews a pull request against its diff and posts the review as a draft for your approval."
-  examples:
-    match: ["GitHub Actions", "GitHub", "GitLab CI"]
-    no_match: ["Bitbucket Pipelines", "Git hooks"]
-
-- id: review-feedback-for-github
-  recommend: pr-comments-address
-  type: skill
-  when_stack_has: [github, gitlab]
-  reason: "Works through the review comments on your own pull request: drafts a fix or a reply for each, and applies them after you approve."
-  examples:
-    match: ["GitHub Actions", "GitHub", "GitLab CI"]
-    no_match: ["Bitbucket Pipelines", "Git hooks"]
+# first four. Thus put the narrowest entry last. Put a capability before the
+# one that needs it (playwright before verify-ui).
 
 - id: browser-for-web-frontend
   recommend: playwright
@@ -76,6 +51,24 @@
     match: ["React 18 with Vite", "Vue 3", "Next.js App Router", "Web frontend"]
     no_match: ["React Native", "Kotlin backend", "Reactive streams"]
 
+- id: docs-for-fast-moving-libraries
+  recommend: context7
+  type: tool
+  when_stack_has: [next.js, nextjs, langgraph]
+  reason: "Gives the agent the current docs of libraries whose APIs change faster than the model's knowledge."
+  examples:
+    match: ["Next.js 14 App Router", "nextjs", "LangGraph agents"]
+    no_match: ["Next steps for the API", "LangChain", "Graph database"]
+
+- id: dr-for-cloud
+  recommend: disaster-recovery-plan
+  type: skill
+  when_stack_has: [aws, amazon web services, azure, google cloud, gcp]
+  reason: "If this system runs in production in the cloud, it needs a tested plan for the loss of its region."
+  examples:
+    match: ["AWS", "Terraform modules for AWS ECS deployment", "Google Cloud Run", "Azure Functions"]
+    no_match: ["Java lambda expressions", "TypeScript canvas game with ECS", "Spring Cloud", "Laws and regulations"]
+
 - id: components-for-tailwind
   recommend: shadcn
   type: tool
@@ -85,12 +78,3 @@
   examples:
     match: ["Tailwind CSS", "tailwindcss 4", "shadcn/ui", "React with Tailwind"]
     no_match: ["Tailwind in React Native", "NativeWind", "Bootstrap 5", "Material UI"]
-
-- id: docs-for-fast-moving-libraries
-  recommend: context7
-  type: tool
-  when_stack_has: [next.js, nextjs, langgraph]
-  reason: "Gives the agent the current docs of libraries whose APIs change faster than the model's knowledge."
-  examples:
-    match: ["Next.js 14 App Router", "nextjs", "LangGraph agents"]
-    no_match: ["Next steps for the API", "LangChain", "Graph database"]
