@@ -1,0 +1,88 @@
+# Recommendations: capabilities that a project with a given stack probably
+# needs, but that are not the knowledge of one of its technologies.
+#
+# The MCP tool recommend_capabilities receives the technologies and domains
+# of a project (for example from /awos:hire) and returns the entries that
+# they trigger, with the reason, for the user to accept or decline.
+#
+# Add an entry only when both conditions are true:
+#   1. The target is not the knowledge of one technology: it is a tool or a
+#      check that the agent uses, or a process that the stack implies.
+#      Knowledge of a technology (a React skill for React) needs no entry:
+#      the search offers it.
+#   2. A search for the stack does not return the target, or returns it low
+#      in the results. A target that the search returns near the top
+#      (pr-review for GitHub) needs no entry.
+#
+# Fields:
+#   id               stable slug, reported back by report_recommendation
+#   recommend        capability name, as search_capabilities returns it
+#   type             skill | tool (an MCP server) | agent | hook
+#   when_stack_has   lowercase words or phrases; the entry triggers when one
+#                    of them is a whole word in a stack term
+#   unless_term_has  optional; a stack term that has one of these phrases
+#                    does not trigger the entry, but other terms still can
+#   unless_stack_has optional; when one stack term has one of these phrases,
+#                    no term triggers the entry (react native: React
+#                    Navigation in the same stack is not a web frontend)
+#   requires         optional; a capability that the target needs to work.
+#                    When the caller declined it, the entry is left out
+#   reason           one sentence for the user: why this project needs it
+#   examples         stacks that must (match) and must not (no_match)
+#                    trigger the entry; validate runs them in CI. A string
+#                    is a stack of one term; a list is a stack of several
+#
+# Entries are returned in file order, at most 4 per call. An entry after the
+# fourth match is shown only on a later run, when the caller excludes the
+# first four. Thus put the narrowest entry last. Put a capability before the
+# one that needs it (playwright before verify-ui).
+
+- id: browser-for-web-frontend
+  recommend: playwright
+  type: tool
+  when_stack_has: [react, vue, angular, svelte, next.js, nuxt, web frontend, web ui]
+  unless_stack_has: [react native, nativewind]
+  reason: "Gives the agent a real browser to open the app and click through it; verify-ui runs its checks through it."
+  examples:
+    match: ["React 18 with Vite", "Angular 17", "Web UI"]
+    no_match: ["React Native", "Kotlin backend", "Reactive streams", ["React Native", "React Navigation"]]
+
+- id: ui-check-for-web-frontend
+  recommend: verify-ui
+  type: skill
+  when_stack_has: [react, vue, angular, svelte, next.js, nuxt, web frontend, web ui]
+  unless_stack_has: [react native, nativewind]
+  requires: playwright
+  reason: "Checks a web UI change in the running app by measuring the live DOM, not by reading the code. Needs the playwright MCP server."
+  examples:
+    match: ["React 18 with Vite", "Vue 3", "Next.js App Router", "Web frontend"]
+    no_match: ["React Native", "Kotlin backend", "Reactive streams", ["React Native", "React Navigation"]]
+
+- id: docs-for-fast-moving-libraries
+  recommend: context7
+  type: tool
+  when_stack_has: [next.js, nextjs, langgraph]
+  reason: "Gives the agent the current docs of libraries whose APIs change faster than the model's knowledge."
+  examples:
+    match: ["Next.js 14 App Router", "nextjs", "LangGraph agents"]
+    no_match: ["Next steps for the API", "LangChain", "Graph database"]
+
+- id: dr-for-cloud
+  recommend: disaster-recovery-plan
+  type: skill
+  when_stack_has: [aws, amazon web services, azure, google cloud, gcp]
+  unless_term_has: [azure devops, azure ad, azure active directory]
+  reason: "If this system runs in production in the cloud, it needs a tested plan for the loss of its region."
+  examples:
+    match: ["AWS", "Terraform modules for AWS ECS deployment", "Google Cloud Run", "Azure Functions"]
+    no_match: ["Java lambda expressions", "TypeScript canvas game with ECS", "Spring Cloud", "Laws and regulations", "Azure DevOps", "Azure AD", "Azure Active Directory"]
+
+- id: components-for-tailwind
+  recommend: shadcn
+  type: tool
+  when_stack_has: [tailwind, tailwindcss, shadcn]
+  unless_stack_has: [react native, nativewind]
+  reason: "For a UI on Tailwind: lets the agent find and install ready shadcn/ui components and blocks, not write its own."
+  examples:
+    match: ["Tailwind CSS", "tailwindcss 4", "shadcn/ui", "React with Tailwind"]
+    no_match: ["Tailwind in React Native", "NativeWind", "Bootstrap 5", "Material UI", ["React Native", "Tailwind CSS"], ["NativeWind", "Tailwind CSS"]]

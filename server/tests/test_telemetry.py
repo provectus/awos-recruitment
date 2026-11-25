@@ -401,3 +401,17 @@ def test_track_gap_catches_capture_exception(mock_client: MagicMock, caplog) -> 
         telemetry.track_gap("failing", [], "no_results")
 
     assert any("Failed to track gap event" in r.message for r in caplog.records)
+
+
+@patch.object(telemetry, "_client", new_callable=MagicMock)
+def test_track_recommendations_cuts_long_terms(mock_client: MagicMock) -> None:
+    """The matcher sees whole terms; only the event cuts them to 100 characters."""
+    long_term = "AWS " + "x" * 200
+    telemetry.track_recommendations(
+        [long_term, "Python"],
+        [{"id": "dr-for-cloud", "name": "disaster-recovery-plan",
+          "matched_term": long_term}],
+    )
+    props = mock_client.capture.call_args.kwargs["properties"]
+    assert props["stack"] == [long_term[:100], "Python"]
+    assert props["matched_terms"] == [long_term[:100]]

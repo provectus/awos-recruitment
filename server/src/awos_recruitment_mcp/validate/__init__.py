@@ -783,10 +783,123 @@ def validate_hooks(registry_path: Path) -> list[ValidationResult]:
     return results
 
 
+def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
+    """Validate ``<registry>/recommendations.yaml``.
+
+    Checks the shape of each entry, that ids are unique, that each
+    ``recommend`` names a capability of that ``type`` in this registry and
+    ``requires`` names a capability in it, that trigger and exclusion
+    phrases are lowercase and single-spaced, and that every
+    ``examples.match`` stack triggers the entry and no ``examples.no_match``
+    stack does. An unreadable or non-UTF-8 file is a file error.
+
+    Returns:
+        One :class:`ValidationResult` for the file, or an empty list when
+        the file is absent.
+    """
+    from awos_recruitment_mcp.models.recommendation import Recommendation
+    from awos_recruitment_mcp.recommendations import (
+        RECOMMENDATIONS_FILE,
+        matched_term,
+        normalize,
+    )
+    from awos_recruitment_mcp.registry import load_registry
+
+    path = Path(registry_path) / RECOMMENDATIONS_FILE
+    if not path.is_file():
+        return []
+
+    errors: list[ValidationError] = []
+
+    def error(field_name: str | None, message: str) -> None:
+        errors.append(ValidationError(RECOMMENDATIONS_FILE, field_name, message))
+
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+    except (OSError, UnicodeDecodeError) as exc:
+        error(None, f"Cannot read the file as UTF-8: {exc}")
+        return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
+    except yaml.YAMLError as exc:
+        error(None, f"Invalid YAML: {exc}")
+        return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
+
+    if data is None:
+        data = []
+    if not isinstance(data, list):
+        error(None, "Top level must be a list of entries.")
+        return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
+
+    capabilities = load_registry(registry_path)
+    known = {(cap.type, cap.name) for cap in capabilities}
+    known_names = {cap.name for cap in capabilities}
+    seen: set[str] = set()
+
+    for index, entry in enumerate(data):
+        label = (
+            entry.get("id") if isinstance(entry, dict) and entry.get("id") else f"#{index}"
+        )
+        try:
+            rec = Recommendation.model_validate(entry)
+        except PydanticValidationError as exc:
+            for err in exc.errors():
+                loc = ".".join(str(part) for part in err["loc"])
+                error(loc or None, f"{label}: {err['msg']}")
+            continue
+
+        if rec.id in seen:
+            error("id", f"{rec.id}: duplicate id.")
+        seen.add(rec.id)
+
+        if (rec.type, rec.recommend) not in known:
+            error(
+                "recommend",
+                f"{rec.id}: no {rec.type} named '{rec.recommend}' in the registry.",
+            )
+
+        if rec.requires is not None and rec.requires not in known_names:
+            error(
+                "requires",
+                f"{rec.id}: no capability named '{rec.requires}' in the registry.",
+            )
+
+        for field_name in ("when_stack_has", "unless_term_has", "unless_stack_has"):
+            phrases = getattr(rec, field_name)
+            for phrase in phrases:
+                if phrase != normalize(phrase) or not phrase:
+                    error(
+                        field_name,
+                        f"{rec.id}: '{phrase}' must be lowercase, trimmed and "
+                        "single-spaced.",
+                    )
+            if len(set(phrases)) != len(phrases):
+                error(field_name, f"{rec.id}: has a phrase more than once.")
+
+        for example in rec.examples.match:
+            stack = [example] if isinstance(example, str) else example
+            if matched_term(rec, stack) is None:
+                error(
+                    "examples.match",
+                    f"{rec.id}: '{', '.join(stack)}' must trigger this entry, "
+                    "but it does not.",
+                )
+        for example in rec.examples.no_match:
+            stack = [example] if isinstance(example, str) else example
+            if matched_term(rec, stack) is not None:
+                error(
+                    "examples.no_match",
+                    f"{rec.id}: '{', '.join(stack)}' must not trigger this "
+                    "entry, but it does.",
+                )
+
+    return [ValidationResult(RECOMMENDATIONS_FILE, not errors, errors)]
+
+
 def validate_registry(registry_path: Path) -> list[ValidationResult]:
     """Validate the entire registry at *registry_path*.
 
-    Validates skill, MCP server, agent, and hook definitions.
+    Validates skill, MCP server, agent, and hook definitions, and the
+    recommendations file.
 
     Returns:
         Combined list of :class:`ValidationResult` objects.
@@ -797,4 +910,5 @@ def validate_registry(registry_path: Path) -> list[ValidationResult]:
     results.extend(validate_mcp_definitions(registry_path))
     results.extend(validate_agents(registry_path))
     results.extend(validate_hooks(registry_path))
+    results.extend(validate_recommendations(registry_path))
     return results
