@@ -344,7 +344,11 @@ async def test_search_every_skill_result_carries_user_invoked(mcp_client):
             f"its SKILL.md, got {item['user_invoked']}"
         )
     by_name = {item["name"]: item for item in parsed}
-    assert by_name.get("modern-python-development", {}).get("user_invoked") is False
+    assert "modern-python-development" in by_name, (
+        "Test premise: modern-python-development must rank in the top "
+        f"results for 'Python development', got: {list(by_name)}"
+    )
+    assert by_name["modern-python-development"]["user_invoked"] is False
 
 
 @pytest.mark.parametrize(
