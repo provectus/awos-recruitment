@@ -787,10 +787,11 @@ def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
     """Validate ``<registry>/recommendations.yaml``.
 
     Checks the shape of each entry, that ids are unique, that each
-    ``recommend`` names a capability of that ``type`` in this registry, that
-    trigger phrases are lowercase and single-spaced, and that every
-    ``examples.match`` term triggers the entry and no ``examples.no_match``
-    term does.
+    ``recommend`` names a capability of that ``type`` in this registry and
+    ``requires`` names a capability in it, that trigger and exclusion
+    phrases are lowercase and single-spaced, and that every
+    ``examples.match`` stack triggers the entry and no ``examples.no_match``
+    stack does. An unreadable or non-UTF-8 file is a file error.
 
     Returns:
         One :class:`ValidationResult` for the file, or an empty list when
@@ -816,6 +817,9 @@ def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
     try:
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
+    except (OSError, UnicodeDecodeError) as exc:
+        error(None, f"Cannot read the file as UTF-8: {exc}")
+        return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
     except yaml.YAMLError as exc:
         error(None, f"Invalid YAML: {exc}")
         return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
@@ -826,7 +830,9 @@ def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
         error(None, "Top level must be a list of entries.")
         return [ValidationResult(RECOMMENDATIONS_FILE, False, errors)]
 
-    known = {(cap.type, cap.name) for cap in load_registry(registry_path)}
+    capabilities = load_registry(registry_path)
+    known = {(cap.type, cap.name) for cap in capabilities}
+    known_names = {cap.name for cap in capabilities}
     seen: set[str] = set()
 
     for index, entry in enumerate(data):
@@ -851,7 +857,13 @@ def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
                 f"{rec.id}: no {rec.type} named '{rec.recommend}' in the registry.",
             )
 
-        for field_name in ("when_stack_has", "unless_term_has"):
+        if rec.requires is not None and rec.requires not in known_names:
+            error(
+                "requires",
+                f"{rec.id}: no capability named '{rec.requires}' in the registry.",
+            )
+
+        for field_name in ("when_stack_has", "unless_term_has", "unless_stack_has"):
             phrases = getattr(rec, field_name)
             for phrase in phrases:
                 if phrase != normalize(phrase) or not phrase:
@@ -863,17 +875,21 @@ def validate_recommendations(registry_path: Path) -> list[ValidationResult]:
             if len(set(phrases)) != len(phrases):
                 error(field_name, f"{rec.id}: has a phrase more than once.")
 
-        for term in rec.examples.match:
-            if matched_term(rec, [term]) is None:
+        for example in rec.examples.match:
+            stack = [example] if isinstance(example, str) else example
+            if matched_term(rec, stack) is None:
                 error(
                     "examples.match",
-                    f"{rec.id}: '{term}' must trigger this entry, but it does not.",
+                    f"{rec.id}: '{', '.join(stack)}' must trigger this entry, "
+                    "but it does not.",
                 )
-        for term in rec.examples.no_match:
-            if matched_term(rec, [term]) is not None:
+        for example in rec.examples.no_match:
+            stack = [example] if isinstance(example, str) else example
+            if matched_term(rec, stack) is not None:
                 error(
                     "examples.no_match",
-                    f"{rec.id}: '{term}' must not trigger this entry, but it does.",
+                    f"{rec.id}: '{', '.join(stack)}' must not trigger this "
+                    "entry, but it does.",
                 )
 
     return [ValidationResult(RECOMMENDATIONS_FILE, not errors, errors)]

@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from fastmcp import Client
 
+import awos_recruitment_mcp.recommendations as recommendations_module
 import awos_recruitment_mcp.server as server_module
 from awos_recruitment_mcp.models.capability import RegistryCapability
 from awos_recruitment_mcp.models.recommendation import Recommendation
@@ -101,6 +102,33 @@ def test_unless_term_has_cancels_the_match_for_that_term_only():
     )
 
 
+def test_unless_stack_has_cancels_the_match_for_the_whole_stack():
+    rec = _rec(when_stack_has=["react", "tailwind"], unless_stack_has=["react native"])
+    for stack in (
+        ["React Native", "React Navigation"],
+        ["React Native", "Tailwind CSS"],
+        ["Tailwind CSS", "React Native"],
+    ):
+        assert matched_term(rec, stack) is None, (
+            f"No term of {stack} may trigger the entry: the stack has React Native"
+        )
+    assert matched_term(rec, ["React 18", "React Navigation"]) == "React 18"
+
+
+def test_unless_stack_has_drops_a_web_and_mobile_monorepo():
+    """The chosen trade-off: a miss costs less than a false match."""
+    rec = _rec(when_stack_has=["react"], unless_stack_has=["react native"])
+    assert matched_term(rec, ["React 18 web app", "React Native app"]) is None
+
+
+def test_matcher_reads_the_whole_term():
+    rec = _rec(when_stack_has=["react"], unless_stack_has=["react native"])
+    long_term = "x" * 95 + " React Native"
+    assert matched_term(rec, [long_term, "React Navigation"]) is None, (
+        "An exclusion phrase after the 100th character must still apply"
+    )
+
+
 # ---------------------------------------------------------------------------
 # recommend()
 # ---------------------------------------------------------------------------
@@ -132,6 +160,23 @@ def test_recommend_leaves_user_invoked_out_of_non_skill_items():
 def test_recommend_skips_excluded_names():
     items = recommend([_rec()], _CAPS, ["AWS"], exclude=["Disaster-Recovery-Plan"])
     assert items == [], "A target named in exclude must not be recommended"
+
+
+def test_recommend_skips_declined_names():
+    items = recommend([_rec()], _CAPS, ["AWS"], declined=["disaster-recovery-plan"])
+    assert items == [], "A target named in declined must not be recommended"
+
+
+def test_recommend_skips_an_entry_whose_requirement_was_declined():
+    rec = _rec(id="ui", recommend="verify-ui", requires="playwright")
+    assert recommend([rec], _CAPS, ["AWS"], declined=["Playwright"]) == [], (
+        "verify-ui cannot run without playwright, so a declined playwright "
+        "must drop it"
+    )
+    (item,) = recommend([rec], _CAPS, ["AWS"], exclude=["playwright"])
+    assert item["name"] == "verify-ui", (
+        "An installed playwright (in exclude, not declined) must keep verify-ui"
+    )
 
 
 def test_recommend_returns_a_target_once():
@@ -188,6 +233,23 @@ def test_load_rejects_duplicate_ids(tmp_path):
     )
     (tmp_path / "recommendations.yaml").write_text(entry + entry)
     with pytest.raises(RecommendationsFileError, match="duplicate id 'a'"):
+        load_recommendations(tmp_path)
+
+
+def test_load_reports_a_non_utf8_file(tmp_path):
+    (tmp_path / "recommendations.yaml").write_bytes(b"- id: \xff\xfe\n")
+    with pytest.raises(RecommendationsFileError):
+        load_recommendations(tmp_path)
+
+
+def test_load_reports_an_unreadable_file(tmp_path, monkeypatch):
+    (tmp_path / "recommendations.yaml").write_text("[]\n")
+
+    def deny(*args, **kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(recommendations_module, "open", deny, raising=False)
+    with pytest.raises(RecommendationsFileError, match="denied"):
         load_recommendations(tmp_path)
 
 
@@ -257,6 +319,38 @@ def test_validate_reports_examples_that_do_not_hold(tmp_path):
     )
 
 
+def test_validate_runs_a_stack_example(tmp_path):
+    reg = _write_registry(
+        tmp_path,
+        "- id: a\n  recommend: disaster-recovery-plan\n  type: skill\n"
+        "  when_stack_has: [aws]\n  unless_term_has: [azure devops]\n"
+        "  reason: r\n"
+        "  examples: {match: [AWS], no_match: [[Azure DevOps, AWS]]}\n",
+    )
+    messages = _messages(reg)
+    assert any("'Azure DevOps, AWS' must not trigger" in m for m in messages), (
+        f"A list example must run as one stack: {messages}"
+    )
+
+
+def test_validate_reports_an_unknown_requirement(tmp_path):
+    reg = _write_registry(
+        tmp_path,
+        "- id: a\n  recommend: disaster-recovery-plan\n  type: skill\n"
+        "  when_stack_has: [aws]\n  requires: playwright\n  reason: r\n"
+        "  examples: {match: [AWS], no_match: [GCP]}\n",
+    )
+    assert any("no capability named 'playwright'" in m for m in _messages(reg))
+
+
+def test_validate_reports_a_non_utf8_file(tmp_path):
+    reg = _write_registry(tmp_path, "")
+    (reg / "recommendations.yaml").write_bytes(b"- id: \xff\xfe\n")
+    (result,) = validate_recommendations(reg)
+    assert not result.valid
+    assert any("UTF-8" in e.message for e in result.errors), result.errors
+
+
 def test_validate_reports_uppercase_phrases_and_bad_shape(tmp_path):
     reg = _write_registry(
         tmp_path,
@@ -311,6 +405,42 @@ async def test_recommend_tool_for_react_native_returns_no_web_ui_items(mcp_clien
     items = result.structured_content["result"]
     assert not [i for i in items if i["name"] in {"verify-ui", "playwright"}], (
         f"React Native is not a web UI; got {items}"
+    )
+
+
+async def test_recommend_tool_for_a_mobile_stack_returns_no_web_items(mcp_client):
+    result = await mcp_client.call_tool(
+        "recommend_capabilities",
+        {"stack": ["React Native", "React Navigation", "Tailwind CSS", "AWS"]},
+    )
+    names = [i["name"] for i in result.structured_content["result"]]
+    assert not {"playwright", "verify-ui", "shadcn"} & set(names), (
+        f"A React Native app is not a web frontend; got {names}"
+    )
+    assert "disaster-recovery-plan" in names, (
+        f"The stack exclusion must not drop unrelated entries; got {names}"
+    )
+
+
+async def test_recommend_tool_for_azure_devops_alone_returns_no_dr(mcp_client):
+    result = await mcp_client.call_tool(
+        "recommend_capabilities", {"stack": ["Python", "Azure DevOps", "Azure AD"]}
+    )
+    names = [i["name"] for i in result.structured_content["result"]]
+    assert "disaster-recovery-plan" not in names, (
+        f"Azure DevOps and Azure AD do not mean the system runs in Azure; got {names}"
+    )
+
+
+async def test_recommend_tool_drops_verify_ui_when_playwright_was_declined(
+    mcp_client,
+):
+    result = await mcp_client.call_tool(
+        "recommend_capabilities", {"stack": ["React"], "declined": ["playwright"]}
+    )
+    names = [i["name"] for i in result.structured_content["result"]]
+    assert not {"playwright", "verify-ui"} & set(names), (
+        f"verify-ui needs playwright, which the user declined; got {names}"
     )
 
 

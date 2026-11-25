@@ -8,8 +8,12 @@ search can return it, but low in the results and for no agent role.
 :class:`~awos_recruitment_mcp.models.recommendation.Recommendation`). The
 caller sends the technologies and domains of its project as stack terms; an
 entry triggers when one of its ``when_stack_has`` phrases is a whole word in
-one of those terms. The match is plain text, not the semantic index: the user
-did not ask for a recommendation, so a miss costs less than a false match.
+one of those terms, and no exclusion of the entry applies. The match is plain
+text, not the semantic index: the user did not ask for a recommendation, so a
+miss costs less than a false match. For the same reason, ``unless_stack_has``
+drops the entry for the whole stack. The cost: a monorepo with a React web app
+and a React Native app gets no browser tools. The gain: a React Native app with
+React Navigation or Tailwind CSS never gets them.
 
 The file sits outside every capability directory, so editing it changes no
 skill hash and marks no installed copy as outdated.
@@ -54,7 +58,13 @@ def has_phrase(term: str, phrase: str) -> bool:
 
 
 def matched_term(rec: Recommendation, stack: list[str]) -> str | None:
-    """Return the first stack term that triggers *rec*, or ``None``."""
+    """Return the first stack term that triggers *rec*, or ``None``.
+
+    Returns ``None`` when a term of *stack* has an ``unless_stack_has``
+    phrase. Otherwise skips each term that has an ``unless_term_has`` phrase.
+    """
+    if any(has_phrase(term, p) for term in stack for p in rec.unless_stack_has):
+        return None
     for term in stack:
         if any(has_phrase(term, p) for p in rec.unless_term_has):
             continue
@@ -69,8 +79,8 @@ def load_recommendations(registry_path: str | Path) -> list[Recommendation]:
     Returns an empty list when the file is absent.
 
     Raises:
-        RecommendationsFileError: The file is not a list of valid entries,
-            or two entries share an id.
+        RecommendationsFileError: The file cannot be read, is not UTF-8, is
+            not a list of valid entries, or two entries share an id.
     """
     path = Path(registry_path) / RECOMMENDATIONS_FILE
     if not path.is_file():
@@ -79,7 +89,7 @@ def load_recommendations(registry_path: str | Path) -> list[Recommendation]:
     try:
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
-    except yaml.YAMLError as exc:
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise RecommendationsFileError(f"{RECOMMENDATIONS_FILE}: {exc}") from exc
 
     if data is None:
@@ -112,12 +122,14 @@ def recommend(
     capabilities: dict[tuple[str, str], RegistryCapability],
     stack: list[str],
     exclude: list[str] | None = None,
+    declined: list[str] | None = None,
     limit: int = MAX_RECOMMENDATIONS,
 ) -> list[dict]:
     """Return the recommendations that *stack* triggers.
 
     Entries are taken in file order. An entry is left out when its target is
-    in *exclude*, when an earlier entry already returned the same target, or
+    in *exclude* or *declined*, when the capability it ``requires`` is in
+    *declined*, when an earlier entry already returned the same target, or
     when the target is not in *capabilities* (removed since the file was
     written; ``validate`` catches this in CI). At most *limit* items.
 
@@ -125,14 +137,18 @@ def recommend(
         recs: Entries from :func:`load_recommendations`.
         capabilities: Registry capabilities keyed by ``(type, name)``.
         stack: The caller's technology and domain terms.
-        exclude: Capability names the caller already has or declined.
+        exclude: Capability names the caller already has.
+        declined: Capability names the user declined before. The server
+            keeps no record of installs, so only the caller can tell a
+            declined name from an installed one.
         limit: Maximum number of items.
 
     Returns:
         Dicts with ``id``, ``name``, ``type``, ``description``, ``reason``
         and ``matched_term``; a skill item also has ``user_invoked``.
     """
-    excluded = {normalize(name) for name in exclude or []}
+    refused = {normalize(name) for name in declined or []}
+    excluded = {normalize(name) for name in exclude or []} | refused
     returned: set[tuple[str, str]] = set()
     items: list[dict] = []
 
@@ -141,6 +157,8 @@ def recommend(
             break
         key = (rec.type, rec.recommend)
         if key in returned or normalize(rec.recommend) in excluded:
+            continue
+        if rec.requires is not None and normalize(rec.requires) in refused:
             continue
         cap = capabilities.get(key)
         if cap is None:

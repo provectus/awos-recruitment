@@ -19,7 +19,6 @@ from awos_recruitment_mcp.telemetry import (
 )
 
 _MAX_TERMS = 50
-_MAX_TERM_LENGTH = 100
 _MAX_EXCLUDE = 200
 
 
@@ -27,6 +26,7 @@ _MAX_EXCLUDE = 200
 async def recommend_capabilities(
     stack: list[str],
     exclude: list[str] | None = None,
+    declined: list[str] | None = None,
     ctx: Context = None,  # type: ignore[assignment]
 ) -> list[dict] | str:
     """Return capabilities that a project with this stack probably needs but did not search for.
@@ -49,33 +49,39 @@ async def recommend_capabilities(
     Args:
         stack: The project's technologies and domains, one per item, for
             example ``["Python", "FastAPI", "AWS", "GitHub Actions"]``.
-        exclude: Names of capabilities to leave out: the ones the project
-            already has and the ones the user declined before.
+        exclude: Names of capabilities that the project already has or
+            that this run already proposes. They are left out.
+        declined: Names of capabilities that the user declined before. They
+            are left out, and so is each result that needs one of them to
+            work (``verify-ui`` when ``playwright`` was declined).
     """
     if not isinstance(stack, list) or not any(
         isinstance(t, str) and t.strip() for t in stack
     ):
         return "Error: stack must be a non-empty list of technology names."
 
-    terms = [
-        t.strip()[:_MAX_TERM_LENGTH]
-        for t in stack
-        if isinstance(t, str) and t.strip()
-    ][:_MAX_TERMS]
-    excluded = [
-        name for name in (exclude or []) if isinstance(name, str) and name.strip()
-    ][:_MAX_EXCLUDE]
+    terms = [t.strip() for t in stack if isinstance(t, str) and t.strip()][
+        :_MAX_TERMS
+    ]
 
     items = recommendations.recommend(
         recs=ctx.lifespan_context["recommendations"],
         capabilities=ctx.lifespan_context["capabilities"],
         stack=terms,
-        exclude=excluded,
+        exclude=_names(exclude),
+        declined=_names(declined),
     )
 
     track_recommendations(terms, items)
 
     return items
+
+
+def _names(names: list[str] | None) -> list[str]:
+    """Return the non-blank strings of *names*, at most ``_MAX_EXCLUDE``."""
+    return [n for n in (names or []) if isinstance(n, str) and n.strip()][
+        :_MAX_EXCLUDE
+    ]
 
 
 @mcp.tool

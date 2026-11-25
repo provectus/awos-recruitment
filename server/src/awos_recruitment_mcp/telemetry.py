@@ -196,11 +196,16 @@ def track_gap(
         logger.warning("Failed to track gap event", exc_info=True)
 
 
+_MAX_TRACKED_TERM_LENGTH = 100
+"""Stack terms are cut to this length in events; the matcher sees them whole."""
+
+
 def track_recommendations(stack: list[str], items: list[dict]) -> None:
     """Emit a ``capability_recommended`` event for one recommend call.
 
     The event is sent also when *items* is empty, so the maintainers can see
-    stacks that trigger nothing.
+    stacks that trigger nothing. Each term is cut to
+    ``_MAX_TRACKED_TERM_LENGTH`` characters.
 
     Args:
         stack: The stack terms the caller sent, after trimming.
@@ -215,10 +220,13 @@ def track_recommendations(stack: list[str], items: list[dict]) -> None:
             distinct_id="anonymous",
             event="capability_recommended",
             properties={
-                "stack": stack,
+                "stack": [t[:_MAX_TRACKED_TERM_LENGTH] for t in stack],
                 "recommended": [item["id"] for item in items],
                 "recommended_names": [item["name"] for item in items],
-                "matched_terms": [item["matched_term"] for item in items],
+                "matched_terms": [
+                    item["matched_term"][:_MAX_TRACKED_TERM_LENGTH]
+                    for item in items
+                ],
                 "recommended_count": len(items),
             },
         )
