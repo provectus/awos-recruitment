@@ -58,6 +58,10 @@ jobs:
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Rebuild the runtime stage every time. Its `apt-get upgrade` layer
+          # otherwise comes from the cache, so the image misses the Debian
+          # security fixes released after the first build.
+          no-cache-filters: runtime
 
       - name: Register task definition and update service
         env:

@@ -6,6 +6,7 @@ on:
     paths:
       - "server/**"
       - "registry/**"
+      - ".github/workflows/image-scan.yml"
 
 permissions:
   contents: read
@@ -34,6 +35,10 @@ jobs:
           tags: awos-recruitment-mcp:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Rebuild the runtime stage every time. Its `apt-get upgrade` layer
+          # otherwise comes from the cache, so the image misses the Debian
+          # security fixes released after the first build.
+          no-cache-filters: runtime
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
