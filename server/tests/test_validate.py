@@ -307,6 +307,41 @@ def test_skill_effort_field():
         )
 
 
+@pytest.mark.parametrize("value", ["true", "yes", 1, "false", 0])
+def test_skill_disable_model_invocation_must_be_a_yaml_boolean(value):
+    """A non-boolean disable-model-invocation is rejected.
+
+    The registry loader sets user_invoked only for a YAML boolean true, so
+    validation must reject each value that it would read differently.
+    """
+    with pytest.raises(ValidationError) as exc_info:
+        SkillMetadata.model_validate(
+            {
+                "name": "flagged-skill",
+                "description": "Skill with a quoted flag",
+                "disable-model-invocation": value,
+            }
+        )
+    error_fields = {err["loc"][0] for err in exc_info.value.errors()}
+    assert "disable-model-invocation" in error_fields, (
+        f"Expected a validation error for 'disable-model-invocation', "
+        f"got errors for: {error_fields}"
+    )
+
+
+def test_skill_disable_model_invocation_accepts_booleans():
+    """A YAML boolean true or false validates."""
+    for value in (True, False):
+        meta = SkillMetadata.model_validate(
+            {
+                "name": "flagged-skill",
+                "description": "Skill with a boolean flag",
+                "disable-model-invocation": value,
+            }
+        )
+        assert meta.disable_model_invocation is value
+
+
 # ---------------------------------------------------------------------------
 # HookMetadata / HookEntry model tests
 # ---------------------------------------------------------------------------

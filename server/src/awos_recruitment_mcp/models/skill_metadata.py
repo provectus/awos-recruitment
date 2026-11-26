@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from awos_recruitment_mcp.models._frontmatter_fields import (
     FrontmatterDescription,
@@ -40,7 +40,9 @@ class SkillMetadata(BaseModel):
             Write placeholders as ``[name]``; an XML-like tag such as
             ``<name>`` is an error.
         disable_model_invocation: If true, prevents the model from invoking
-            this skill autonomously.
+            this skill autonomously. Only a YAML boolean is accepted: the
+            registry loader reads the field with ``is True``, so a quoted
+            ``"true"`` or a ``1`` would pass validation but load as false.
         user_invocable: Whether the user can invoke this skill directly.
         allowed_tools: Comma-separated list of tools the skill may use.
         model: Model identifier this skill is designed for.
@@ -62,7 +64,7 @@ class SkillMetadata(BaseModel):
     metadata: dict[str, str] | None = Field(None)
     version: FrontmatterText | None = Field(None)
     argument_hint: FrontmatterText | None = Field(None, alias="argument-hint")
-    disable_model_invocation: bool | None = Field(
+    disable_model_invocation: StrictBool | None = Field(
         None, alias="disable-model-invocation"
     )
     user_invocable: bool | None = Field(None, alias="user-invocable")

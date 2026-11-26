@@ -36,6 +36,13 @@ SAMPLE_CAPABILITIES = [
         name="pytest-testing",
         description="Automated testing with pytest including fixtures, parametrize, and coverage reports",
         type="skill",
+        user_invoked=False,
+    ),
+    RegistryCapability(
+        name="disaster-recovery-plan",
+        description="Write a disaster recovery plan for a production cloud environment with RTO and RPO targets",
+        type="skill",
+        user_invoked=True,
     ),
     RegistryCapability(
         name="qa-automation-agent",
@@ -310,6 +317,61 @@ class TestUnrelatedQuery:
             f"Expected empty list for unrelated query, got {len(results)} results: "
             f"{[r['name'] for r in results]}"
         )
+
+
+# ---------------------------------------------------------------------------
+# user_invoked field
+# ---------------------------------------------------------------------------
+
+
+class TestUserInvoked:
+    """Skill results carry ``user_invoked``; other types do not."""
+
+    def test_flagged_skill_returns_true(
+        self,
+        capabilities_collection: Collection,
+    ) -> None:
+        results = query(
+            capabilities_collection, "disaster recovery plan", threshold=0
+        )
+        by_name = {r["name"]: r for r in results}
+        assert "disaster-recovery-plan" in by_name
+        assert by_name["disaster-recovery-plan"].get("user_invoked") is True, (
+            "A skill indexed with user_invoked=True must return "
+            f"user_invoked: true, got {by_name['disaster-recovery-plan']}"
+        )
+
+    def test_unflagged_skill_returns_false(
+        self,
+        capabilities_collection: Collection,
+    ) -> None:
+        results = query(
+            capabilities_collection, "pytest fixtures", threshold=0
+        )
+        by_name = {r["name"]: r for r in results}
+        assert "pytest-testing" in by_name
+        assert by_name["pytest-testing"].get("user_invoked") is False, (
+            "A skill indexed with user_invoked=False must return "
+            f"user_invoked: false, got {by_name['pytest-testing']}"
+        )
+
+    def test_other_types_have_no_user_invoked_key(
+        self,
+        capabilities_collection: Collection,
+    ) -> None:
+        for type_filter in ("agent", "tool", "hook"):
+            results = query(
+                capabilities_collection,
+                "development",
+                type_filter=type_filter,
+                threshold=0,
+            )
+            assert results, f"Expected at least one {type_filter} result"
+            for result in results:
+                assert "user_invoked" not in result, (
+                    f"user_invoked is a skill-only field, but the "
+                    f"{type_filter} {result['name']!r} returned it: {result}"
+                )
 
 
 # ---------------------------------------------------------------------------
